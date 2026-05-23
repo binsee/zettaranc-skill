@@ -6,12 +6,12 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)
-[![v2.1.0](https://img.shields.io/badge/version-2.1.0-red)](CHANGELOG.md)
+[![v2.2.0](https://img.shields.io/badge/version-2.2.0-red)](CHANGELOG.md)
 
 <br>
 
 **前阳光私募冠军基金经理、B站百大UP主的投资思维框架。**<br>
-基于 ~467 篇直播/付费课整理文章（约 200 万字，含 5 个语料源全量解析）+ 13 个 ztalk 视频 transcript（12.7 万字）+ 9 篇股探报告交易心理系列（3.3 万字）的深度蒸馏。
+基于 ~467 篇直播/付费课整理文章（约 200 万字，含 5 个语料源全量解析）+ 13 个 ztalk 视频 transcript（12.7 万字）+ 9 篇股探报告交易心理系列（3.3 万字）+ 15 篇 2026.4-5 月新增付费课文章的深度蒸馏。
 
 <br>
 
@@ -407,18 +407,18 @@ npx skills add lululu811/zettaranc-skill
 
 | 模块 | 内容 |
 |------|------|
-| **trading-core** | 四层交易结构、少妇战法 SOP、四块砖、B1/B2/B3、量比战法、双枪、对称 VA |
+| **trading-core** | 四层交易结构、少妇战法 SOP、四块砖、B1/B2/B3、量比战法、双枪、对称 VA、B1 入场三问、蜈蚣图识别 |
 | **indicators** | MACD 一票否决、筹码理论四大法则、麒麟会、三波理论、沙漏量化、量价分类 |
 | **sell-discipline** | 防卖飞 V1.4、出货五式、滴滴战法、S1/S2/S3 逃顶体系 |
 | **position-management** | 仓位铁律、资金量分级、三层防火墙、新曼城 4231、指数贡献策略 |
-| **market-macro** | 周期思维、活跃市值、逆向操作、市场三阶段、四年周期、负反馈监控 |
+| **market-macro** | 周期思维、活跃市值、逆向操作、市场三阶段、四年周期、负反馈监控、产业资本视角、大国博弈 |
 | **stock-glossary** | 全品类个股黑话（60+ 代号）、双线战法术语、B2/B3 战法术语、宏观术语 |
 | **trend-lines** | 知行趋势线（白线+黄线）、三道防线、五种玩法、碗的概念、牛绳理论 |
 | **exit-strategies** | S1/S2/S3 逃顶体系、摸顶税、与防卖飞边界 |
 | **key-candles** | 关键K理论、6 种趋势转换、衰竭信号、主力打明牌 |
 | **advanced-patterns** | 长安战法、平行重炮、灾后重建、坑里起好货、四分之三阴量、异动地量、对称 VA |
-| **portfolio-management** | 新曼城 4231、指数贡献、ETF 躺平、开超市、结构化仓位、ABC 建仓、3-2-2 阵型 |
-| **trading-psychology** | 交易免疫系统、斗牛士心法、散户三大魔咒、少妇钝感力、屁胡哲学、空仓哲学 |
+| **portfolio-management** | 新曼城 4231、指数贡献、ETF 躺平、开超市、结构化仓位、ABC 建仓、3-2-2 阵型、三换三滚动 |
+| **trading-psychology** | 交易免疫系统、斗牛士心法、散户三大魔咒、少妇钝感力、屁胡哲学、空仓哲学、翻倍与腰斩、人生四个圈 |
 
 ### 30 条决策启发式
 
