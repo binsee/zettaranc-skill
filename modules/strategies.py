@@ -904,88 +904,120 @@ def detect_all_strategies(ts_code: str, days: int = 120) -> List[StrategySignal]
 
     signals = []
 
-    # 预计算 MACD DIF（供 S2 使用，避免循环内重复计算）
-    dif_list = _calc_dif(klines)
+    # ===== 预计算指标序列（避免 daily loop 内重复计算）=====
+    daily_klines = _dict_to_daily(klines)
 
-    # 遍历每一天检测战法
-    for i in range(10, len(klines)):
-        # B1 检测
-        signal = detect_b1(klines, i)
-        if signal:
-            signals.append(signal)
+    try:
+        from modules.indicators import precompute_kdj_sequence, precompute_bbi_sequence
+    except ImportError:
+        from indicators import precompute_kdj_sequence, precompute_bbi_sequence
 
-        # B2 检测
-        signal = detect_b2(klines, i)
-        if signal:
-            signals.append(signal)
+    kdj_sequence = precompute_kdj_sequence(daily_klines)
+    bbi_sequence = precompute_bbi_sequence(daily_klines)
 
-        # B3 检测
-        signal = detect_b3(klines, i)
-        if signal:
-            signals.append(signal)
+    # 临时替换 _calc_kdj / _calc_bbi 为查表版本
+    _orig_calc_kdj = globals()['_calc_kdj']
+    _orig_calc_bbi = globals()['_calc_bbi']
 
-        # 超级B1 检测
-        signal = detect_sb1(klines, i)
-        if signal:
-            signals.append(signal)
+    def _fast_calc_kdj(klines_slice: List[Dict]) -> Tuple[float, float, float]:
+        idx = len(klines_slice) - 1
+        return kdj_sequence[idx]
 
-        # 长安战法
-        signal = detect_changan(klines, i)
-        if signal:
-            signals.append(signal)
+    def _fast_calc_bbi(klines_slice: List[Dict]) -> float:
+        idx = len(klines_slice) - 1
+        return bbi_sequence[idx]
 
-        # 四分之三阴量
-        signal = detect_sifen_zhiyi_sanyin(klines, i)
-        if signal:
-            signals.append(signal)
+    globals()['_calc_kdj'] = _fast_calc_kdj
+    globals()['_calc_bbi'] = _fast_calc_bbi
 
-        # 娜娜图形
-        signal = detect_nana(klines, i)
-        if signal:
-            signals.append(signal)
+    try:
+        # 预计算 MACD DIF（供 S2 使用）
+        dif_list = _calc_dif(klines)
 
-        # 异动+地量地价
-        signal = detect_yidong_dilian(klines, i)
-        if signal:
-            signals.append(signal)
+        # 遍历每一天检测战法
+        for i in range(10, len(klines)):
+            # B1 检测
+            signal = detect_b1(klines, i)
+            if signal:
+                signals.append(signal)
 
-        # 平行重炮
-        signal = detect_pinghang(klines, i)
-        if signal:
-            signals.append(signal)
+            # B2 检测
+            signal = detect_b2(klines, i)
+            if signal:
+                signals.append(signal)
 
-        # 坑里起好货
-        signal = detect_kengqi(klines, i)
-        if signal:
-            signals.append(signal)
+            # B3 检测
+            signal = detect_b3(klines, i)
+            if signal:
+                signals.append(signal)
 
-        # 对称 VA
-        signal = detect_duichen_va(klines, i)
-        if signal:
-            signals.append(signal)
+            # 超级B1 检测
+            signal = detect_sb1(klines, i)
+            if signal:
+                signals.append(signal)
 
-        # S1 逃顶
-        signal = detect_s1(klines, i)
-        if signal:
-            signals.append(signal)
+            # 长安战法
+            signal = detect_changan(klines, i)
+            if signal:
+                signals.append(signal)
 
-        # S2 确认逃顶（MACD顶背离）
-        signal = detect_s2(klines, i, dif_list=dif_list)
-        if signal:
-            signals.append(signal)
+            # 四分之三阴量
+            signal = detect_sifen_zhiyi_sanyin(klines, i)
+            if signal:
+                signals.append(signal)
 
-        # S3 最后逃生
-        signal = detect_s3(klines, i)
-        if signal:
-            signals.append(signal)
+            # 娜娜图形
+            signal = detect_nana(klines, i)
+            if signal:
+                signals.append(signal)
 
-        # 砖形图信号
-        signal = detect_brick_signals(klines, i)
-        if signal:
-            signals.append(signal)
+            # 异动+地量地价
+            signal = detect_yidong_dilian(klines, i)
+            if signal:
+                signals.append(signal)
 
-    # ===== 信号后处理：去重 + 截断 + 排序 =====
-    signals = _post_process_signals(signals)
+            # 平行重炮
+            signal = detect_pinghang(klines, i)
+            if signal:
+                signals.append(signal)
+
+            # 坑里起好货
+            signal = detect_kengqi(klines, i)
+            if signal:
+                signals.append(signal)
+
+            # 对称 VA
+            signal = detect_duichen_va(klines, i)
+            if signal:
+                signals.append(signal)
+
+            # S1 逃顶
+            signal = detect_s1(klines, i)
+            if signal:
+                signals.append(signal)
+
+            # S2 确认逃顶（MACD顶背离）
+            signal = detect_s2(klines, i, dif_list=dif_list)
+            if signal:
+                signals.append(signal)
+
+            # S3 最后逃生
+            signal = detect_s3(klines, i)
+            if signal:
+                signals.append(signal)
+
+            # 砖形图信号
+            signal = detect_brick_signals(klines, i)
+            if signal:
+                signals.append(signal)
+
+        # ===== 信号后处理：去重 + 截断 + 排序 =====
+        signals = _post_process_signals(signals)
+
+    finally:
+        # 恢复原始函数
+        globals()['_calc_kdj'] = _orig_calc_kdj
+        globals()['_calc_bbi'] = _orig_calc_bbi
 
     return signals
 

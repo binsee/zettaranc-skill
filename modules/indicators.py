@@ -614,6 +614,67 @@ def calculate_kdj(klines: List[DailyData], period: int = 9,
     return round(k, 2), round(d, 2), round(j, 2)
 
 
+def precompute_kdj_sequence(klines: List[DailyData], period: int = 9) -> List[Tuple[float, float, float]]:
+    """
+    预计算全量 KDJ 序列（增量算法，O(n)）
+
+    返回每一天的 (K, D, J)，避免在循环中重复计算。
+    """
+    n = len(klines)
+    if n < period:
+        return [(50, 50, 50)] * n
+
+    result = []
+    k = 50.0
+    d = 50.0
+
+    for i in range(n):
+        if i < period - 1:
+            result.append((50, 50, 50))
+            continue
+
+        low_min = min(klines[j].low for j in range(i - period + 1, i + 1))
+        high_max = max(klines[j].high for j in range(i - period + 1, i + 1))
+
+        if high_max == low_min:
+            rsv = 50
+        else:
+            rsv = (klines[i].close - low_min) / (high_max - low_min) * 100
+
+        k = (2/3) * k + (1/3) * rsv
+        d = (2/3) * d + (1/3) * k
+        j = 3 * k - 2 * d
+
+        result.append((round(k, 2), round(d, 2), round(j, 2)))
+
+    return result
+
+
+def precompute_bbi_sequence(klines: List[DailyData]) -> List[float]:
+    """
+    预计算全量 BBI 序列（增量算法，O(n)）
+    """
+    n = len(klines)
+    if n < 24:
+        return [0.0] * n
+
+    closes = [k.close for k in klines]
+    result = []
+
+    for i in range(n):
+        if i < 23:
+            result.append(0.0)
+        else:
+            sub = closes[:i+1]
+            ma3 = calculate_ma(sub, 3)
+            ma6 = calculate_ma(sub, 6)
+            ma12 = calculate_ma(sub, 12)
+            ma24 = calculate_ma(sub, 24)
+            result.append(round((ma3 + ma6 + ma12 + ma24) / 4, 2))
+
+    return result
+
+
 def calculate_macd(klines: List[DailyData],
                    fast: int = 12, slow: int = 26, signal: int = 9) -> Tuple[List[float], List[float], List[float]]:
     """
