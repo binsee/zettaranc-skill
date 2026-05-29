@@ -12,6 +12,9 @@ import os
 # 数据库路径
 DB_PATH = "data/stock_data.db"
 
+# 并行化阈值：小于此数量不启用多进程（启动开销不值得）
+_PARALLEL_THRESHOLD = 50
+
 
 @dataclass
 class StockScore:
@@ -501,9 +504,124 @@ def analyze_stock(ts_code: str, klines: List[Dict] = None) -> StockScore:
     return score
 
 
-def screen_stocks(criteria: str = "b1", max_stocks: int = 0) -> List[StockScore]:
+# ==================== 并行化 Worker ====================
+
+def _analyze_worker(ts_code: str) -> Optional[Tuple[str, List[Dict], StockScore]]:
     """
-    选股筛选
+    并行 worker：评分单只股票
+    必须在模块顶层定义，以便 ProcessPoolExecutor 可以 pickle
+    返回: (ts_code, klines, score) 或 None
+    """
+    klines = get_recent_klines(ts_code, 60)
+    if not klines or len(klines) < 30:
+        return None
+    score = analyze_stock(ts_code, klines)
+    return ts_code, klines, score
+
+
+def _filter_stock(result: Tuple[str, List[Dict], StockScore], criteria: str) -> bool:
+    """
+    判断单只股票是否满足选股条件
+    在主进程串行执行（筛选逻辑快，不需要并行）
+    """
+    ts_code, klines, score = result
+
+    # 基础选股策略
+    if criteria == "b1" and score.b1_score >= 50:
+        return True
+    elif criteria == "perfect" and score.score >= 65:
+        return True
+    elif criteria == "oversold" and score.trend_score <= 40:
+        return True
+    elif criteria == "breakout" and score.volume_score >= 70:
+        return True
+
+    # 高级选股策略（基于战法检测）
+    elif criteria == "super_b1":
+        try:
+            from modules.strategies import detect_sb1
+        except ImportError:
+            from strategies import detect_sb1
+        for i in range(max(10, len(klines) - 5), len(klines)):
+            sig = detect_sb1(klines, i)
+            if sig:
+                score.warnings.append(f"超级B1 J={sig.details.get('j', 0):.1f}")
+                return True
+    elif criteria == "changan":
+        try:
+            from modules.strategies import detect_changan
+        except ImportError:
+            from strategies import detect_changan
+        for i in range(max(3, len(klines) - 5), len(klines)):
+            sig = detect_changan(klines, i)
+            if sig:
+                score.reasons.append(f"长安战法 胜率75%")
+                return True
+    elif criteria == "b2_breakout":
+        try:
+            from modules.strategies import detect_b2
+        except ImportError:
+            from strategies import detect_b2
+        for i in range(max(15, len(klines) - 5), len(klines)):
+            sig = detect_b2(klines, i)
+            if sig:
+                score.reasons.append(f"B2突破 涨{sig.details.get('pct_chg', 0):.1f}%")
+                return True
+    elif criteria == "b3_consensus":
+        try:
+            from modules.strategies import detect_b3
+        except ImportError:
+            from strategies import detect_b3
+        for i in range(max(20, len(klines) - 5), len(klines)):
+            sig = detect_b3(klines, i)
+            if sig:
+                score.reasons.append(f"B3分歧转一致")
+                return True
+
+    # P2 指标选股策略
+    elif criteria in ("build_wave", "xishou", "safe"):
+        try:
+            from modules.indicators import DailyData, detect_three_waves, detect_kirin_stage
+        except ImportError:
+            from indicators import DailyData, detect_three_waves, detect_kirin_stage
+        daily_klines = []
+        for i, k in enumerate(klines):
+            prev_close = klines[i-1]['close'] if i > 0 else k['close']
+            daily_klines.append(DailyData(
+                ts_code=k['ts_code'],
+                trade_date=k['trade_date'],
+                open=k['open'],
+                high=k['high'],
+                low=k['low'],
+                close=k['close'],
+                vol=k['vol'],
+                amount=k.get('amount', k['close'] * k['vol']),
+                pct_chg=k.get('pct_chg', 0),
+                prev_close=prev_close,
+            ))
+        wave = detect_three_waves(daily_klines)
+        kirin = detect_kirin_stage(daily_klines)
+
+        if criteria == "build_wave" and wave['wave'] == '建仓波' and wave['confidence'] >= 0.5:
+            score.reasons.append(f"建仓波(conf={wave['confidence']})")
+            return True
+        elif criteria == "xishou" and kirin['stage'] == '吸筹' and kirin['confidence'] >= 0.5:
+            score.reasons.append(f"吸筹({kirin['sub_type']}, conf={kirin['confidence']})")
+            return True
+        elif criteria == "safe":
+            is_safe = (wave['wave'] != '冲刺波' and
+                       kirin['stage'] not in ('派发', '回落'))
+            if is_safe:
+                score.reasons.append(f"安全：{wave['wave']}+{kirin['stage']}")
+                return True
+
+    return False
+
+
+def screen_stocks(criteria: str = "b1", max_stocks: int = 0,
+                  max_workers: int = 0, use_parallel: bool = True) -> List[StockScore]:
+    """
+    选股筛选（支持多进程并行）
 
     criteria:
     - "b1": B1买点机会
@@ -519,108 +637,49 @@ def screen_stocks(criteria: str = "b1", max_stocks: int = 0) -> List[StockScore]
     - "safe": 安全选股（非冲刺波 + 非派发/回落）
 
     max_stocks: 最大扫描数量，0=全量（默认500只性能保护）
+    max_workers: 并行进程数，0=自动（CPU核心数）
+    use_parallel: 是否启用多进程并行（<50只时自动关闭）
+
+    返回：满足条件的 StockScore 列表（按评分降序）
     """
     stocks = get_all_stocks()
     limit = max_stocks if max_stocks > 0 else 500
-    results = []
+    stocks = stocks[:limit]
 
-    # 引入战法检测（用于高级选股）
-    try:
-        from .strategies import detect_b1, detect_b2, detect_b3, detect_sb1, detect_changan
-    except ImportError:
-        from strategies import detect_b1, detect_b2, detect_b3, detect_sb1, detect_changan
+    results: List[StockScore] = []
 
-    # P2 指标导入
-    try:
-        from modules.indicators import DailyData, detect_three_waves, detect_kirin_stage
-    except ImportError:
-        from indicators import DailyData, detect_three_waves, detect_kirin_stage
+    # 小数据量时禁用并行（启动开销不值得）
+    if not use_parallel or len(stocks) < _PARALLEL_THRESHOLD:
+        # 串行模式
+        for stock in stocks:
+            result = _analyze_worker(stock['ts_code'])
+            if result and _filter_stock(result, criteria):
+                results.append(result[2])
+    else:
+        # 并行模式：只并行 analyze_stock，筛选在主进程串行
+        workers = max_workers or os.cpu_count() or 4
+        try:
+            from concurrent.futures import ProcessPoolExecutor, as_completed
+            ts_codes = [s['ts_code'] for s in stocks]
 
-    for stock in stocks[:limit]:
-        ts_code = stock['ts_code']
-        klines = get_recent_klines(ts_code, 60)
-
-        if not klines or len(klines) < 30:
-            continue
-
-        score = analyze_stock(ts_code, klines)
-
-        # 基础选股策略
-        if criteria == "b1" and score.b1_score >= 50:
-            results.append(score)
-        elif criteria == "perfect" and score.score >= 65:
-            results.append(score)
-        elif criteria == "oversold" and score.trend_score <= 40:
-            results.append(score)
-        elif criteria == "breakout" and score.volume_score >= 70:
-            results.append(score)
-        # 高级选股策略（基于战法检测）
-        elif criteria == "super_b1":
-            for i in range(max(10, len(klines) - 5), len(klines)):
-                sig = detect_sb1(klines, i)
-                if sig:
-                    score.warnings.append(f"超级B1 J={sig.details.get('j', 0):.1f}")
-                    results.append(score)
-                    break
-        elif criteria == "changan":
-            for i in range(max(3, len(klines) - 5), len(klines)):
-                sig = detect_changan(klines, i)
-                if sig:
-                    score.reasons.append(f"长安战法 胜率75%")
-                    results.append(score)
-                    break
-        elif criteria == "b2_breakout":
-            for i in range(max(15, len(klines) - 5), len(klines)):
-                sig = detect_b2(klines, i)
-                if sig:
-                    score.reasons.append(f"B2突破 涨{sig.details.get('pct_chg', 0):.1f}%")
-                    results.append(score)
-                    break
-        elif criteria == "b3_consensus":
-            for i in range(max(20, len(klines) - 5), len(klines)):
-                sig = detect_b3(klines, i)
-                if sig:
-                    score.reasons.append(f"B3分歧转一致")
-                    results.append(score)
-                    break
-        # P2 指标选股策略
-        elif criteria in ("build_wave", "xishou", "safe"):
-            # 转换 klines 为 DailyData
-            daily_klines = []
-            for i, k in enumerate(klines):
-                prev_close = klines[i-1]['close'] if i > 0 else k['close']
-                daily_klines.append(DailyData(
-                    ts_code=k['ts_code'],
-                    trade_date=k['trade_date'],
-                    open=k['open'],
-                    high=k['high'],
-                    low=k['low'],
-                    close=k['close'],
-                    vol=k['vol'],
-                    amount=k.get('amount', k['close'] * k['vol']),
-                    pct_chg=k.get('pct_chg', 0),
-                    prev_close=prev_close,
-                ))
-            wave = detect_three_waves(daily_klines)
-            kirin = detect_kirin_stage(daily_klines)
-
-            if criteria == "build_wave" and wave['wave'] == '建仓波' and wave['confidence'] >= 0.5:
-                score.reasons.append(f"建仓波(conf={wave['confidence']})")
-                results.append(score)
-            elif criteria == "xishou" and kirin['stage'] == '吸筹' and kirin['confidence'] >= 0.5:
-                score.reasons.append(f"吸筹({kirin['sub_type']}, conf={kirin['confidence']})")
-                results.append(score)
-            elif criteria == "safe":
-                # 安全选股：非冲刺波 + 非派发/回落
-                is_safe = (wave['wave'] != '冲刺波' and
-                           kirin['stage'] not in ('派发', '回落'))
-                if is_safe:
-                    score.reasons.append(f"安全：{wave['wave']}+{kirin['stage']}")
-                    results.append(score)
+            with ProcessPoolExecutor(max_workers=workers) as executor:
+                future_map = {
+                    executor.submit(_analyze_worker, ts_code): ts_code
+                    for ts_code in ts_codes
+                }
+                for future in as_completed(future_map):
+                    result = future.result()
+                    if result and _filter_stock(result, criteria):
+                        results.append(result[2])
+        except Exception:
+            # 并行失败回退到串行
+            for stock in stocks:
+                result = _analyze_worker(stock['ts_code'])
+                if result and _filter_stock(result, criteria):
+                    results.append(result[2])
 
     # 按评分排序
     results.sort(key=lambda x: x.score, reverse=True)
-
     return results
 
 
@@ -780,10 +839,15 @@ def main():
     parser.add_argument("--ts_code", help="股票代码")
     parser.add_argument("--criteria", default="b1",
                        choices=["b1", "perfect", "breakout", "oversold",
-                                "super_b1", "changan", "b2_breakout", "b3_consensus"],
+                                "super_b1", "changan", "b2_breakout", "b3_consensus",
+                                "build_wave", "xishou", "safe"],
                        help="选股条件")
     parser.add_argument("--limit", type=int, default=10, help="返回数量")
     parser.add_argument("--max-stocks", type=int, default=0, help="最大扫描数量(0=全量)")
+    parser.add_argument("--workers", type=int, default=0,
+                       help="并行进程数，0=自动（CPU核心数）")
+    parser.add_argument("--no-parallel", action="store_true",
+                       help="禁用多进程并行")
 
     args = parser.parse_args()
 
@@ -795,9 +859,18 @@ def main():
         print(format_stock_score(score))
 
     elif args.action == "screen":
-        results = screen_stocks(args.criteria, max_stocks=args.max_stocks)
+        import time
+        start = time.time()
+        results = screen_stocks(
+            criteria=args.criteria,
+            max_stocks=args.max_stocks,
+            max_workers=args.workers,
+            use_parallel=not args.no_parallel
+        )
+        elapsed = time.time() - start
+        mode = "并行" if not args.no_parallel and len(results) >= _PARALLEL_THRESHOLD else "串行"
         print(f"\n{'='*60}")
-        print(f"选股结果 ({args.criteria}) 共{len(results)}只")
+        print(f"选股结果 ({args.criteria}) 共{len(results)}只 | {mode}模式 | 耗时{elapsed:.1f}s")
         print(f"{'='*60}")
         for i, s in enumerate(results[:args.limit], 1):
             print(f"{i:2}. {s.ts_code} {s.name:<8} 评分:{s.score:5.1f}  B1:{s.b1_score:5.1f}")
