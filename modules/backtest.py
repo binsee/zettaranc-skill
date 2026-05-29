@@ -12,7 +12,7 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 
 # dotenv 加载已移至 modules/__init__.py（包级别一次性加载）
 # try:
