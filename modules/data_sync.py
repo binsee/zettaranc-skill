@@ -33,11 +33,18 @@ class DataSyncer:
 
     def __init__(self, token: Optional[str] = None):
         self.token = token or os.environ.get("TUSHARE_TOKEN")
-        if not self.token:
-            raise ValueError("未设置 TUSHARE_TOKEN")
-
-        if not TUSHARE_API_URL:
-            raise ValueError("未设置 TUSHARE_API_URL，请在 .env 中配置")
+        # 仅在 JNB 模式下强制检查 Tushare 配置
+        data_mode = os.getenv("DATA_MODE", "websearch")
+        if data_mode == 'jnb':
+            if not self.token:
+                raise ValueError(
+                    "JNB 模式下未设置 TUSHARE_TOKEN，请检查 .env 文件。"
+                )
+            if not TUSHARE_API_URL:
+                raise ValueError(
+                    "JNB 模式下未设置 TUSHARE_API_URL，请在 .env 中配置中转 API 地址。\n"
+                    "示例：TUSHARE_API_URL=https://tt.xiaodefa.cn"
+                )
 
         # 初始化 Tushare
         ts.set_token(self.token)

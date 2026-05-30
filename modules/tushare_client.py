@@ -43,12 +43,27 @@ class TushareClient:
 
     def __init__(self, token: Optional[str] = None):
         self.token = token or TUSHARE_TOKEN
-        if not self.token:
-            raise ValueError("未设置 TUSHARE_TOKEN，请检查 .env 文件")
+        data_mode = os.getenv("DATA_MODE", "websearch")
 
-        ts.set_token(self.token)
-        self._pro = ts.pro_api()
-        self._pro._DataApi__http_url = TUSHARE_API_URL
+        # 仅在 JNB 模式下强制检查 API 配置
+        if data_mode == 'jnb':
+            if not self.token:
+                raise ValueError(
+                    "JNB 模式下未设置 TUSHARE_TOKEN，请在 .env 中配置。\n"
+                    "或者将 DATA_MODE 改为 websearch。"
+                )
+            if not TUSHARE_API_URL:
+                raise ValueError(
+                    "JNB 模式下未设置 TUSHARE_API_URL，请在 .env 中配置中转 API 地址。\n"
+                    "示例：TUSHARE_API_URL=https://tt.xiaodefa.cn"
+                )
+            
+            # 初始化 Tushare SDK
+            ts.set_token(self.token)
+            self._pro = ts.pro_api()
+            self._pro._DataApi__http_url = TUSHARE_API_URL
+        else:
+            self._pro = None
 
         try:
             from tushare.stock import cons as ct
