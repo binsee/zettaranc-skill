@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 # ─── 全局一次性加载 .env（包首次 import 时执行）───────────────────────────────
 # 优先读取环境变量指向的路径，其次查找项目根目录的 .env
 _env_path = Path(os.getenv("ZETTARANC_ENV", Path(__file__).parent.parent / ".env"))
-load_dotenv(_env_path, override=True)  # .env 覆盖系统环境变量
+load_dotenv(_env_path, override=False)  # 已有的环境变量不被 .env 覆盖（保持测试 fixture 隔离能力）
 
 
 # ─── 公开 API ────────────────────────────────────────────────────────────────

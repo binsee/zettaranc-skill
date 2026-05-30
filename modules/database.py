@@ -53,9 +53,14 @@ DB_PATH = _db_path.resolve()
 
 
 def get_db_path() -> Path:
-    """获取数据库路径"""
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    return DB_PATH
+    """获取数据库路径（每次调用时动态读取 DB_PATH 环境变量）"""
+    path_str = os.getenv("DB_PATH", "data/stock_data.db")
+    path = Path(path_str)
+    if not path.is_absolute():
+        path = Path(__file__).parent.parent / path_str
+    path = path.resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 @contextmanager
