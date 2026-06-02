@@ -48,7 +48,7 @@ Python 数据层（modules/）              LLM 角色层（SKILL.md）
 ├─ trade_manager.py      交易记录 CRUD
 ├─ trade_reviewer.py     数据准备层（给 LLM 用）
 ├─ setup_wizard.py       初始化配置向导
-└─ zettaranc_voice.py    语料库 / LLM 提示词
+└─ trade_reviewer.py     交割单数据准备层（含 Z 哥话术常量）
 ```
 
 **关键设计原则**：Python 层只负责**数据准备**，所有点评、分析话术由 LLM 用 Z哥角色生成，避免"AI味"。
@@ -151,7 +151,7 @@ zettaranc-skill/
 │   ├── knowledge_retriever.py  # RAG 知识检索
 │   ├── llm_providers.py        # LLM 提供者抽象
 │   ├── setup_wizard.py         # 初始化向导：JNB/websearch 双模式切换、API 连通性测试
-│   └── zettaranc_voice.py      # Z哥语料库 V3.0 + LLM 提示词模板（DEPRECATED，v2.11.0 移除）
+│   └── report.py               # Z哥量化评估报告（assess_watchlist + render + write）
 ├── knowledge/                  # 知识文档（14+ 篇交易体系）
 │   ├── trading-core.md         # 四层交易结构、少妇战法 SOP、B1/B2/B3、量比战法
 │   ├── indicators.md           # MACD 一票否决、筹码理论、麒麟会、三波理论

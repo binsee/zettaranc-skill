@@ -371,7 +371,7 @@ zettaranc-skill/
 │   ├── trade_manager.py        # 交易记录 CRUD
 │   ├── trade_reviewer.py       # 交割单数据准备层（给 LLM 用）
 │   ├── setup_wizard.py         # 初始化配置向导
-│   └── zettaranc_voice.py      # 语料库 / LLM 提示词模板
+│   └── trade_reviewer.py       # 交割单数据准备层（含 Z 哥话术常量）
 ├── knowledge/                  # 知识文档（14篇交易体系）
 ├── tests/                      # 单元测试（pytest，367 用例，21 个测试文件）
 ├── scripts/                    # 工具脚本（薄壳，业务逻辑在 modules/）
