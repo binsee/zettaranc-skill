@@ -5,8 +5,6 @@
 
 import logging
 from typing import Any
-
-logger = logging.getLogger(__name__)
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -15,6 +13,8 @@ from datetime import datetime
 from .database import add_watchlist_item, remove_watchlist_item, get_watchlist
 from .indicators import analyze_stock
 from .strategies import detect_all_strategies, StrategyType
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass

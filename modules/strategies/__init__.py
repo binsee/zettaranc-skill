@@ -138,7 +138,7 @@ def detect_all_strategies(ts_code: str, days: int = 120) -> list[StrategySignal]
     core._calc_kdj = _fast_calc_kdj
     core._calc_bbi = _fast_calc_bbi
     base_strategies._calc_kdj = _fast_calc_kdj
-    base_strategies._calc_bbi = _fast_calc_bbi
+    base_strategies._calc_bbi = _fast_calc_bbi  # type: ignore[attr-defined]
     compound_strategies._calc_kdj = _fast_calc_kdj
 
     try:
@@ -423,7 +423,7 @@ def detect_all_strategies(ts_code: str, days: int = 120) -> list[StrategySignal]
         core._calc_kdj = _orig_core_kdj
         core._calc_bbi = _orig_core_bbi
         base_strategies._calc_kdj = _orig_core_kdj
-        base_strategies._calc_bbi = _orig_core_bbi
+        base_strategies._calc_bbi = _orig_core_bbi  # type: ignore[attr-defined]
         compound_strategies._calc_kdj = _orig_core_kdj
 
     return signals
