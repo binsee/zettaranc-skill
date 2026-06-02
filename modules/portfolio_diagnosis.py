@@ -11,31 +11,26 @@
 """
 
 import os
-from typing import List, Dict, Any, Optional
+from typing import Any, Optional
 from dataclasses import dataclass, field
 
 # dotenv 加载已移至 modules/__init__.py（包级别一次性加载）
 
-from .indicators import (
-    analyze_stock, get_kline_data,
-    calculate_sell_score, IndicatorResult, DailyData
-)
-from .strategies import (
-    detect_all_strategies, analyze_kirin_phase,
-    StrategyType, StrategySignal
-)
+from .indicators import analyze_stock, get_kline_data, calculate_sell_score, IndicatorResult, DailyData
+from .strategies import detect_all_strategies, analyze_kirin_phase, StrategyType, StrategySignal
 
 
 @dataclass
 class DiagnosisReport:
     """持股诊断报告"""
+
     ts_code: str
     name: str = ""
 
     # 当前状态
     price: float = 0
     price_position: str = ""  # 相对BBI/白线/黄线的位置描述
-    trend_status: str = ""    # 趋势状态
+    trend_status: str = ""  # 趋势状态
 
     # 指标快照
     kdj_j: float = 0
@@ -48,23 +43,23 @@ class DiagnosisReport:
     is_dead_cross: bool = False
 
     # 防卖飞评分
-    sell_score: int = 0           # 0-5
+    sell_score: int = 0  # 0-5
     sell_score_desc: str = ""
-    sell_score_details: Dict[str, bool] = field(default_factory=dict)
+    sell_score_details: dict[str, bool] = field(default_factory=dict)
 
     # 出货信号
-    exit_signals: List[Dict[str, Any]] = field(default_factory=list)
+    exit_signals: list[dict[str, Any]] = field(default_factory=list)
 
     # 战法匹配（当前可买区间）
-    buy_signals: List[Dict[str, Any]] = field(default_factory=list)
+    buy_signals: list[dict[str, Any]] = field(default_factory=list)
 
     # 主力阶段
     kirin_phase: str = "UNKNOWN"
     kirin_confidence: float = 0
 
     # 止损/止盈建议
-    stop_loss: Optional[float] = None
-    target_price: Optional[float] = None
+    stop_loss: float | None = None
+    target_price: float | None = None
 
     # 综合建议
     recommendation: str = ""
@@ -98,7 +93,7 @@ def diagnose_stock(ts_code: str, days: int = 100) -> DiagnosisReport:
 
     # 战法信号（最近30天内）
     all_signals = detect_all_strategies(ts_code, days=days)
-    recent_signals = [s for s in all_signals if s.trade_date >= indicators.trade_date[:6] + "01" or True]
+    [s for s in all_signals if s.trade_date >= indicators.trade_date[:6] + "01" or True]
 
     # 分离买卖信号
     buy_signals = []
@@ -127,9 +122,7 @@ def diagnose_stock(ts_code: str, days: int = 100) -> DiagnosisReport:
     stop_loss, target = _calc_stop_target(indicators, buy_signals, exit_signals)
 
     # 综合建议
-    recommendation, risk_level = _make_recommendation(
-        indicators, sell_score, exit_signals, buy_signals, kirin
-    )
+    recommendation, risk_level = _make_recommendation(indicators, sell_score, exit_signals, buy_signals, kirin)
 
     return DiagnosisReport(
         ts_code=ts_code,
@@ -159,7 +152,7 @@ def diagnose_stock(ts_code: str, days: int = 100) -> DiagnosisReport:
     )
 
 
-def get_stock_info_db(ts_code: str) -> Optional[Dict[str, Any]]:
+def get_stock_info_db(ts_code: str) -> dict[str, Any] | None:
     """获取股票基本信息（兼容直接运行）"""
     from .database import get_connection
 
@@ -173,31 +166,33 @@ def get_stock_info_db(ts_code: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def _daily_to_dict(klines: List[DailyData]) -> List[Dict[str, Any]]:
+def _daily_to_dict(klines: list[DailyData]) -> list[dict[str, Any]]:
     """将 DailyData 列表转为 strategies 模块需要的 dict 列表"""
     result = []
     for i, k in enumerate(klines):
         prev_close = klines[i - 1].close if i > 0 else k.close
         prev_vol = klines[i - 1].vol if i > 0 else k.vol
-        result.append({
-            "ts_code": k.ts_code,
-            "trade_date": k.trade_date,
-            "open": k.open,
-            "high": k.high,
-            "low": k.low,
-            "close": k.close,
-            "vol": k.vol,
-            "amount": k.amount,
-            "pct_chg": k.pct_chg,
-            "prev_close": prev_close,
-            "prev_vol": prev_vol,
-            "is_rise": k.close > prev_close,
-            "is_beidou": k.vol >= prev_vol * 2 if prev_vol > 0 else False,
-            "is_suoliang": k.vol <= prev_vol * 0.5 if prev_vol > 0 else False,
-            "is_jiayin": k.close < k.open and k.close > prev_close,
-            "is_yinxian": k.close < prev_close,
-            "is_fangliang_yinxian": k.close < prev_close and k.vol > prev_vol * 1.5 if prev_vol > 0 else False,
-        })
+        result.append(
+            {
+                "ts_code": k.ts_code,
+                "trade_date": k.trade_date,
+                "open": k.open,
+                "high": k.high,
+                "low": k.low,
+                "close": k.close,
+                "vol": k.vol,
+                "amount": k.amount,
+                "pct_chg": k.pct_chg,
+                "prev_close": prev_close,
+                "prev_vol": prev_vol,
+                "is_rise": k.close > prev_close,
+                "is_beidou": k.vol >= prev_vol * 2 if prev_vol > 0 else False,
+                "is_suoliang": k.vol <= prev_vol * 0.5 if prev_vol > 0 else False,
+                "is_jiayin": k.close < k.open and k.close > prev_close,
+                "is_yinxian": k.close < prev_close,
+                "is_fangliang_yinxian": k.close < prev_close and k.vol > prev_vol * 1.5 if prev_vol > 0 else False,
+            }
+        )
     return result
 
 
@@ -238,9 +233,7 @@ def _judge_trend(ind: IndicatorResult) -> str:
     return "震荡整理"
 
 
-def _calc_stop_target(ind: IndicatorResult,
-                      buy_signals: List[Dict],
-                      exit_signals: List[Dict]) -> tuple:
+def _calc_stop_target(ind: IndicatorResult, buy_signals: list[dict], exit_signals: list[dict]) -> tuple:
     """计算止损/止盈位"""
     stop = None
     target = None
@@ -260,11 +253,9 @@ def _calc_stop_target(ind: IndicatorResult,
     return stop, target
 
 
-def _make_recommendation(ind: IndicatorResult,
-                         sell_score: int,
-                         exit_signals: List[Dict],
-                         buy_signals: List[Dict],
-                         kirin: Dict[str, Any]) -> tuple:
+def _make_recommendation(
+    ind: IndicatorResult, sell_score: int, exit_signals: list[dict], buy_signals: list[dict], kirin: dict[str, Any]
+) -> tuple:
     """生成综合建议和风险等级"""
     # 最高优先级：S1/S2/S3 出货信号
     if exit_signals:
@@ -296,9 +287,9 @@ def _make_recommendation(ind: IndicatorResult,
 def format_report(report: DiagnosisReport) -> str:
     """格式化诊断报告为文本"""
     lines = []
-    lines.append(f"{'='*60}")
+    lines.append(f"{'=' * 60}")
     lines.append(f"持股诊断报告: {report.ts_code} {report.name}")
-    lines.append(f"{'='*60}")
+    lines.append(f"{'=' * 60}")
     lines.append(f"当前价格: {report.price:.2f}")
     lines.append(f"价格位置: {report.price_position}")
     lines.append(f"趋势状态: {report.trend_status}")
@@ -309,7 +300,7 @@ def format_report(report: DiagnosisReport) -> str:
     lines.append("")
     lines.append(f"防卖飞评分: {report.sell_score}/5 — {report.sell_score_desc}")
     lines.append("")
-    lines.append(f"麒麟会阶段: {report.kirin_phase} (置信度{report.kirin_confidence*100:.0f}%)")
+    lines.append(f"麒麟会阶段: {report.kirin_phase} (置信度{report.kirin_confidence * 100:.0f}%)")
     lines.append("")
 
     if report.exit_signals:
@@ -331,12 +322,13 @@ def format_report(report: DiagnosisReport) -> str:
     lines.append("")
     lines.append(f"风险等级: {report.risk_level}")
     lines.append(f"综合建议: {report.recommendation}")
-    lines.append(f"{'='*60}")
+    lines.append(f"{'=' * 60}")
 
     return "\n".join(lines)
 
 
 # ==================== 命令行工具 ====================
+
 
 def main():
     """命令行入口"""

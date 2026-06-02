@@ -12,7 +12,7 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any, Optional
 
 # dotenv 加载已移至 modules/__init__.py（包级别一次性加载）
 # try:
@@ -26,11 +26,12 @@ from modules.strategies import detect_all_strategies, get_kline_data, Priority
 @dataclass
 class Trade:
     """单笔交易记录"""
+
     ts_code: str
     entry_date: str
     entry_price: float
-    exit_date: Optional[str] = None
-    exit_price: Optional[float] = None
+    exit_date: str | None = None
+    exit_price: float | None = None
     pnl: float = 0.0
     pnl_pct: float = 0.0
     hold_days: int = 0
@@ -40,6 +41,7 @@ class Trade:
 @dataclass
 class BacktestResult:
     """回测结果"""
+
     ts_code: str
     total_trades: int = 0
     win_trades: int = 0
@@ -50,14 +52,14 @@ class BacktestResult:
     avg_return: float = 0.0
     avg_hold_days: float = 0.0
     total_return: float = 0.0
-    trades: List[Trade] = field(default_factory=list)
+    trades: list[Trade] = field(default_factory=list)
 
     def summary(self) -> str:
         """格式化回测摘要"""
         lines = [
-            f"{'='*60}",
+            f"{'=' * 60}",
             f"回测结果: {self.ts_code}",
-            f"{'='*60}",
+            f"{'=' * 60}",
             f"总交易次数: {self.total_trades}",
             f"盈利次数:   {self.win_trades}",
             f"亏损次数:   {self.loss_trades}",
@@ -67,24 +69,21 @@ class BacktestResult:
             f"平均收益:   {self.avg_return:.2%}",
             f"平均持仓:   {self.avg_hold_days:.1f}天",
             f"总收益率:   {self.total_return:.2%}",
-            f"{'='*60}",
+            f"{'=' * 60}",
         ]
 
         if self.trades:
             lines.append("最近5笔交易:")
             for t in self.trades[-5:]:
                 status = "🟢" if t.pnl > 0 else "🔴" if t.pnl < 0 else "⚪"
-                lines.append(
-                    f"  {status} {t.entry_date}→{t.exit_date or '持有中'} "
-                    f"{t.pnl_pct:+.2f}% ({t.exit_reason})"
-                )
+                lines.append(f"  {status} {t.entry_date}→{t.exit_date or '持有中'} {t.pnl_pct:+.2f}% ({t.exit_reason})")
 
         return "\n".join(lines)
 
 
 def backtest_signals(
-    signals: List[Any],
-    klines: List[Dict[str, Any]],
+    signals: list[Any],
+    klines: list[dict[str, Any]],
     ts_code: str,
     stop_loss_pct: float = 0.07,
     take_profit_pct: float = 0.15,
@@ -108,20 +107,20 @@ def backtest_signals(
         return result
 
     # 构建日期 -> 信号 映射
-    signal_map: Dict[str, Any] = {}
+    signal_map: dict[str, Any] = {}
     for sig in signals:
         signal_map[sig.trade_date] = sig
 
     # 当前持仓
-    current_trade: Optional[Trade] = None
+    current_trade: Trade | None = None
     entry_high: float = 0.0
 
     # 按日期升序遍历 K 线（确保每天都检查止损/止盈）
     for k in klines:
-        date = k['trade_date']
-        price = k['close']
-        day_high = k['high']
-        day_low = k['low']
+        date = k["trade_date"]
+        price = k["close"]
+        day_high = k["high"]
+        day_low = k["low"]
 
         # 检查止损/止盈（如果持有中）
         if current_trade is not None:
@@ -133,7 +132,7 @@ def backtest_signals(
                 current_trade.exit_price = current_trade.entry_price * (1 - stop_loss_pct)
                 current_trade.pnl = current_trade.exit_price - current_trade.entry_price
                 current_trade.pnl_pct = current_trade.pnl / current_trade.entry_price
-                current_trade.exit_reason = 'stop_loss'
+                current_trade.exit_reason = "stop_loss"
                 result.trades.append(current_trade)
                 current_trade = None
                 continue
@@ -144,7 +143,7 @@ def backtest_signals(
                 current_trade.exit_price = current_trade.entry_price * (1 + take_profit_pct)
                 current_trade.pnl = current_trade.exit_price - current_trade.entry_price
                 current_trade.pnl_pct = current_trade.pnl / current_trade.entry_price
-                current_trade.exit_reason = 'take_profit'
+                current_trade.exit_reason = "take_profit"
                 result.trades.append(current_trade)
                 current_trade = None
                 continue
@@ -155,7 +154,7 @@ def backtest_signals(
             continue
 
         # 买入信号
-        if sig.action == 'BUY' and current_trade is None:
+        if sig.action == "BUY" and current_trade is None:
             current_trade = Trade(
                 ts_code=ts_code,
                 entry_date=date,
@@ -164,23 +163,23 @@ def backtest_signals(
             entry_high = price
 
         # 卖出信号
-        elif sig.action == 'SELL' and current_trade is not None:
+        elif sig.action == "SELL" and current_trade is not None:
             current_trade.exit_date = date
             current_trade.exit_price = price
             current_trade.pnl = price - current_trade.entry_price
             current_trade.pnl_pct = current_trade.pnl / current_trade.entry_price
-            current_trade.exit_reason = 'signal'
+            current_trade.exit_reason = "signal"
             result.trades.append(current_trade)
             current_trade = None
 
     # 数据末尾强制平仓
     if current_trade is not None and klines:
         last = klines[-1]
-        current_trade.exit_date = last['trade_date']
-        current_trade.exit_price = last['close']
-        current_trade.pnl = last['close'] - current_trade.entry_price
+        current_trade.exit_date = last["trade_date"]
+        current_trade.exit_price = last["close"]
+        current_trade.pnl = last["close"] - current_trade.entry_price
         current_trade.pnl_pct = current_trade.pnl / current_trade.entry_price
-        current_trade.exit_reason = 'end_of_data'
+        current_trade.exit_reason = "end_of_data"
         result.trades.append(current_trade)
 
     # 计算统计指标
@@ -192,7 +191,7 @@ def backtest_signals(
 
         total_profit = sum(t.pnl for t in result.trades if t.pnl > 0)
         total_loss = abs(sum(t.pnl for t in result.trades if t.pnl < 0))
-        result.profit_factor = total_profit / total_loss if total_loss > 0 else float('inf')
+        result.profit_factor = total_profit / total_loss if total_loss > 0 else float("inf")
 
         result.avg_return = sum(t.pnl_pct for t in result.trades) / result.total_trades
         result.avg_hold_days = sum(t.hold_days for t in result.trades) / result.total_trades
@@ -210,7 +209,7 @@ def backtest_signals(
         # 总收益率（复利）
         result.total_return = 1.0
         for t in result.trades:
-            result.total_return *= (1 + t.pnl_pct)
+            result.total_return *= 1 + t.pnl_pct
         result.total_return -= 1.0
 
     return result
@@ -235,8 +234,8 @@ def backtest_strategy(
         BacktestResult
     """
     # 取消代理
-    os.environ['HTTP_PROXY'] = ''
-    os.environ['HTTPS_PROXY'] = ''
+    os.environ["HTTP_PROXY"] = ""
+    os.environ["HTTPS_PROXY"] = ""
 
     klines = get_kline_data(ts_code, days)
     signals = detect_all_strategies(ts_code, days)
@@ -246,14 +245,16 @@ def backtest_strategy(
 
 # ==================== 策略组合回测 ====================
 
+
 @dataclass
 class Position:
     """持仓记录"""
+
     ts_code: str
     entry_date: str
     entry_price: float
-    shares: int = 0           # 持股数量（A股100股为1手）
-    cost_basis: float = 0.0   # 总成本
+    shares: int = 0  # 持股数量（A股100股为1手）
+    cost_basis: float = 0.0  # 总成本
     current_price: float = 0.0
     current_value: float = 0.0
     high_since_entry: float = 0.0
@@ -274,6 +275,7 @@ class Position:
 @dataclass
 class PortfolioBacktestResult:
     """组合回测结果（含资金曲线）"""
+
     initial_capital: float = 100000.0
     final_value: float = 0.0
     total_return: float = 0.0
@@ -283,15 +285,15 @@ class PortfolioBacktestResult:
     win_rate: float = 0.0
     profit_factor: float = 0.0
     total_trades: int = 0
-    equity_curve: List[Tuple[str, float]] = field(default_factory=list)
-    trades: List[Trade] = field(default_factory=list)
+    equity_curve: list[tuple[str, float]] = field(default_factory=list)
+    trades: list[Trade] = field(default_factory=list)
 
     def summary(self) -> str:
         """格式化回测摘要"""
         lines = [
-            f"{'='*60}",
-            f"组合回测结果",
-            f"{'='*60}",
+            f"{'=' * 60}",
+            "组合回测结果",
+            f"{'=' * 60}",
             f"初始资金:   ¥{self.initial_capital:,.0f}",
             f"最终资产:   ¥{self.final_value:,.0f}",
             f"总收益率:   {self.total_return:.2%}",
@@ -301,7 +303,7 @@ class PortfolioBacktestResult:
             f"胜率:       {self.win_rate:.1%}",
             f"盈亏比:     {self.profit_factor:.2f}",
             f"总交易次数: {self.total_trades}",
-            f"{'='*60}",
+            f"{'=' * 60}",
         ]
 
         if self.trades:
@@ -359,9 +361,9 @@ def _calc_stats(result: PortfolioBacktestResult, trading_days: int = 0):
     if daily_returns:
         avg_return = sum(daily_returns) / len(daily_returns)
         variance = sum((r - avg_return) ** 2 for r in daily_returns) / len(daily_returns)
-        std = variance ** 0.5
+        std = variance**0.5
         if std > 0:
-            result.sharpe_ratio = (avg_return / std) * (252 ** 0.5)
+            result.sharpe_ratio = (avg_return / std) * (252**0.5)
 
     # 交易统计
     if result.trades:
@@ -371,7 +373,7 @@ def _calc_stats(result: PortfolioBacktestResult, trading_days: int = 0):
 
         total_profit = sum(t.pnl for t in result.trades if t.pnl > 0)
         total_loss = abs(sum(t.pnl for t in result.trades if t.pnl < 0))
-        result.profit_factor = total_profit / total_loss if total_loss > 0 else float('inf')
+        result.profit_factor = total_profit / total_loss if total_loss > 0 else float("inf")
 
 
 def backtest_multi_strategy(
@@ -401,8 +403,8 @@ def backtest_multi_strategy(
     Returns:
         PortfolioBacktestResult
     """
-    os.environ['HTTP_PROXY'] = ''
-    os.environ['HTTPS_PROXY'] = ''
+    os.environ["HTTP_PROXY"] = ""
+    os.environ["HTTPS_PROXY"] = ""
 
     klines = get_kline_data(ts_code, days)
     signals = detect_all_strategies(ts_code, days)
@@ -413,19 +415,19 @@ def backtest_multi_strategy(
         return result
 
     # 构建日期 -> [信号列表] 映射
-    signal_map: Dict[str, List[Any]] = {}
+    signal_map: dict[str, list[Any]] = {}
     for sig in signals:
         signal_map.setdefault(sig.trade_date, []).append(sig)
 
     cash = initial_capital
-    position: Optional[Position] = None
+    position: Position | None = None
 
     # 按日期升序遍历
     for k in klines:
-        date = k['trade_date']
-        price = k['close']
-        day_high = k['high']
-        day_low = k['low']
+        date = k["trade_date"]
+        price = k["close"]
+        day_high = k["high"]
+        day_low = k["low"]
 
         # 更新持仓市值
         if position is not None:
@@ -446,7 +448,7 @@ def backtest_multi_strategy(
                     exit_price=exit_price,
                     pnl=pnl,
                     pnl_pct=pnl_pct,
-                    exit_reason='stop_loss',
+                    exit_reason="stop_loss",
                 )
                 result.trades.append(trade)
                 position = None
@@ -468,7 +470,7 @@ def backtest_multi_strategy(
                     exit_price=exit_price,
                     pnl=pnl,
                     pnl_pct=pnl_pct,
-                    exit_reason='take_profit',
+                    exit_reason="take_profit",
                 )
                 result.trades.append(trade)
                 position = None
@@ -484,13 +486,13 @@ def backtest_multi_strategy(
             continue
 
         # 按优先级排序（数值越小优先级越高：CRITICAL=1, OPPORTUNITY=2, OBSERVE=3）
-        day_signals.sort(key=lambda s: s.priority.value if hasattr(s.priority, 'value') else 3)
+        day_signals.sort(key=lambda s: s.priority.value if hasattr(s.priority, "value") else 3)
 
         # 取最高优先级信号
         top_signal = day_signals[0]
 
         # 买入信号
-        if top_signal.action == 'BUY' and position is None:
+        if top_signal.action == "BUY" and position is None:
             invest_amount = cash * position_pct
             shares = _calc_shares(invest_amount, price)
             if shares >= 100:
@@ -508,7 +510,7 @@ def backtest_multi_strategy(
                 )
 
         # 卖出信号
-        elif top_signal.action == 'SELL' and position is not None:
+        elif top_signal.action == "SELL" and position is not None:
             cash += position.shares * price
             pnl = (price - position.entry_price) * position.shares
             pnl_pct = (price - position.entry_price) / position.entry_price
@@ -521,7 +523,7 @@ def backtest_multi_strategy(
                 exit_price=price,
                 pnl=pnl,
                 pnl_pct=pnl_pct,
-                exit_reason='signal',
+                exit_reason="signal",
             )
             result.trades.append(trade)
             position = None
@@ -532,7 +534,7 @@ def backtest_multi_strategy(
     # 数据末尾强制平仓
     if position is not None and klines:
         last = klines[-1]
-        exit_price = last['close']
+        exit_price = last["close"]
         cash += position.shares * exit_price
         pnl = (exit_price - position.entry_price) * position.shares
         pnl_pct = (exit_price - position.entry_price) / position.entry_price
@@ -541,22 +543,22 @@ def backtest_multi_strategy(
             ts_code=ts_code,
             entry_date=position.entry_date,
             entry_price=position.entry_price,
-            exit_date=last['trade_date'],
+            exit_date=last["trade_date"],
             exit_price=exit_price,
             pnl=pnl,
             pnl_pct=pnl_pct,
-            exit_reason='end_of_data',
+            exit_reason="end_of_data",
         )
         result.trades.append(trade)
         position = None
-        result.equity_curve[-1] = (last['trade_date'], cash)
+        result.equity_curve[-1] = (last["trade_date"], cash)
 
     _calc_stats(result, trading_days=len(klines))
     return result
 
 
 def backtest_portfolio(
-    stock_configs: List[Dict[str, Any]],
+    stock_configs: list[dict[str, Any]],
     days: int = 240,
     initial_capital: float = 100000.0,
     position_pct: float = 0.2,
@@ -577,8 +579,8 @@ def backtest_portfolio(
     Returns:
         PortfolioBacktestResult
     """
-    os.environ['HTTP_PROXY'] = ''
-    os.environ['HTTPS_PROXY'] = ''
+    os.environ["HTTP_PROXY"] = ""
+    os.environ["HTTPS_PROXY"] = ""
 
     result = PortfolioBacktestResult(initial_capital=initial_capital)
 
@@ -587,7 +589,7 @@ def backtest_portfolio(
     all_dates: set[str] = set()
 
     for config in stock_configs:
-        ts_code = config['ts_code']
+        ts_code = config["ts_code"]
         klines = get_kline_data(ts_code, days)
         signals = detect_all_strategies(ts_code, days)
 
@@ -599,13 +601,13 @@ def backtest_portfolio(
             signal_map.setdefault(sig.trade_date, []).append(sig)
 
         stock_data[ts_code] = {
-            'klines': klines,
-            'signal_map': signal_map,
-            'klines_map': {k['trade_date']: k for k in klines},
-            'max_weight': config.get('max_weight', position_pct),
-            'position': None,
+            "klines": klines,
+            "signal_map": signal_map,
+            "klines_map": {k["trade_date"]: k for k in klines},
+            "max_weight": config.get("max_weight", position_pct),
+            "position": None,
         }
-        all_dates.update(k['trade_date'] for k in klines)
+        all_dates.update(k["trade_date"] for k in klines)
 
     if not stock_data:
         return result
@@ -617,20 +619,18 @@ def backtest_portfolio(
     for date in sorted_dates:
         # 1. 检查每只股票持仓的止损/止盈
         for ts_code, data in stock_data.items():
-            pos = data['position']
+            pos = data["position"]
             if pos is None:
                 continue
 
-            kline = data['klines_map'].get(date)
+            kline = data["klines_map"].get(date)
             if not kline:
                 continue
 
-            price = kline['close']
-            day_high = kline['high']
-            day_low = kline['low']
+            price = kline["close"]
+            day_high = kline["high"]
+            day_low = kline["low"]
             pos.update_price(price)
-
-            exited = False
 
             # 止损
             if day_low <= pos.entry_price * (1 - stop_loss_pct):
@@ -646,11 +646,10 @@ def backtest_portfolio(
                     exit_price=exit_price,
                     pnl=pnl,
                     pnl_pct=(exit_price - pos.entry_price) / pos.entry_price,
-                    exit_reason='stop_loss',
+                    exit_reason="stop_loss",
                 )
                 result.trades.append(trade)
-                data['position'] = None
-                exited = True
+                data["position"] = None
 
             # 止盈
             elif day_high >= pos.entry_price * (1 + take_profit_pct):
@@ -666,44 +665,42 @@ def backtest_portfolio(
                     exit_price=exit_price,
                     pnl=pnl,
                     pnl_pct=(exit_price - pos.entry_price) / pos.entry_price,
-                    exit_reason='take_profit',
+                    exit_reason="take_profit",
                 )
                 result.trades.append(trade)
-                data['position'] = None
-                exited = True
+                data["position"] = None
 
         # 2. 处理新信号（买入/卖出）
         for ts_code, data in stock_data.items():
-            kline = data['klines_map'].get(date)
+            kline = data["klines_map"].get(date)
             if not kline:
                 continue
 
-            price = kline['close']
-            pos = data['position']
-            day_signals = data['signal_map'].get(date, [])
+            price = kline["close"]
+            pos = data["position"]
+            day_signals = data["signal_map"].get(date, [])
 
             if not day_signals:
                 continue
 
             # 按优先级排序
-            day_signals.sort(key=lambda s: s.priority.value if hasattr(s.priority, 'value') else 3)
+            day_signals.sort(key=lambda s: s.priority.value if hasattr(s.priority, "value") else 3)
             top_signal = day_signals[0]
 
             # 买入
-            if top_signal.action == 'BUY' and pos is None:
+            if top_signal.action == "BUY" and pos is None:
                 # 计算该股票允许的最大投入金额
                 total_value = cash + sum(
-                    (p.current_value if p else 0)
-                    for p in [s['position'] for s in stock_data.values()]
+                    (p.current_value if p else 0) for p in [s["position"] for s in stock_data.values()]
                 )
-                max_invest = total_value * data['max_weight']
+                max_invest = total_value * data["max_weight"]
                 invest_amount = min(cash, max_invest)
                 shares = _calc_shares(invest_amount, price)
 
                 if shares >= 100:
                     cost = shares * price
                     cash -= cost
-                    data['position'] = Position(
+                    data["position"] = Position(
                         ts_code=ts_code,
                         entry_date=date,
                         entry_price=price,
@@ -715,7 +712,7 @@ def backtest_portfolio(
                     )
 
             # 卖出
-            elif top_signal.action == 'SELL' and pos is not None:
+            elif top_signal.action == "SELL" and pos is not None:
                 cash += pos.shares * price
                 pnl = (price - pos.entry_price) * pos.shares
                 pnl_pct = (price - pos.entry_price) / pos.entry_price
@@ -728,30 +725,27 @@ def backtest_portfolio(
                     exit_price=price,
                     pnl=pnl,
                     pnl_pct=pnl_pct,
-                    exit_reason='signal',
+                    exit_reason="signal",
                 )
                 result.trades.append(trade)
-                data['position'] = None
+                data["position"] = None
 
         # 3. 记录当日总资产
-        positions_value = sum(
-            (p.current_value if p else 0)
-            for p in [s['position'] for s in stock_data.values()]
-        )
+        positions_value = sum((p.current_value if p else 0) for p in [s["position"] for s in stock_data.values()])
         result.equity_curve.append((date, cash + positions_value))
 
     # 强制平仓所有持仓
     for ts_code, data in stock_data.items():
-        pos = data['position']
+        pos = data["position"]
         if pos is None:
             continue
 
-        klines = data['klines']
+        klines = data["klines"]
         if not klines:
             continue
 
         last = klines[-1]
-        exit_price = last['close']
+        exit_price = last["close"]
         cash += pos.shares * exit_price
         pnl = (exit_price - pos.entry_price) * pos.shares
 
@@ -759,14 +753,14 @@ def backtest_portfolio(
             ts_code=ts_code,
             entry_date=pos.entry_date,
             entry_price=pos.entry_price,
-            exit_date=last['trade_date'],
+            exit_date=last["trade_date"],
             exit_price=exit_price,
             pnl=pnl,
             pnl_pct=(exit_price - pos.entry_price) / pos.entry_price,
-            exit_reason='end_of_data',
+            exit_reason="end_of_data",
         )
         result.trades.append(trade)
-        data['position'] = None
+        data["position"] = None
 
     if result.equity_curve:
         result.equity_curve[-1] = (result.equity_curve[-1][0], cash)
@@ -775,31 +769,31 @@ def backtest_portfolio(
     return result
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description='策略回测')
-    subparsers = parser.add_subparsers(dest='command')
+    parser = argparse.ArgumentParser(description="策略回测")
+    subparsers = parser.add_subparsers(dest="command")
 
     # 单策略回测
-    single_parser = subparsers.add_parser('single', help='单策略回测')
-    single_parser.add_argument('ts_code', help='股票代码')
-    single_parser.add_argument('--days', type=int, default=240, help='回测天数')
-    single_parser.add_argument('--stop-loss', type=float, default=0.07, help='止损比例')
-    single_parser.add_argument('--take-profit', type=float, default=0.15, help='止盈比例')
+    single_parser = subparsers.add_parser("single", help="单策略回测")
+    single_parser.add_argument("ts_code", help="股票代码")
+    single_parser.add_argument("--days", type=int, default=240, help="回测天数")
+    single_parser.add_argument("--stop-loss", type=float, default=0.07, help="止损比例")
+    single_parser.add_argument("--take-profit", type=float, default=0.15, help="止盈比例")
 
     # 多策略融合回测
-    multi_parser = subparsers.add_parser('multi', help='多策略融合回测')
-    multi_parser.add_argument('ts_code', help='股票代码')
-    multi_parser.add_argument('--days', type=int, default=240, help='回测天数')
-    multi_parser.add_argument('--capital', type=float, default=100000, help='初始资金')
-    multi_parser.add_argument('--position', type=float, default=0.3, help='单次仓位比例')
-    multi_parser.add_argument('--stop-loss', type=float, default=0.07, help='止损比例')
-    multi_parser.add_argument('--take-profit', type=float, default=0.15, help='止盈比例')
+    multi_parser = subparsers.add_parser("multi", help="多策略融合回测")
+    multi_parser.add_argument("ts_code", help="股票代码")
+    multi_parser.add_argument("--days", type=int, default=240, help="回测天数")
+    multi_parser.add_argument("--capital", type=float, default=100000, help="初始资金")
+    multi_parser.add_argument("--position", type=float, default=0.3, help="单次仓位比例")
+    multi_parser.add_argument("--stop-loss", type=float, default=0.07, help="止损比例")
+    multi_parser.add_argument("--take-profit", type=float, default=0.15, help="止盈比例")
 
     args = parser.parse_args()
 
-    if args.command == 'single':
+    if args.command == "single":
         result: BacktestResult | PortfolioBacktestResult = backtest_strategy(
             args.ts_code,
             days=args.days,
@@ -807,7 +801,7 @@ if __name__ == '__main__':
             take_profit_pct=args.take_profit,
         )
         print(result.summary())
-    elif args.command == 'multi':
+    elif args.command == "multi":
         result = backtest_multi_strategy(
             args.ts_code,
             days=args.days,

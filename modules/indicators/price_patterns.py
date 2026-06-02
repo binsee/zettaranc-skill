@@ -2,16 +2,27 @@
 价格模式识别模块
 """
 
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any, Optional
 
 from .core import (
-    DailyData, TradeSignal, IndicatorResult,
-    calculate_ma, calculate_ema, calculate_sma_td, calculate_sma_series, calculate_slope,
-    calculate_kdj, calculate_bbi, calculate_rsi_multi, calculate_wr_multi,
-    calculate_bollinger, calculate_vol_ratio,
+    DailyData,
+    TradeSignal,
+    IndicatorResult,
+    calculate_ma,
+    calculate_ema,
+    calculate_sma_td,
+    calculate_sma_series,
+    calculate_slope,
+    calculate_kdj,
+    calculate_bbi,
+    calculate_rsi_multi,
+    calculate_wr_multi,
+    calculate_bollinger,
+    calculate_vol_ratio,
 )
 
-def detect_divergence(klines: List[DailyData], dif_list: List[float]) -> Dict:
+
+def detect_divergence(klines: list[DailyData], dif_list: list[float]) -> dict:
     """
     顶底背离系统化检测（基于语料标准）
 
@@ -24,8 +35,8 @@ def detect_divergence(klines: List[DailyData], dif_list: List[float]) -> Dict:
     - DIF衰减：DIF未突破前值的90%(顶)或未跌破前值的110%(底)
     """
     result = {
-        'is_top_divergence': False,
-        'is_bottom_divergence': False,
+        "is_top_divergence": False,
+        "is_bottom_divergence": False,
     }
 
     if len(klines) < 60 or len(dif_list) < 30:
@@ -43,7 +54,7 @@ def detect_divergence(klines: List[DailyData], dif_list: List[float]) -> Dict:
 
     if window_end > window_start:
         max_close = max(closes[window_start:window_end])
-        max_close_idx = closes[window_start:window_end].index(max_close) + window_start
+        closes[window_start:window_end].index(max_close) + window_start
 
         # 对应窗口的DIF最大值
         dif_window_start = max(0, window_start)
@@ -56,12 +67,12 @@ def detect_divergence(klines: List[DailyData], dif_list: List[float]) -> Dict:
             dif_weaker = dif_list[-1] < max_dif * 0.9
 
             if price_near_high and dif_weaker and max_dif > 0:
-                result['is_top_divergence'] = True
+                result["is_top_divergence"] = True
 
     # ====== 底背离检测 ======
     if window_end > window_start:
         min_close = min(closes[window_start:window_end])
-        min_close_idx = closes[window_start:window_end].index(min_close) + window_start
+        closes[window_start:window_end].index(min_close) + window_start
 
         dif_window_start = max(0, window_start)
         dif_window_end = min(len(dif_list), window_end)
@@ -73,11 +84,14 @@ def detect_divergence(klines: List[DailyData], dif_list: List[float]) -> Dict:
             dif_stronger = dif_list[-1] > min_dif * 1.1
 
             if price_near_low and dif_stronger and min_dif < 0:
-                result['is_bottom_divergence'] = True
+                result["is_bottom_divergence"] = True
 
     return result
-def detect_macd_signals(klines: List[DailyData], dif_list: List[float],
-                        dea_list: List[float], macd_list: List[float]) -> Dict[str, Any]:
+
+
+def detect_macd_signals(
+    klines: list[DailyData], dif_list: list[float], dea_list: list[float], macd_list: list[float]
+) -> dict[str, Any]:
     """
     根据 Z哥 语料检测 MACD 信号
 
@@ -87,16 +101,16 @@ def detect_macd_signals(klines: List[DailyData], dif_list: List[float],
     3. 金叉空 + 死叉多 — 判陷阱
     """
     signals = {
-        'is_dif_positive': False,
-        'is_dif_cross_zero': False,
-        'is_dif_cross_zero_down': False,
-        'is_gold_cross': False,
-        'is_dead_cross': False,
-        'is_gold_fake': False,
-        'is_dead_fake': False,
-        'is_top_divergence': False,
-        'is_bottom_divergence': False,
-        'macd_veto': False,
+        "is_dif_positive": False,
+        "is_dif_cross_zero": False,
+        "is_dif_cross_zero_down": False,
+        "is_gold_cross": False,
+        "is_dead_cross": False,
+        "is_gold_fake": False,
+        "is_dead_fake": False,
+        "is_top_divergence": False,
+        "is_bottom_divergence": False,
+        "macd_veto": False,
     }
 
     if len(dif_list) < 2 or len(dea_list) < 1:
@@ -108,17 +122,17 @@ def detect_macd_signals(klines: List[DailyData], dif_list: List[float],
     dea_yesterday = dea_list[-2] if len(dea_list) >= 2 else 0
 
     # === 用法 1: DIF 0 轴判多空 ===
-    signals['is_dif_positive'] = dif_today > 0
+    signals["is_dif_positive"] = dif_today > 0
 
     # DIF 上穿 0 轴
-    signals['is_dif_cross_zero'] = dif_yesterday <= 0 and dif_today > 0
+    signals["is_dif_cross_zero"] = dif_yesterday <= 0 and dif_today > 0
     # DIF 下穿 0 轴
-    signals['is_dif_cross_zero_down'] = dif_yesterday >= 0 and dif_today < 0
+    signals["is_dif_cross_zero_down"] = dif_yesterday >= 0 and dif_today < 0
 
     # === 金叉/死叉 ===
     if len(dif_list) >= 3 and len(dea_list) >= 2:
-        signals['is_gold_cross'] = dif_yesterday <= dea_yesterday and dif_today > dea_today
-        signals['is_dead_cross'] = dif_yesterday >= dea_yesterday and dif_today < dea_today
+        signals["is_gold_cross"] = dif_yesterday <= dea_yesterday and dif_today > dea_today
+        signals["is_dead_cross"] = dif_yesterday >= dea_yesterday and dif_today < dea_today
 
     # === 用法 3: 金叉空 + 死叉多（多等一天）===
     if len(dif_list) >= 5 and len(dea_list) >= 3:
@@ -135,25 +149,27 @@ def detect_macd_signals(klines: List[DailyData], dif_list: List[float],
                     recent_dead += 1
 
         # 金叉空：刚金叉又马上死叉
-        if signals['is_dead_cross'] and recent_gold >= 1:
-            signals['is_gold_fake'] = True
+        if signals["is_dead_cross"] and recent_gold >= 1:
+            signals["is_gold_fake"] = True
 
         # 死叉多：刚死叉又马上金叉
-        if signals['is_gold_cross'] and recent_dead >= 1:
-            signals['is_dead_fake'] = True
+        if signals["is_gold_cross"] and recent_dead >= 1:
+            signals["is_dead_fake"] = True
 
     # === 用法 2: 顶底背离（系统化检测）===
     div = detect_divergence(klines, dif_list)
-    signals['is_top_divergence'] = div['is_top_divergence']
-    signals['is_bottom_divergence'] = div['is_bottom_divergence']
+    signals["is_top_divergence"] = div["is_top_divergence"]
+    signals["is_bottom_divergence"] = div["is_bottom_divergence"]
 
     # === 一票否决权 ===
     # DIF < 0 + 没有底背离 → 一票否决
-    if dif_today < 0 and not signals['is_bottom_divergence']:
-        signals['macd_veto'] = True
+    if dif_today < 0 and not signals["is_bottom_divergence"]:
+        signals["macd_veto"] = True
 
     return signals
-def calculate_zg_white(klines: List[DailyData]) -> float:
+
+
+def calculate_zg_white(klines: list[DailyData]) -> float:
     """
     计算 Z哥白线 = EMA(EMA(C,10),10)
 
@@ -169,7 +185,9 @@ def calculate_zg_white(klines: List[DailyData]) -> float:
     recent_10 = closes[-10:]
     ema2 = calculate_ema(recent_10, 10)
     return round(ema2, 2)
-def calculate_dg_yellow(klines: List[DailyData]) -> float:
+
+
+def calculate_dg_yellow(klines: list[DailyData]) -> float:
     """
     计算 大哥线 = (MA14 + MA28 + MA57 + MA114) / 4
 
@@ -183,7 +201,9 @@ def calculate_dg_yellow(klines: List[DailyData]) -> float:
     ma57 = calculate_ma(closes, 57)
     ma114 = calculate_ma(closes, 114)
     return round((ma14 + ma28 + ma57 + ma114) / 4, 2)
-def detect_double_line_cross(klines: List[DailyData]) -> Tuple[bool, bool]:
+
+
+def detect_double_line_cross(klines: list[DailyData]) -> tuple[bool, bool]:
     """
     检测双线战法金叉死叉
 
@@ -197,7 +217,7 @@ def detect_double_line_cross(klines: List[DailyData]) -> Tuple[bool, bool]:
     if len(klines) < 115:
         return False, False
 
-    closes = [k.close for k in klines]
+    [k.close for k in klines]
 
     # 计算历史白线和大哥线
     white_values = []
@@ -217,7 +237,7 @@ def detect_double_line_cross(klines: List[DailyData]) -> Tuple[bool, bool]:
     # 今天、前天、昨天
     w_today = white_values[-1]
     w_yesterday = white_values[-2]
-    w_before_yesterday = white_values[-3]
+    white_values[-3]
 
     d_today = dg_values[-1]
     d_yesterday = dg_values[-2]
@@ -229,7 +249,9 @@ def detect_double_line_cross(klines: List[DailyData]) -> Tuple[bool, bool]:
     dead_cross = w_yesterday >= d_yesterday and w_today < d_today
 
     return gold_cross, dead_cross
-def calculate_rsl(klines: List[DailyData], period: int) -> float:
+
+
+def calculate_rsl(klines: list[DailyData], period: int) -> float:
     """
     计算 RSL 相对强度定位（通达信标准公式）
 
@@ -251,7 +273,9 @@ def calculate_rsl(klines: List[DailyData], period: int) -> float:
 
     rsl = (current_close - llv) / (hhv - llv) * 100
     return round(rsl, 2)
-def detect_needle_20(klines: List[DailyData]) -> Tuple[float, float, bool]:
+
+
+def detect_needle_20(klines: list[DailyData]) -> tuple[float, float, bool]:
     """
     检测单针下20信号（通达信标准）
 
@@ -270,7 +294,9 @@ def detect_needle_20(klines: List[DailyData]) -> Tuple[float, float, bool]:
     is_needle = rsl_short <= 20 and rsl_long >= 60  # 对齐通达信
 
     return rsl_short, rsl_long, is_needle
-def detect_needle_30(klines: List[DailyData]) -> bool:
+
+
+def detect_needle_30(klines: list[DailyData]) -> bool:
     """
     检测单针下30信号（单针下20的迭代版）
 
@@ -285,7 +311,9 @@ def detect_needle_30(klines: List[DailyData]) -> bool:
     rsl_short = calculate_rsl(klines, 3)
     rsl_long = calculate_rsl(klines, 21)
     return rsl_long > 85 and rsl_short < 30
-def detect_double_gun(klines: List[DailyData]) -> Dict:
+
+
+def detect_double_gun(klines: list[DailyData]) -> dict:
     """
     双枪战法检测
 
@@ -299,10 +327,10 @@ def detect_double_gun(klines: List[DailyData]) -> Dict:
     - 第二枪前一日应有B1痕迹（J<13）
     """
     result: dict[str, Any] = {
-        'is_double_gun': False,
-        'double_gun_vol1': 0.0,
-        'double_gun_vol2': 0.0,
-        'double_gun_gap_days': 0,
+        "is_double_gun": False,
+        "double_gun_vol1": 0.0,
+        "double_gun_vol2": 0.0,
+        "double_gun_gap_days": 0,
     }
     if len(klines) < 15:
         return result
@@ -362,13 +390,15 @@ def detect_double_gun(klines: List[DailyData]) -> Dict:
     vol2: float = klines[gun2_idx].vol / g2_prev.vol if g2_prev and g2_prev.vol > 0 else 0.0
 
     if is_shrink_mid and has_b1_before and 3 <= gap_days <= 10:
-        result['is_double_gun'] = True
-        result['double_gun_vol1'] = round(vol1, 1)
-        result['double_gun_vol2'] = round(vol2, 1)
-        result['double_gun_gap_days'] = gap_days
+        result["is_double_gun"] = True
+        result["double_gun_vol1"] = round(vol1, 1)
+        result["double_gun_vol2"] = round(vol2, 1)
+        result["double_gun_gap_days"] = gap_days
 
     return result
-def detect_sb1_detailed(klines: List[DailyData]) -> Dict:
+
+
+def detect_sb1_detailed(klines: list[DailyData]) -> dict:
     """
     超级B1独立检测
 
@@ -379,7 +409,7 @@ def detect_sb1_detailed(klines: List[DailyData]) -> Dict:
     只赌一次，不可重复博弈
     """
     result = {
-        'is_sb1_detailed': False,
+        "is_sb1_detailed": False,
     }
     if len(klines) < 15:
         return result
@@ -431,13 +461,15 @@ def detect_sb1_detailed(klines: List[DailyData]) -> Dict:
         pre_lows = [klines[i].low for i in range(max(0, big_drop_idx - 10), big_drop_idx)]
         if len(pre_lows) >= 3:
             # 简单判断：大阴线前的低点在抬高
-            first_half = pre_lows[:len(pre_lows)//2]
-            second_half = pre_lows[len(pre_lows)//2:]
+            first_half = pre_lows[: len(pre_lows) // 2]
+            second_half = pre_lows[len(pre_lows) // 2 :]
             if min(second_half) < min(first_half):
-                result['is_sb1_detailed'] = True
+                result["is_sb1_detailed"] = True
 
     return result
-def calculate_dmi(klines: List[DailyData], period: int = 14) -> Tuple[float, float, float]:
+
+
+def calculate_dmi(klines: list[DailyData], period: int = 14) -> tuple[float, float, float]:
     """
     计算 DMI 趋向指标
 
@@ -458,7 +490,7 @@ def calculate_dmi(klines: List[DailyData], period: int = 14) -> Tuple[float, flo
     # 计算 MTM = 当日收盘 - 昨日收盘
     mtm_list = []
     for i in range(1, len(klines)):
-        mtm = klines[i].close - klines[i-1].close
+        mtm = klines[i].close - klines[i - 1].close
         mtm_list.append(mtm)
 
     if len(mtm_list) < period:
@@ -469,8 +501,8 @@ def calculate_dmi(klines: List[DailyData], period: int = 14) -> Tuple[float, flo
     dmi_minus_list = []
 
     for i in range(1, len(klines)):
-        high_diff = klines[i].high - klines[i-1].high
-        low_diff = klines[i-1].low - klines[i].low
+        high_diff = klines[i].high - klines[i - 1].high
+        low_diff = klines[i - 1].low - klines[i].low
 
         dm_plus = high_diff if high_diff > low_diff and high_diff > 0 else 0
         dm_minus = low_diff if low_diff > high_diff and low_diff > 0 else 0
@@ -490,7 +522,7 @@ def calculate_dmi(klines: List[DailyData], period: int = 14) -> Tuple[float, flo
     for i in range(1, len(klines)):
         high = klines[i].high
         low = klines[i].low
-        prev_close = klines[i-1].close
+        prev_close = klines[i - 1].close
 
         tr1 = high - low
         tr2 = abs(high - prev_close)
@@ -512,8 +544,8 @@ def calculate_dmi(klines: List[DailyData], period: int = 14) -> Tuple[float, flo
     # 计算 ADX
     dx_list = []
     for i in range(period - 1, len(dmi_plus_list)):
-        di_plus = sum(dmi_plus_list[i-period+1:i+1]) / period / tr_ma * 100 if tr_ma > 0 else 0
-        di_minus = sum(dmi_minus_list[i-period+1:i+1]) / period / tr_ma * 100 if tr_ma > 0 else 0
+        di_plus = sum(dmi_plus_list[i - period + 1 : i + 1]) / period / tr_ma * 100 if tr_ma > 0 else 0
+        di_minus = sum(dmi_minus_list[i - period + 1 : i + 1]) / period / tr_ma * 100 if tr_ma > 0 else 0
         dx = abs(di_plus - di_minus) / (di_plus + di_minus) * 100 if (di_plus + di_minus) > 0 else 0
         dx_list.append(dx)
 
@@ -523,7 +555,9 @@ def calculate_dmi(klines: List[DailyData], period: int = 14) -> Tuple[float, flo
         adx = sum(dx_list[-period:]) / period
 
     return round(dmi_plus, 2), round(dmi_minus, 2), round(adx, 2)
-def calculate_brick_value(klines: List[DailyData]) -> float:
+
+
+def calculate_brick_value(klines: list[DailyData]) -> float:
     """
     计算砖型图数值（通达信标准公式 - 短期砖型图指标v2026）
 
@@ -545,8 +579,8 @@ def calculate_brick_value(klines: List[DailyData]) -> float:
     # 构建 VAR3A 序列（需要至少 6 个值来算 SMA(VAR3A,6,1)）
     var3a_list: list[float] = []
     for i in range(3, len(klines)):  # HHV/LLV 需要 4 天，所以从索引 3 开始
-        hhv4 = max(highs[max(0, i-3):i+1])
-        llv4 = min(lows[max(0, i-3):i+1])
+        hhv4 = max(highs[max(0, i - 3) : i + 1])
+        llv4 = min(lows[max(0, i - 3) : i + 1])
         if hhv4 == llv4:
             v3 = 50.0
         else:
@@ -569,8 +603,8 @@ def calculate_brick_value(klines: List[DailyData]) -> float:
     # 构建 VAR1A 序列
     var1a_list = []
     for i in range(3, len(klines)):
-        hhv4 = max(highs[max(0, i-3):i+1])
-        llv4 = min(lows[max(0, i-3):i+1])
+        hhv4 = max(highs[max(0, i - 3) : i + 1])
+        llv4 = min(lows[max(0, i - 3) : i + 1])
         if hhv4 == llv4:
             v1: float = -90.0
         else:
@@ -591,7 +625,9 @@ def calculate_brick_value(klines: List[DailyData]) -> float:
     brick = var6a - 4 if var6a > 4 else 0
 
     return round(brick, 2)
-def calculate_brick_history(klines: List[DailyData], lookback: int = 20) -> Tuple[str, int]:
+
+
+def calculate_brick_history(klines: list[DailyData], lookback: int = 20) -> tuple[str, int]:
     """
     计算砖型图趋势（连续红砖/绿砖数量）
 
@@ -620,7 +656,7 @@ def calculate_brick_history(klines: List[DailyData], lookback: int = 20) -> Tupl
 
         if prev_brick is not None:
             if brick_val >= prev_brick:
-                brick_colors.append(1)   # 红砖 = 上涨
+                brick_colors.append(1)  # 红砖 = 上涨
             else:
                 brick_colors.append(-1)  # 绿砖 = 下跌
         prev_brick = brick_val
@@ -642,7 +678,9 @@ def calculate_brick_history(klines: List[DailyData], lookback: int = 20) -> Tupl
 
     trend = "RED" if current_color > 0 else "GREEN"
     return trend, count
-def detect_brick_trend(klines: List[DailyData]) -> bool:
+
+
+def detect_brick_trend(klines: list[DailyData]) -> bool:
     """
     检测命值趋势是否上升
 
@@ -656,7 +694,7 @@ def detect_brick_trend(klines: List[DailyData]) -> bool:
     # 计算命值序列
     ming_values = []
     for i in range(113, len(klines)):
-        sub = closes[:i+1]
+        sub = closes[: i + 1]
         ma14 = calculate_ma(sub, 14)
         ma28 = calculate_ma(sub, 28)
         ma57 = calculate_ma(sub, 57)
@@ -675,7 +713,9 @@ def detect_brick_trend(klines: List[DailyData]) -> bool:
     yun_zhi = calculate_zg_white(klines)
 
     return slope > -0.02 and yun_zhi > current_ming
-def detect_fanbao(klines: List[DailyData]) -> bool:
+
+
+def detect_fanbao(klines: list[DailyData]) -> bool:
     """
     检测精准反包信号
 
@@ -705,7 +745,9 @@ def detect_fanbao(klines: List[DailyData]) -> bool:
     is_fanbao = brick_today > fbwz if lzgd > 0 else False
 
     return is_red and is_green_yesterday and is_fanbao
-def detect_volume_pattern(today: DailyData, yesterday: Optional[DailyData] = None) -> Dict[str, bool]:
+
+
+def detect_volume_pattern(today: DailyData, yesterday: DailyData | None = None) -> dict[str, bool]:
     """
     检测量价形态
 
@@ -717,11 +759,11 @@ def detect_volume_pattern(today: DailyData, yesterday: Optional[DailyData] = Non
         形态检测结果
     """
     result = {
-        'is_beidou': False,           # 倍量
-        'is_suoliang': False,        # 缩量
-        'is_jiayin_zhenyang': False, # 假阴真阳
-        'is_jiayang_zhenyin': False, # 假阳真阴
-        'is_fangliang_yinxian': False # 放量阴线
+        "is_beidou": False,  # 倍量
+        "is_suoliang": False,  # 缩量
+        "is_jiayin_zhenyang": False,  # 假阴真阳
+        "is_jiayang_zhenyin": False,  # 假阳真阴
+        "is_fangliang_yinxian": False,  # 放量阴线
     }
 
     if yesterday is None:
@@ -729,27 +771,28 @@ def detect_volume_pattern(today: DailyData, yesterday: Optional[DailyData] = Non
 
     # 倍量：今日量 > 昨日量 × 2
     if today.vol >= yesterday.vol * 2:
-        result['is_beidou'] = True
+        result["is_beidou"] = True
 
     # 缩量：今日量 < 昨日量 × 0.5
     if today.vol <= yesterday.vol * 0.5:
-        result['is_suoliang'] = True
+        result["is_suoliang"] = True
 
     # 假阴真阳：收 < 开 but 收 > 昨收
     if today.close < today.open and today.close > today.prev_close:
-        result['is_jiayin_zhenyang'] = True
+        result["is_jiayin_zhenyang"] = True
 
     # 假阳真阴：收 > 开 but 收 < 昨收
     if today.close > today.open and today.close < today.prev_close:
-        result['is_jiayang_zhenyin'] = True
+        result["is_jiayang_zhenyin"] = True
 
     # 放量阴线：下跌 + 放量
     if today.close < today.prev_close and today.vol > yesterday.vol * 1.5:
-        result['is_fangliang_yinxian'] = True
+        result["is_fangliang_yinxian"] = True
 
     return result
 
-def detect_didi(klines: List[DailyData]) -> Dict:
+
+def detect_didi(klines: list[DailyData]) -> dict:
     """
     滴滴战法检测（高位连续两根阴线下台阶）
 
@@ -771,7 +814,7 @@ def detect_didi(klines: List[DailyData]) -> Dict:
         {'is_didi': bool, 'first_low': float, 'second_close': float, 'volume_ratio': float}
     """
     if len(klines) < 2:
-        return {'is_didi': False}
+        return {"is_didi": False}
 
     today = klines[-1]
     yesterday = klines[-2]
@@ -793,17 +836,17 @@ def detect_didi(klines: List[DailyData]) -> Dict:
 
     if is_yin_1 and is_yin_2 and is_down_step and is_volume_ok and is_high:
         return {
-            'is_didi': True,
-            'first_low': round(yesterday.low, 2),
-            'second_close': round(today.close, 2),
-            'volume_ratio': round(today.vol / yesterday.vol, 2) if yesterday.vol > 0 else 0,
-            'recent_high': round(recent_high, 2)
+            "is_didi": True,
+            "first_low": round(yesterday.low, 2),
+            "second_close": round(today.close, 2),
+            "volume_ratio": round(today.vol / yesterday.vol, 2) if yesterday.vol > 0 else 0,
+            "recent_high": round(recent_high, 2),
         }
 
-    return {'is_didi': False}
+    return {"is_didi": False}
 
 
-def calculate_zuchong_target(klines: List[DailyData], lookback: int = 60) -> Dict:
+def calculate_zuchong_target(klines: list[DailyData], lookback: int = 60) -> dict:
     """
     祖冲之法 —— 主力目标价计算
 
@@ -825,40 +868,41 @@ def calculate_zuchong_target(klines: List[DailyData], lookback: int = 60) -> Dic
         {'target': float, 'a': float, 'b': float, 'current': float, 'upside_pct': float}
     """
     if len(klines) < 10:
-        return {'target': 0, 'a': 0, 'b': 0, 'current': 0, 'upside_pct': 0}
+        return {"target": 0, "a": 0, "b": 0, "current": 0, "upside_pct": 0}
 
     recent = klines[-lookback:] if len(klines) >= lookback else klines
 
     highs = [k.high for k in recent]
     lows = [k.low for k in recent]
 
-    a = max(highs)   # 近期高点
-    b = min(lows)    # 近期低点
+    a = max(highs)  # 近期高点
+    b = min(lows)  # 近期低点
     current = klines[-1].close
 
     target = 2 * a - b
     upside_pct = (target - current) / current * 100 if current > 0 else 0
 
     return {
-        'target': round(target, 2),
-        'a': round(a, 2),
-        'b': round(b, 2),
-        'current': round(current, 2),
-        'upside_pct': round(upside_pct, 1)
+        "target": round(target, 2),
+        "a": round(a, 2),
+        "b": round(b, 2),
+        "current": round(current, 2),
+        "upside_pct": round(upside_pct, 1),
     }
 
-def detect_b1_today(klines: List[DailyData]) -> Dict:
+
+def detect_b1_today(klines: list[DailyData]) -> dict:
     """
     B1建仓波检测（只检查最新这天）
     标准：J<13, 振幅<4%, 涨幅-2%~+1.8%, 缩量
     """
     result: dict[str, Any] = {
-        'is_b1': False,
-        'b1_j_value': 0.0,
-        'b1_amplitude': 0.0,
-        'b1_pct_chg': 0.0,
-        'b1_volume_shrink': False,
-        'b1_score': 0.0,
+        "is_b1": False,
+        "b1_j_value": 0.0,
+        "b1_amplitude": 0.0,
+        "b1_pct_chg": 0.0,
+        "b1_volume_shrink": False,
+        "b1_score": 0.0,
     }
     if len(klines) < 2:
         return result
@@ -869,30 +913,36 @@ def detect_b1_today(klines: List[DailyData]) -> Dict:
     pct = today.pct_chg
     vol_shrink = today.vol < prev.vol
     score = 0
-    if j < 13: score += 1
-    if amplitude < 4: score += 1
-    if -2 <= pct <= 1.8: score += 1
-    if vol_shrink: score += 1
+    if j < 13:
+        score += 1
+    if amplitude < 4:
+        score += 1
+    if -2 <= pct <= 1.8:
+        score += 1
+    if vol_shrink:
+        score += 1
     if score >= 3:
-        result['is_b1'] = True
-    result['b1_j_value'] = round(j, 2)
-    result['b1_amplitude'] = round(amplitude, 2)
-    result['b1_pct_chg'] = round(pct, 2)
-    result['b1_volume_shrink'] = vol_shrink
-    result['b1_score'] = score
+        result["is_b1"] = True
+    result["b1_j_value"] = round(j, 2)
+    result["b1_amplitude"] = round(amplitude, 2)
+    result["b1_pct_chg"] = round(pct, 2)
+    result["b1_volume_shrink"] = vol_shrink
+    result["b1_score"] = score
     return result
-def detect_b2_today(klines: List[DailyData]) -> Dict:
+
+
+def detect_b2_today(klines: list[DailyData]) -> dict:
     """
     B2突破检测（只检查最新这天）
     标准：B1后5天内, 涨幅>=4%, 放量20%+, J<55
     """
     result: dict[str, Any] = {
-        'is_b2': False,
-        'b2_follows_b1': False,
-        'b2_pct_chg': 0.0,
-        'b2_j_value': 0.0,
-        'b2_volume_up': False,
-        'b2_score': 0.0,
+        "is_b2": False,
+        "b2_follows_b1": False,
+        "b2_pct_chg": 0.0,
+        "b2_j_value": 0.0,
+        "b2_volume_up": False,
+        "b2_score": 0.0,
     }
     if len(klines) < 10:
         return result
@@ -903,7 +953,7 @@ def detect_b2_today(klines: List[DailyData]) -> Dict:
     # 检查最近5天是否有B1痕迹
     has_recent_b1 = False
     for i in range(max(1, len(klines) - 5), len(klines)):
-        _, _, j_check = calculate_kdj(klines[:i + 1])
+        _, _, j_check = calculate_kdj(klines[: i + 1])
         if j_check < 13:
             has_recent_b1 = True
             break
@@ -911,19 +961,25 @@ def detect_b2_today(klines: List[DailyData]) -> Dict:
     pct = today.pct_chg
     vol_up = today.vol > prev.vol * 1.2
     score = 0
-    if has_recent_b1: score += 1
-    if pct >= 4: score += 1
-    if j < 55: score += 1
-    if vol_up: score += 1
+    if has_recent_b1:
+        score += 1
+    if pct >= 4:
+        score += 1
+    if j < 55:
+        score += 1
+    if vol_up:
+        score += 1
     if has_recent_b1 and pct >= 4 and score >= 3:
-        result['is_b2'] = True
-    result['b2_follows_b1'] = has_recent_b1
-    result['b2_pct_chg'] = round(pct, 2)
-    result['b2_j_value'] = round(j, 2)
-    result['b2_volume_up'] = vol_up
-    result['b2_score'] = score
+        result["is_b2"] = True
+    result["b2_follows_b1"] = has_recent_b1
+    result["b2_pct_chg"] = round(pct, 2)
+    result["b2_j_value"] = round(j, 2)
+    result["b2_volume_up"] = vol_up
+    result["b2_score"] = score
     return result
-def detect_key_k(klines: List[DailyData], lookback: int = 60) -> List[Dict]:
+
+
+def detect_key_k(klines: list[DailyData], lookback: int = 60) -> list[dict]:
     """
     关键K检测（位置 + 放量 + 长阳/长阴），扫描最近lookback天
     找出那2-3根真正在指挥走势的关键K
@@ -967,18 +1023,22 @@ def detect_key_k(klines: List[DailyData], lookback: int = 60) -> List[Dict]:
             at_key = False
 
         if is_big_body and is_high_vol and at_key:
-            results.append({
-                'date': day.trade_date,
-                'close': day.close,
-                'pct': day.pct_chg,
-                'type': '反转' if day.close > day.open else '衰竭',
-                'body_pct': round(body_pct, 1),
-                'vol_ratio': round(vol_ratio, 1),
-                'is_latest': (i == n - 1),
-            })
+            results.append(
+                {
+                    "date": day.trade_date,
+                    "close": day.close,
+                    "pct": day.pct_chg,
+                    "type": "反转" if day.close > day.open else "衰竭",
+                    "body_pct": round(body_pct, 1),
+                    "vol_ratio": round(vol_ratio, 1),
+                    "is_latest": (i == n - 1),
+                }
+            )
 
     return results
-def detect_violence_k(klines: List[DailyData], lookback: int = 60) -> List[Dict]:
+
+
+def detect_violence_k(klines: list[DailyData], lookback: int = 60) -> list[dict]:
     """
     暴力K检测（底部 + 突兀 + 倍量），扫描最近lookback天
     关键K的满配版
@@ -1024,27 +1084,31 @@ def detect_violence_k(klines: List[DailyData], lookback: int = 60) -> List[Dict]
         is_double_vol = vol_ratio >= 2
 
         if at_bottom and is_abrupt and is_double_vol:
-            results.append({
-                'date': day.trade_date,
-                'close': day.close,
-                'pct': day.pct_chg,
-                'type': '大暴力' if vol_ratio >= 3 else '小暴力',
-                'body_pct': round(body_pct, 1),
-                'vol_ratio': round(vol_ratio, 1),
-                'is_latest': (i == n - 1),
-            })
+            results.append(
+                {
+                    "date": day.trade_date,
+                    "close": day.close,
+                    "pct": day.pct_chg,
+                    "type": "大暴力" if vol_ratio >= 3 else "小暴力",
+                    "body_pct": round(body_pct, 1),
+                    "vol_ratio": round(vol_ratio, 1),
+                    "is_latest": (i == n - 1),
+                }
+            )
 
     return results
-def check_two_30_rule(klines: List[DailyData]) -> Dict:
+
+
+def check_two_30_rule(klines: list[DailyData]) -> dict:
     """
     两个30%原则检查（B1筛选）
     1. B1涨幅约30%
     2. 累计换手率不超过30%
     """
     result: dict[str, Any] = {
-        'b1_rally_pct': 0.0,
-        'b1_turnover': 0.0,
-        'b1_pass_30': False,
+        "b1_rally_pct": 0.0,
+        "b1_turnover": 0.0,
+        "b1_pass_30": False,
     }
     if len(klines) < 10:
         return result
@@ -1057,17 +1121,19 @@ def check_two_30_rule(klines: List[DailyData]) -> Dict:
     # 估算累计换手率（简化：累加每日vol/流通股本，用vol近似）
     total_vol = sum(k.vol for k in klines[-lookback:])
     avg_cap = sum(k.vol for k in klines[-lookback:]) / lookback  # 简化
-    turnover_est = total_vol / (avg_cap * lookback) * 100 if avg_cap > 0 else 0
+    total_vol / (avg_cap * lookback) * 100 if avg_cap > 0 else 0
     # 用更简单的方式：涨幅在25%-35%之间算通过
-    result['b1_rally_pct'] = round(rally_pct, 2)
-    result['b1_pass_30'] = 25 <= rally_pct <= 40
+    result["b1_rally_pct"] = round(rally_pct, 2)
+    result["b1_pass_30"] = 25 <= rally_pct <= 40
     return result
-def detect_nana_chart(klines: List[DailyData]) -> Dict:
+
+
+def detect_nana_chart(klines: list[DailyData]) -> dict:
     """
     娜娜图检测：完美建仓形态
     条件：股价新高但阳线缩量，次高点阴线也缩量
     """
-    result = {'is_nana': False}
+    result = {"is_nana": False}
     if len(klines) < 20:
         return result
     n = len(klines)
@@ -1087,83 +1153,89 @@ def detect_nana_chart(klines: List[DailyData]) -> Dict:
         return result
     # 检查峰值区域是否缩量
     peak_vol = klines[peak_idx].vol
-    prev5_avg = sum(k.vol for k in klines[max(0,peak_idx-5):peak_idx]) / min(5, peak_idx)
+    prev5_avg = sum(k.vol for k in klines[max(0, peak_idx - 5) : peak_idx]) / min(5, peak_idx)
     vol_shrink_at_peak = peak_vol < prev5_avg * 0.8 if prev5_avg > 0 else False
     # 次高点缩量
     second_vol = klines[second_peak].vol
-    sec_prev5 = sum(k.vol for k in klines[max(0,second_peak-5):second_peak]) / min(5, second_peak)
+    sec_prev5 = sum(k.vol for k in klines[max(0, second_peak - 5) : second_peak]) / min(5, second_peak)
     vol_shrink_second = second_vol < sec_prev5 * 0.8 if sec_prev5 > 0 else False
     # 底部堆量：找低点区域量是否明显大于峰值区域
-    low_idx = min(range(max(0, second_peak-10), second_peak), key=lambda i: klines[i].low)
+    low_idx = min(range(max(0, second_peak - 10), second_peak), key=lambda i: klines[i].low)
     bottom_vol = klines[low_idx].vol
     if vol_shrink_at_peak and vol_shrink_second and bottom_vol > peak_vol * 0.5:
-        result['is_nana'] = True
+        result["is_nana"] = True
     return result
-def detect_golden_bowl(klines: List[DailyData]) -> Dict:
+
+
+def detect_golden_bowl(klines: list[DailyData]) -> dict:
     """
     黄金碗检测：价格在白线( zg_white )和黄线( dg_yellow )之间
     条件：白线>黄线(多头排列) + 价格落入碗内
     """
-    result: dict[str, Any] = {'is_in_bowl': False, 'bowl_upper': 0.0, 'bowl_lower': 0.0}
+    result: dict[str, Any] = {"is_in_bowl": False, "bowl_upper": 0.0, "bowl_lower": 0.0}
     if len(klines) < 120:
         return result
     white = calculate_zg_white(klines)
     yellow = calculate_dg_yellow(klines)
     if white <= 0 or yellow <= 0:
         return result
-    result['bowl_upper'] = round(white, 2)
-    result['bowl_lower'] = round(yellow, 2)
+    result["bowl_upper"] = round(white, 2)
+    result["bowl_lower"] = round(yellow, 2)
     today_close = klines[-1].close
     # 白线>黄线且价格在碗内
     if white > yellow and yellow <= today_close <= white:
-        result['is_in_bowl'] = True
+        result["is_in_bowl"] = True
     return result
-def detect_breathing_structure(klines: List[DailyData]) -> Dict:
+
+
+def detect_breathing_structure(klines: list[DailyData]) -> dict:
     """
     呼吸结构检测：放量涨->缩量跌->放量涨 的N型节奏
     """
-    result = {'breath_phase': '', 'breath_n_type': False}
+    result = {"breath_phase": "", "breath_n_type": False}
     if len(klines) < 10:
         return result
     n = len(klines)
     # 分析最近5-7天的量价节奏
     phases = []
-    for i in range(max(0, n-7), n):
+    for i in range(max(0, n - 7), n):
         day = klines[i]
-        prev = klines[i-1] if i > 0 else None
+        prev = klines[i - 1] if i > 0 else None
         if not prev or prev.vol <= 0:
             continue
         vol_ratio = day.vol / prev.vol
         if day.pct_chg > 0 and vol_ratio > 1:
-            phases.append('exhale')  # 放量涨=呼气
+            phases.append("exhale")  # 放量涨=呼气
         elif day.pct_chg < 0 and vol_ratio < 1:
-            phases.append('inhale')  # 缩量跌=吸气
+            phases.append("inhale")  # 缩量跌=吸气
         else:
-            phases.append('other')
+            phases.append("other")
     # 判断当前阶段
     if len(phases) >= 2:
-        if phases[-1] == 'exhale':
-            result['breath_phase'] = 'exhale'
-        elif phases[-1] == 'inhale':
-            result['breath_phase'] = 'inhale'
+        if phases[-1] == "exhale":
+            result["breath_phase"] = "exhale"
+        elif phases[-1] == "inhale":
+            result["breath_phase"] = "inhale"
         else:
-            result['breath_phase'] = 'none'
+            result["breath_phase"] = "none"
     # N型结构：最近3个低点依次抬高
     if n >= 10:
-        lows = [klines[i].low for i in range(n-10, n, 3)]
+        lows = [klines[i].low for i in range(n - 10, n, 3)]
         if len(lows) >= 3 and lows[-1] > lows[-2] > lows[-3]:
-            result['breath_n_type'] = True
+            result["breath_n_type"] = True
     return result
-def detect_sb1(klines: List[DailyData]) -> Dict:
+
+
+def detect_sb1(klines: list[DailyData]) -> dict:
     """
     SB1假摔检测：B1后跌破前低再迅速收回
     条件：1)跌破前低 2)次日反包收回 3)收回放量
     """
-    result = {'is_sb1': False}
+    result = {"is_sb1": False}
     if len(klines) < 6:
         return result
     n = len(klines)
-    today = klines[-1]
+    klines[-1]
     yesterday = klines[-2]
     # 前天是假摔日
     if len(klines) >= 3:
@@ -1176,19 +1248,21 @@ def detect_sb1(klines: List[DailyData]) -> Dict:
         # 3) 反包放量
         vol_up = yesterday.vol > fake_drop.vol * 1.2
         if broken_low and recovered and vol_up:
-            result['is_sb1'] = True
+            result["is_sb1"] = True
     return result
-def detect_b3(klines: List[DailyData]) -> Dict:
+
+
+def detect_b3(klines: list[DailyData]) -> dict:
     """
     B3买点检测：B2后缩量回踩不破B2低点
     条件：1) 前面有B2(大涨>=4%) 2) 缩量小阳/十字星 3) 不破B2低点
     """
-    result = {'is_b3': False}
+    result = {"is_b3": False}
     if len(klines) < 15:
         return result
     n = len(klines)
     today = klines[-1]
-    prev = klines[-2]
+    klines[-2]
     # 往前找B2(大涨>=4%的阳线)
     b2_idx = None
     for i in range(n - 2, max(0, n - 15), -1):
@@ -1205,9 +1279,11 @@ def detect_b3(klines: List[DailyData]) -> Dict:
         not_break_low = today.low >= b2_low * 0.98
         small_candle = abs(today.pct_chg) < 3
         if today_vol_ratio < 0.8 and not_break_low and small_candle:
-            result['is_b3'] = True
+            result["is_b3"] = True
     return result
-def detect_four_brick_system(klines: List[DailyData]) -> Dict:
+
+
+def detect_four_brick_system(klines: list[DailyData]) -> dict:
     """
     四块砖交易体系检测
 
@@ -1222,14 +1298,14 @@ def detect_four_brick_system(klines: List[DailyData]) -> Dict:
     4. 买入后3天不涨 → 止损（DSZ铁律）
     """
     result = {
-        'brick_consecutive': 0,      # 当前连续砖数
-        'brick_action': '观望',      # 操作建议
-        'brick_action_desc': '',     # 操作描述
-        'is_brick_flip_green': False,  # 红砖刚翻绿（上涨转下跌）
+        "brick_consecutive": 0,  # 当前连续砖数
+        "brick_action": "观望",  # 操作建议
+        "brick_action_desc": "",  # 操作描述
+        "is_brick_flip_green": False,  # 红砖刚翻绿（上涨转下跌）
     }
 
     if len(klines) < 10:
-        result['brick_action_desc'] = '数据不足'
+        result["brick_action_desc"] = "数据不足"
         return result
 
     # 计算历史砖值序列（至少需要8天才能开始算砖值）
@@ -1240,7 +1316,7 @@ def detect_four_brick_system(klines: List[DailyData]) -> Dict:
         brick_history.append(brick_val)
 
     if len(brick_history) < 3:
-        result['brick_action_desc'] = '数据不足'
+        result["brick_action_desc"] = "数据不足"
         return result
 
     # 计算红绿砖：与官方公式一致
@@ -1248,12 +1324,12 @@ def detect_four_brick_system(klines: List[DailyData]) -> Dict:
     colors = []
     for i in range(1, len(brick_history)):
         if brick_history[i] >= brick_history[i - 1]:
-            colors.append(1)   # 红砖 = 上涨
+            colors.append(1)  # 红砖 = 上涨
         else:
             colors.append(-1)  # 绿砖 = 下跌
 
     if not colors:
-        result['brick_action_desc'] = '无砖型数据'
+        result["brick_action_desc"] = "无砖型数据"
         return result
 
     # 从最新往前数连续同色砖
@@ -1265,7 +1341,7 @@ def detect_four_brick_system(klines: List[DailyData]) -> Dict:
         else:
             break
 
-    result['brick_consecutive'] = count
+    result["brick_consecutive"] = count
 
     # === 规则判断 ===
 
@@ -1274,43 +1350,44 @@ def detect_four_brick_system(klines: List[DailyData]) -> Dict:
         prev_color = colors[-2] if len(colors) >= 2 else 1
         if prev_color == 1:
             # 刚翻绿
-            result['is_brick_flip_green'] = True
-            result['brick_action'] = '止损'
-            result['brick_action_desc'] = f'红砖翻绿！立刻止损（连续红砖{count}块后翻绿）'
+            result["is_brick_flip_green"] = True
+            result["brick_action"] = "止损"
+            result["brick_action_desc"] = f"红砖翻绿！立刻止损（连续红砖{count}块后翻绿）"
             return result
 
     # 2. 红砖数满4块 → 减仓（连续上涨）
     if current_color == 1 and count >= 4:
-        result['brick_action'] = '减仓'
+        result["brick_action"] = "减仓"
         if count == 4:
-            result['brick_action_desc'] = f'红砖已满4块，至少减仓一半'
+            result["brick_action_desc"] = "红砖已满4块，至少减仓一半"
         else:
-            result['brick_action_desc'] = f'红砖已延续{count}块，趋势延续中，但未减仓需警惕'
+            result["brick_action_desc"] = f"红砖已延续{count}块，趋势延续中，但未减仓需警惕"
         return result
 
     # 3. 绿砖下跌 → 禁止抄底（连续下跌）
     if current_color == -1:
-        result['brick_action'] = '禁止抄底'
+        result["brick_action"] = "禁止抄底"
         if count >= 4:
-            result['brick_action_desc'] = f'绿砖已连续{count}块，跌势可能接近尾声但仍禁止抄底'
+            result["brick_action_desc"] = f"绿砖已连续{count}块，跌势可能接近尾声但仍禁止抄底"
         else:
-            result['brick_action_desc'] = f'绿砖下跌中（{count}块），绝不抄底，先数4块'
+            result["brick_action_desc"] = f"绿砖下跌中（{count}块），绝不抄底，先数4块"
         return result
 
     # 4. 红砖不足4块 → 持有/观察（上涨中）
     if current_color == 1 and count < 4:
-        result['brick_action'] = '持有'
-        result['brick_action_desc'] = f'红砖上涨中（{count}块），继续持有'
+        result["brick_action"] = "持有"
+        result["brick_action_desc"] = f"红砖上涨中（{count}块），继续持有"
         return result
 
-    result['brick_action'] = '观望'
-    result['brick_action_desc'] = '中性'
+    result["brick_action"] = "观望"
+    result["brick_action_desc"] = "中性"
     return result
 
 
 # ========== P1 指标：灾后重建 / 跃跃欲试 / 关键K ==========
 
-def detect_zaihou_chongjian(klines: List[DailyData]) -> Dict:
+
+def detect_zaihou_chongjian(klines: list[DailyData]) -> dict:
     """
     灾后重建检测 —— 放量金叉后缩量回踩黄线
 
@@ -1330,7 +1407,7 @@ def detect_zaihou_chongjian(klines: List[DailyData]) -> Dict:
         {'is_rebuild': bool, 'confidence': float, 'desc': str}
     """
     if len(klines) < 60:
-        return {'is_rebuild': False}
+        return {"is_rebuild": False}
 
     today = klines[-1]
 
@@ -1343,10 +1420,18 @@ def detect_zaihou_chongjian(klines: List[DailyData]) -> Dict:
     yellow_line = (ma3 + ma6 + ma12 + ma24) / 4
 
     # 黄线趋势：近5天黄线 vs 近10天黄线
-    yellow_5 = (calculate_ma(closes[-5:], 3) + calculate_ma(closes[-5:], 6) +
-                calculate_ma(closes[-5:], 12) + calculate_ma(closes[-5:], 24)) / 4
-    yellow_10 = (calculate_ma(closes[-10:], 3) + calculate_ma(closes[-10:], 6) +
-                 calculate_ma(closes[-10:], 12) + calculate_ma(closes[-10:], 24)) / 4
+    yellow_5 = (
+        calculate_ma(closes[-5:], 3)
+        + calculate_ma(closes[-5:], 6)
+        + calculate_ma(closes[-5:], 12)
+        + calculate_ma(closes[-5:], 24)
+    ) / 4
+    yellow_10 = (
+        calculate_ma(closes[-10:], 3)
+        + calculate_ma(closes[-10:], 6)
+        + calculate_ma(closes[-10:], 12)
+        + calculate_ma(closes[-10:], 24)
+    ) / 4
     yellow_up = yellow_5 > yellow_10
 
     # 查找近期放量上涨日（近15天内）
@@ -1355,13 +1440,13 @@ def detect_zaihou_chongjian(klines: List[DailyData]) -> Dict:
     for i, k in enumerate(recent_15):
         if i == 0:
             continue
-        prev_5_avg = sum(kl.vol for kl in recent_15[max(0, i-5):i]) / 5
+        prev_5_avg = sum(kl.vol for kl in recent_15[max(0, i - 5) : i]) / 5
         if k.pct_chg > 5 and k.vol > prev_5_avg * 1.5:
             fangliang_day = k
             break
 
     if fangliang_day is None:
-        return {'is_rebuild': False}
+        return {"is_rebuild": False}
 
     # 缩量条件：今天量 < 放量日量的 60%
     is_suoliang = today.vol < fangliang_day.vol * 0.6
@@ -1371,17 +1456,17 @@ def detect_zaihou_chongjian(klines: List[DailyData]) -> Dict:
 
     if is_suoliang and near_yellow and yellow_up:
         return {
-            'is_rebuild': True,
-            'confidence': 0.85,
-            'yellow_line': round(yellow_line, 2),
-            'fangliang_price': round(fangliang_day.close, 2),
-            'desc': f'灾后重建：放量({fangliang_day.close:.2f})后缩量回踩黄线({yellow_line:.2f})'
+            "is_rebuild": True,
+            "confidence": 0.85,
+            "yellow_line": round(yellow_line, 2),
+            "fangliang_price": round(fangliang_day.close, 2),
+            "desc": f"灾后重建：放量({fangliang_day.close:.2f})后缩量回踩黄线({yellow_line:.2f})",
         }
 
-    return {'is_rebuild': False}
+    return {"is_rebuild": False}
 
 
-def detect_yueyueyushi(klines: List[DailyData]) -> Dict:
+def detect_yueyueyushi(klines: list[DailyData]) -> dict:
     """
     跃跃欲试检测 —— 横盘期间放巨大量三次
 
@@ -1402,7 +1487,7 @@ def detect_yueyueyushi(klines: List[DailyData]) -> Dict:
         {'is_ready': bool, 'count': int, 'confidence': float, 'desc': str}
     """
     if len(klines) < 30:
-        return {'is_ready': False}
+        return {"is_ready": False}
 
     recent_20 = klines[-20:]
     high_20 = max(k.high for k in recent_20)
@@ -1411,7 +1496,7 @@ def detect_yueyueyushi(klines: List[DailyData]) -> Dict:
 
     # 横盘条件
     if amplitude > 0.15:
-        return {'is_ready': False}
+        return {"is_ready": False}
 
     # 计算近10日均量
     vols_10 = [k.vol for k in klines[-10:]]
@@ -1430,17 +1515,17 @@ def detect_yueyueyushi(klines: List[DailyData]) -> Dict:
     if juliang_count >= 3 and yang_count / juliang_count > 0.5:
         confidence = 0.70 + 0.05 * min(juliang_count - 3, 3)  # 每多一次+5%，上限85%
         return {
-            'is_ready': True,
-            'count': juliang_count,
-            'yang_ratio': round(yang_count / juliang_count, 2),
-            'confidence': round(confidence, 2),
-            'desc': f'跃跃欲试：横盘振幅{amplitude*100:.0f}%，{juliang_count}次巨量，阳线占比{yang_count/juliang_count*100:.0f}%'
+            "is_ready": True,
+            "count": juliang_count,
+            "yang_ratio": round(yang_count / juliang_count, 2),
+            "confidence": round(confidence, 2),
+            "desc": f"跃跃欲试：横盘振幅{amplitude * 100:.0f}%，{juliang_count}次巨量，阳线占比{yang_count / juliang_count * 100:.0f}%",
         }
 
-    return {'is_ready': False}
+    return {"is_ready": False}
 
 
-def detect_key_candle(klines: List[DailyData]) -> Dict:
+def detect_key_candle(klines: list[DailyData]) -> dict:
     """
     关键 K 检测 —— 走势中管理其他 K 线的关键位置放量长中阳/阴
 
@@ -1464,7 +1549,7 @@ def detect_key_candle(klines: List[DailyData]) -> Dict:
         {'is_key': bool, 'direction': str, 'type': str, 'confidence': float}
     """
     if len(klines) < 20:
-        return {'is_key': False}
+        return {"is_key": False}
 
     today = klines[-1]
     recent_10 = klines[-10:]
@@ -1483,37 +1568,37 @@ def detect_key_candle(klines: List[DailyData]) -> Dict:
     is_big_body = body_ratio > 0.6
 
     if not is_fangliang or not is_big_body:
-        return {'is_key': False}
+        return {"is_key": False}
 
     # 判断关键位置
     high_20 = max(k.high for k in recent_20[:-1])  # 排除今天
     low_20 = min(k.low for k in recent_20[:-1])
     is_break_high = today.high > high_20 * 1.01  # 突破前高1%
-    is_break_low = today.low < low_20 * 0.99   # 跌破前低1%
+    is_break_low = today.low < low_20 * 0.99  # 跌破前低1%
 
     # 判断方向
     is_yang = today.close > today.open
     is_yin = today.close < today.open
 
-    result: dict[str, Any] = {'is_key': True, 'body_ratio': round(body_ratio, 2)}
+    result: dict[str, Any] = {"is_key": True, "body_ratio": round(body_ratio, 2)}
 
     if is_yang and is_break_high:
-        result['direction'] = '向上突破'
-        result['type'] = '关键阳突破'
-        result['confidence'] = 0.90
+        result["direction"] = "向上突破"
+        result["type"] = "关键阳突破"
+        result["confidence"] = 0.90
     elif is_yin and is_break_low:
-        result['direction'] = '向下破位'
-        result['type'] = '关键阴破位'
-        result['confidence'] = 0.90
+        result["direction"] = "向下破位"
+        result["type"] = "关键阴破位"
+        result["confidence"] = 0.90
     elif is_yang:
-        result['direction'] = '底部/回调阳'
-        result['type'] = '关键阳'
-        result['confidence'] = 0.75
+        result["direction"] = "底部/回调阳"
+        result["type"] = "关键阳"
+        result["confidence"] = 0.75
     elif is_yin:
-        result['direction'] = '顶部/滞涨阴'
-        result['type'] = '关键阴'
-        result['confidence'] = 0.75
+        result["direction"] = "顶部/滞涨阴"
+        result["type"] = "关键阴"
+        result["confidence"] = 0.75
     else:
-        return {'is_key': False}
+        return {"is_key": False}
 
     return result

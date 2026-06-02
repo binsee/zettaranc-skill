@@ -28,6 +28,7 @@ def run_quality_check(*flags) -> subprocess.CompletedProcess:
 
 # ==================== --json flag ====================
 
+
 def test_json_output_is_valid_json():
     """--json 输出必须是合法 JSON"""
     result = run_quality_check("--json")
@@ -74,6 +75,7 @@ def test_json_output_uses_unicode():
 
 # ==================== --strict flag ====================
 
+
 def test_strict_exit_code_reflects_failures():
     """--strict 模式下，失败项数 > 0 时 exit 1"""
     # 真实的 SKILL.md 应该至少通过大部分检查，--strict 行为应与默认行为一致
@@ -83,12 +85,12 @@ def test_strict_exit_code_reflects_failures():
 
 # ==================== 默认行为兼容 ====================
 
+
 def test_default_human_readable_output():
     """不传 --json 应该走人读模式（不输出 JSON）"""
     result = run_quality_check()
     # 默认输出应该是人读格式，不以 '{' 开头
-    assert not result.stdout.lstrip().startswith("{"), \
-        "default output should be human-readable, not JSON"
+    assert not result.stdout.lstrip().startswith("{"), "default output should be human-readable, not JSON"
     # 应该包含中文标签
     assert "质量检查" in result.stdout or "心智模型" in result.stdout
 
@@ -101,11 +103,14 @@ def test_default_exit_code_compatibility():
 
 # ==================== 参数解析 ====================
 
+
 def test_missing_file_arg_exits_one():
     """不传文件参数应该 exit 1 并提示用法"""
     result = subprocess.run(
         [sys.executable, str(QUALITY_CHECK)],
-        capture_output=True, text=True, timeout=10,
+        capture_output=True,
+        text=True,
+        timeout=10,
     )
     assert result.returncode == 1
     assert "用法" in result.stdout
@@ -115,7 +120,9 @@ def test_missing_file_with_json_exits_one():
     """--json + 不传文件参数 = 仍 exit 1（参数解析不依赖 JSON 模式）"""
     result = subprocess.run(
         [sys.executable, str(QUALITY_CHECK), "--json"],
-        capture_output=True, text=True, timeout=10,
+        capture_output=True,
+        text=True,
+        timeout=10,
     )
     assert result.returncode == 1
     # JSON 模式下提示也要走 JSON

@@ -10,7 +10,7 @@ from typing import Optional
 # dotenv 加载已移至 modules/__init__.py（包级别一次性加载）
 
 # 数据模式别名
-MODE_JNB = "jnb"           # JNB 模式：走 Tushare API
+MODE_JNB = "jnb"  # JNB 模式：走 Tushare API
 MODE_NORMAL = "websearch"  # 普通小万模式：走网络搜索
 MODE_NAMES = {
     MODE_JNB: "JNB",
@@ -30,7 +30,7 @@ def check_env_exists() -> bool:
     return bool(token) and "你的" not in token and data_mode != ""
 
 
-def check_data_mode() -> Optional[str]:
+def check_data_mode() -> str | None:
     """返回当前数据模式：jnb / websearch / None（未配置）"""
     return os.environ.get("DATA_MODE", None)
 
@@ -40,7 +40,7 @@ def get_mode_display_name(mode: str) -> str:
     return MODE_NAMES.get(mode, mode)
 
 
-def write_env_file(token: Optional[str] = None, mode: str = MODE_NORMAL) -> str:
+def write_env_file(token: str | None = None, mode: str = MODE_NORMAL) -> str:
     """
     写入 .env 文件
 
@@ -52,26 +52,30 @@ def write_env_file(token: Optional[str] = None, mode: str = MODE_NORMAL) -> str:
         .env 文件的绝对路径
     """
     env_path = Path(__file__).parent.parent / ".env"
-    mode_name = get_mode_display_name(mode)
+    get_mode_display_name(mode)
     lines = [
-        f"# 数据模式: jnb(JNB模式/走Tushare API) 或 websearch(普通小万模式/走网络搜索)",
-        f'DATA_MODE={mode}',
+        "# 数据模式: jnb(JNB模式/走Tushare API) 或 websearch(普通小万模式/走网络搜索)",
+        f"DATA_MODE={mode}",
         "",
     ]
 
     if token:
-        lines.extend([
-            "# Tushare API 配置",
-            f"TUSHARE_TOKEN={token}",
-            "",
-        ])
+        lines.extend(
+            [
+                "# Tushare API 配置",
+                f"TUSHARE_TOKEN={token}",
+                "",
+            ]
+        )
 
-    lines.extend([
-        "# 数据库路径（相对于项目根目录）",
-        "DATA_DIR=data",
-        "DB_PATH=data/stock_data.db",
-        "",
-    ])
+    lines.extend(
+        [
+            "# 数据库路径（相对于项目根目录）",
+            "DATA_DIR=data",
+            "DB_PATH=data/stock_data.db",
+            "",
+        ]
+    )
 
     env_path.write_text("\n".join(lines), encoding="utf-8")
 

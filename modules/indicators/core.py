@@ -4,7 +4,7 @@
 
 import os
 import sqlite3
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any, Optional
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 from enum import Enum
@@ -30,19 +30,21 @@ def get_data_mode() -> str:
 
 class TradeSignal(Enum):
     """交易信号"""
-    B1 = "B1"           # 买入点1
-    B2 = "B2"           # 买入点2（确认）
-    B3 = "B3"           # 买入点3
-    SB1 = "SB1"         # 超级B1
-    S1 = "S1"           # 卖出信号1
-    S2 = "S2"           # 卖出信号2
-    HOLD = "HOLD"       # 持有
-    WATCH = "WATCH"     # 观望
+
+    B1 = "B1"  # 买入点1
+    B2 = "B2"  # 买入点2（确认）
+    B3 = "B3"  # 买入点3
+    SB1 = "SB1"  # 超级B1
+    S1 = "S1"  # 卖出信号1
+    S2 = "S2"  # 卖出信号2
+    HOLD = "HOLD"  # 持有
+    WATCH = "WATCH"  # 观望
 
 
 @dataclass
 class DailyData:
     """单日行情数据"""
+
     ts_code: str
     trade_date: str
     open: float
@@ -53,9 +55,12 @@ class DailyData:
     amount: float
     pct_chg: float
     prev_close: float = 0
+
+
 @dataclass
 class IndicatorResult:
     """指标计算结果"""
+
     ts_code: str
     trade_date: str
 
@@ -102,59 +107,59 @@ class IndicatorResult:
     wr10: float = 0
 
     # 布林带
-    boll_mid: float = 0      # 中轨 = MA20
-    boll_upper: float = 0   # 上轨 = 中轨 + 2*STD
-    boll_lower: float = 0   # 下轨 = 中轨 - 2*STD
-    boll_width: float = 0   # 布林带宽度
-    boll_position: float = 0 # 股价在布林带中的位置 (0-100%)
+    boll_mid: float = 0  # 中轨 = MA20
+    boll_upper: float = 0  # 上轨 = 中轨 + 2*STD
+    boll_lower: float = 0  # 下轨 = 中轨 - 2*STD
+    boll_width: float = 0  # 布林带宽度
+    boll_position: float = 0  # 股价在布林带中的位置 (0-100%)
 
     # 量比
-    vol_ratio: float = 0    # 量比 = 当前量 / 5日均量
+    vol_ratio: float = 0  # 量比 = 当前量 / 5日均量
 
     # ========== Z哥双线战法 ==========
-    zg_white: float = 0     # Z哥白线 = EMA(EMA(C,10),10)
-    dg_yellow: float = 0    # 大哥线 = (MA14+MA28+MA57+MA114)/4
+    zg_white: float = 0  # Z哥白线 = EMA(EMA(C,10),10)
+    dg_yellow: float = 0  # 大哥线 = (MA14+MA28+MA57+MA114)/4
     is_gold_cross: bool = False  # 金叉（白线上穿大哥线）
     is_dead_cross: bool = False  # 死叉（白线下穿大哥线）
 
     # ========== 单针下20 ==========
-    rsl_short: float = 0    # 短期RSL (3日)
-    rsl_long: float = 0     # 长期RSL (21日)
+    rsl_short: float = 0  # 短期RSL (3日)
+    rsl_long: float = 0  # 长期RSL (21日)
     is_needle_20: bool = False  # 单针下20信号
 
     # ========== 单针下30 ==========
     is_needle_30: bool = False  # 单针下30信号（红>85, 白<30）
 
     # ========== 异动选股法 ==========
-    is_yidong: bool = False    # 当日是否异动（突然放量+60日线附近）
-    yidong_type: str = ""      # 异动类型：詹姆斯级/徐杰级
+    is_yidong: bool = False  # 当日是否异动（突然放量+60日线附近）
+    yidong_type: str = ""  # 异动类型：詹姆斯级/徐杰级
     yidong_vol_ratio: float = 0  # 异动量比
     yidong_above_60d: bool = False  # 是否从60日线附近起来
 
     # ========== 砖型图系统 ==========
-    brick_value: float = 0   # 砖型图数值
+    brick_value: float = 0  # 砖型图数值
     brick_trend: str = "NEUTRAL"  # 趋势: RED(红砖)/GREEN(绿砖)/NEUTRAL(中性)
-    brick_count: int = 0     # 连续砖数
+    brick_count: int = 0  # 连续砖数
     brick_trend_up: bool = False  # 命值趋势上升
     is_fanbao: bool = False  # 精准反包信号（2/3位置）
 
     # 量价信号
-    is_beidou: bool = False      # 倍量
-    is_suoliang: bool = False    # 缩量
+    is_beidou: bool = False  # 倍量
+    is_suoliang: bool = False  # 缩量
     is_jiayin_zhenyang: bool = False  # 假阴真阳
     is_jiayang_zhenyin: bool = False  # 假阳真阴
     is_fangliang_yinxian: bool = False  # 放量阴线
 
     # 卖出评分
-    sell_score: int = 0         # 0-5分
-    sell_items: Optional[Dict[str, bool]] = None  # 5项明细 {项目名: 是否通过}
+    sell_score: int = 0  # 0-5分
+    sell_items: dict[str, bool] | None = None  # 5项明细 {项目名: 是否通过}
 
     # 交易信号
     signal: TradeSignal = TradeSignal.WATCH
 
     # 关键价位
-    prev_high: float = 0    # 昨日最高价
-    prev_low: float = 0     # 昨日最低价
+    prev_high: float = 0  # 昨日最高价
+    prev_low: float = 0  # 昨日最低价
 
     # DMI/ADX
     dmi_plus: float = 0
@@ -162,72 +167,72 @@ class IndicatorResult:
     adx: float = 0
 
     # 资金流
-    net_lg_mf: float = 0    # 主力净流入
-    net_elg_mf: float = 0   # 超大单净流入
+    net_lg_mf: float = 0  # 主力净流入
+    net_elg_mf: float = 0  # 超大单净流入
 
     # B1/B2战法记录
     last_b1_date: str = ""
     last_b1_price: float = 0
 
     # B1建仓波检测
-    is_b1: bool = False          # 当日是否为B1
-    b1_j_value: float = 0        # B1的J值
-    b1_amplitude: float = 0      # B1振幅
-    b1_pct_chg: float = 0        # B1涨幅
+    is_b1: bool = False  # 当日是否为B1
+    b1_j_value: float = 0  # B1的J值
+    b1_amplitude: float = 0  # B1振幅
+    b1_pct_chg: float = 0  # B1涨幅
     b1_volume_shrink: bool = False  # 是否缩量
-    b1_score: int = 0            # B1匹配度评分(0-4)
+    b1_score: int = 0  # B1匹配度评分(0-4)
 
     # B2突破检测
-    is_b2: bool = False          # 当日是否为B2
+    is_b2: bool = False  # 当日是否为B2
     b2_follows_b1: bool = False  # 是否在B1后
-    b2_pct_chg: float = 0        # B2涨幅
-    b2_j_value: float = 0        # B2的J值
-    b2_volume_up: bool = False   # 是否放量
-    b2_score: int = 0            # B2匹配度评分(0-4)
+    b2_pct_chg: float = 0  # B2涨幅
+    b2_j_value: float = 0  # B2的J值
+    b2_volume_up: bool = False  # 是否放量
+    b2_score: int = 0  # B2匹配度评分(0-4)
 
     # 双枪战法
     is_double_gun: bool = False  # 双枪战法信号
-    double_gun_vol1: float = 0   # 第一枪量比
-    double_gun_vol2: float = 0   # 第二枪量比
+    double_gun_vol1: float = 0  # 第一枪量比
+    double_gun_vol2: float = 0  # 第二枪量比
     double_gun_gap_days: int = 0  # 两枪间隔天数
 
     # 超级B1
     is_sb1_detailed: bool = False  # 超级B1（独立检测）
 
     # 关键K检测
-    key_k_list: Optional[List[Dict]] = None    # 关键K列表，每根含日期/类型/实体%/量比
+    key_k_list: list[dict] | None = None  # 关键K列表，每根含日期/类型/实体%/量比
 
     # 暴力K检测
     is_violence_k: bool = False  # 最新这天是否暴力K
-    violence_k_type: str = ""    # 大暴力/小暴力
-    violence_k_body: float = 0   # 实体涨幅%
+    violence_k_type: str = ""  # 大暴力/小暴力
+    violence_k_body: float = 0  # 实体涨幅%
 
     # 两个30%原则 (B1筛选)
-    b1_rally_pct: float = 0      # B1建仓波涨幅%
-    b1_turnover: float = 0       # B1累计换手率%
-    b1_pass_30: bool = False     # 是否通过两个30%原则
+    b1_rally_pct: float = 0  # B1建仓波涨幅%
+    b1_turnover: float = 0  # B1累计换手率%
+    b1_pass_30: bool = False  # 是否通过两个30%原则
 
     # 娜娜图 (完美建仓形态)
-    is_nana: bool = False        # 娜娜图信号
+    is_nana: bool = False  # 娜娜图信号
 
     # 黄金碗 (白线黄线之间的区域)
-    is_in_bowl: bool = False     # 价格是否在碗内(白线>价>黄线)
-    bowl_upper: float = 0        # 碗上沿(白线)
-    bowl_lower: float = 0        # 碗下沿(黄线)
+    is_in_bowl: bool = False  # 价格是否在碗内(白线>价>黄线)
+    bowl_upper: float = 0  # 碗上沿(白线)
+    bowl_lower: float = 0  # 碗下沿(黄线)
 
     # 呼吸结构
-    breath_phase: str = ""       # exhale/inhale/none
+    breath_phase: str = ""  # exhale/inhale/none
     breath_n_type: bool = False  # 是否N型结构
 
     # SB1假摔
-    is_sb1: bool = False         # SB1假摔信号
+    is_sb1: bool = False  # SB1假摔信号
 
     # B3买点
-    is_b3: bool = False          # B3买点信号
+    is_b3: bool = False  # B3买点信号
 
     # 四块砖交易体系
-    brick_consecutive: int = 0   # 当前连续砖数
-    brick_action: str = ""       # 操作建议: 减仓/止损/持有/观望/禁止抄底
+    brick_consecutive: int = 0  # 当前连续砖数
+    brick_action: str = ""  # 操作建议: 减仓/止损/持有/观望/禁止抄底
     brick_action_desc: str = ""  # 操作描述
     is_brick_flip_green: bool = False  # 红砖刚翻绿（止损信号）
 
@@ -237,6 +242,8 @@ class IndicatorResult:
     # 市场背景
     market_pct_chg: float = 0
     market_dir: str = "NEUTRAL"
+
+
 def _resolve_db_path() -> Path:
     """动态解析数据库路径（每次调用时读取环境变量）"""
     path_str = os.getenv("DB_PATH", "data/stock_data.db")
@@ -253,12 +260,16 @@ def get_db_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
-def calculate_ma(prices: List[float], period: int) -> float:
+
+
+def calculate_ma(prices: list[float], period: int) -> float:
     """计算简单移动平均"""
     if len(prices) < period:
         return 0
     return sum(prices[-period:]) / period
-def calculate_ema(prices: List[float], period: int) -> float:
+
+
+def calculate_ema(prices: list[float], period: int) -> float:
     """计算指数移动平均"""
     if len(prices) < period:
         return 0
@@ -272,7 +283,7 @@ def calculate_ema(prices: List[float], period: int) -> float:
     return ema
 
 
-def calculate_sma_td(values: List[float], period: int, m: int) -> float:
+def calculate_sma_td(values: list[float], period: int, m: int) -> float:
     """
     通达信 SMA 函数（返回最后一个值）
 
@@ -298,7 +309,7 @@ def calculate_sma_td(values: List[float], period: int, m: int) -> float:
     return sma
 
 
-def calculate_sma_series(values: List[float], period: int, m: int) -> List[float]:
+def calculate_sma_series(values: list[float], period: int, m: int) -> list[float]:
     """
     通达信 SMA 递推序列（返回完整序列）
 
@@ -330,7 +341,7 @@ def calculate_sma_series(values: List[float], period: int, m: int) -> List[float
     return result
 
 
-def calculate_slope(values: List[float], period: int) -> float:
+def calculate_slope(values: list[float], period: int) -> float:
     """
     通达信 SLOPE 函数（线性回归斜率）
 
@@ -366,8 +377,9 @@ def calculate_slope(values: List[float], period: int) -> float:
 
     slope = (n * sum_xy - sum_x * sum_y) / denominator
     return slope
-def calculate_kdj(klines: List[DailyData], period: int = 9,
-                  k_ma: int = 3, d_ma: int = 3) -> Tuple[float, float, float]:
+
+
+def calculate_kdj(klines: list[DailyData], period: int = 9, k_ma: int = 3, d_ma: int = 3) -> tuple[float, float, float]:
     """
     计算 KDJ 指标
 
@@ -407,106 +419,117 @@ def calculate_kdj(klines: List[DailyData], period: int = 9,
     d = 50.0
 
     for rsv in rsv_list:
-        k = (2/3) * k + (1/3) * rsv
-        d = (2/3) * d + (1/3) * k
+        k = (2 / 3) * k + (1 / 3) * rsv
+        d = (2 / 3) * d + (1 / 3) * k
 
     j = 3 * k - 2 * d
 
     return round(k, 2), round(d, 2), round(j, 2)
-def precompute_kdj_sequence(klines: List[DailyData], period: int = 9) -> List[Tuple[float, float, float]]:
+
+
+def precompute_kdj_sequence(klines: list[DailyData], period: int = 9) -> list[tuple[float, float, float]]:
     """
     预计算全量 KDJ 序列（增量算法，O(n)），使用 Pandas 向量化优化。
     """
     import pandas as pd
+
     n = len(klines)
     if n < period:
         return [(50.0, 50.0, 50.0)] * n
 
-    df = pd.DataFrame({
-        'high': [k.high for k in klines],
-        'low': [k.low for k in klines],
-        'close': [k.close for k in klines]
-    })
+    df = pd.DataFrame(
+        {"high": [k.high for k in klines], "low": [k.low for k in klines], "close": [k.close for k in klines]}
+    )
 
-    low_min = df['low'].rolling(window=period, min_periods=period).min()
-    high_max = df['high'].rolling(window=period, min_periods=period).max()
-    
-    rsv = (df['close'] - low_min) / (high_max - low_min) * 100
+    low_min = df["low"].rolling(window=period, min_periods=period).min()
+    high_max = df["high"].rolling(window=period, min_periods=period).max()
+
+    rsv = (df["close"] - low_min) / (high_max - low_min) * 100
     rsv = rsv.fillna(50.0)
 
     first_valid_idx = period - 1
     valid_rsv = rsv.iloc[first_valid_idx:]
-    
+
     rsv_with_init = pd.concat([pd.Series([50.0]), valid_rsv]).reset_index(drop=True)
-    
-    k = rsv_with_init.ewm(alpha=1/3, adjust=False).mean()
-    d = k.ewm(alpha=1/3, adjust=False).mean()
+
+    k = rsv_with_init.ewm(alpha=1 / 3, adjust=False).mean()
+    d = k.ewm(alpha=1 / 3, adjust=False).mean()
     j = 3 * k - 2 * d
-    
+
     k = k.iloc[1:].reset_index(drop=True)
     d = d.iloc[1:].reset_index(drop=True)
     j = j.iloc[1:].reset_index(drop=True)
-    
-    prefix_k = pd.Series([50.0]*first_valid_idx)
-    prefix_d = pd.Series([50.0]*first_valid_idx)
-    prefix_j = pd.Series([50.0]*first_valid_idx)
-    
+
+    prefix_k = pd.Series([50.0] * first_valid_idx)
+    prefix_d = pd.Series([50.0] * first_valid_idx)
+    prefix_j = pd.Series([50.0] * first_valid_idx)
+
     final_k = pd.concat([prefix_k, k], ignore_index=True).round(2)
     final_d = pd.concat([prefix_d, d], ignore_index=True).round(2)
     final_j = pd.concat([prefix_j, j], ignore_index=True).round(2)
-    
+
     return list(zip(final_k.tolist(), final_d.tolist(), final_j.tolist()))
-def precompute_bbi_sequence(klines: List[DailyData]) -> List[float]:
+
+
+def precompute_bbi_sequence(klines: list[DailyData]) -> list[float]:
     """
     预计算全量 BBI 序列，使用 Pandas 向量化优化。
     """
     import pandas as pd
+
     n = len(klines)
     if n < 24:
         return [0.0] * n
 
     closes = pd.Series([k.close for k in klines])
-    
+
     ma3 = closes.rolling(window=3, min_periods=3).mean()
     ma6 = closes.rolling(window=6, min_periods=6).mean()
     ma12 = closes.rolling(window=12, min_periods=12).mean()
     ma24 = closes.rolling(window=24, min_periods=24).mean()
-    
+
     bbi = (ma3 + ma6 + ma12 + ma24) / 4
     bbi = bbi.fillna(0.0).round(2)
-    
+
     return bbi.tolist()
-def precompute_macd_sequence(klines: List[DailyData],
-                              fast: int = 12, slow: int = 26, signal: int = 9) -> Tuple[List[float], List[float], List[float]]:
+
+
+def precompute_macd_sequence(
+    klines: list[DailyData], fast: int = 12, slow: int = 26, signal: int = 9
+) -> tuple[list[float], list[float], list[float]]:
     """
     预计算全量 MACD 序列，使用 Pandas 向量化优化。
-    
+
     返回每一天的 (DIF, DEA, MACD_HIST)。
     对于数据不足的天数，返回 0.0。
     """
     import pandas as pd
+
     n = len(klines)
     if n < slow:
         return [0.0] * n, [0.0] * n, [0.0] * n
 
-    df = pd.DataFrame({'close': [k.close for k in klines]})
-    
-    ema_fast = df['close'].ewm(span=fast, adjust=False).mean()
-    ema_slow = df['close'].ewm(span=slow, adjust=False).mean()
+    df = pd.DataFrame({"close": [k.close for k in klines]})
+
+    ema_fast = df["close"].ewm(span=fast, adjust=False).mean()
+    ema_slow = df["close"].ewm(span=slow, adjust=False).mean()
     dif = ema_fast - ema_slow
-    
+
     # Strictly match TDX loop initialization
     dif_series = dif.copy()
-    dif_series.loc[:slow-2] = 0.0
-    
-    dea_valid = dif_series.iloc[slow-1:].ewm(span=signal, adjust=False).mean()
-    dea_series = pd.concat([pd.Series([0.0]*(slow-1)), dea_valid]).reset_index(drop=True)
-    
+    dif_series.loc[: slow - 2] = 0.0
+
+    dea_valid = dif_series.iloc[slow - 1 :].ewm(span=signal, adjust=False).mean()
+    dea_series = pd.concat([pd.Series([0.0] * (slow - 1)), dea_valid]).reset_index(drop=True)
+
     macd_series = (dif_series - dea_series) * 2
-    
+
     return dif_series.tolist(), dea_series.tolist(), macd_series.tolist()
-def calculate_macd(klines: List[DailyData],
-                   fast: int = 12, slow: int = 26, signal: int = 9) -> Tuple[List[float], List[float], List[float]]:
+
+
+def calculate_macd(
+    klines: list[DailyData], fast: int = 12, slow: int = 26, signal: int = 9
+) -> tuple[list[float], list[float], list[float]]:
     """
     计算 MACD 指标（通达信标准公式）
 
@@ -532,7 +555,7 @@ def calculate_macd(klines: List[DailyData],
     dif_seq, dea_seq, macd_seq = precompute_macd_sequence(klines, fast, slow, signal)
 
     # DIF 从 slow-1 开始有效
-    dif_list = dif_seq[slow - 1:]
+    dif_list = dif_seq[slow - 1 :]
 
     # DEA/MACD 从 slow+signal-2 开始有效
     dea_start = slow + signal - 2
@@ -540,7 +563,9 @@ def calculate_macd(klines: List[DailyData],
     macd_list = macd_seq[dea_start:]
 
     return dif_list, dea_list, macd_list
-def calculate_bbi(klines: List[DailyData]) -> float:
+
+
+def calculate_bbi(klines: list[DailyData]) -> float:
     """
     计算 BBI 多空指标
     BBI = (MA3 + MA6 + MA12 + MA24) / 4
@@ -557,8 +582,9 @@ def calculate_bbi(klines: List[DailyData]) -> float:
 
     bbi = (ma3 + ma6 + ma12 + ma24) / 4
     return round(bbi, 2)
-def calculate_rsi(klines: List[DailyData],
-                  period: int = 14) -> float:
+
+
+def calculate_rsi(klines: list[DailyData], period: int = 14) -> float:
     """
     计算 RSI 相对强弱指标（通达信标准公式）
 
@@ -582,7 +608,7 @@ def calculate_rsi(klines: List[DailyData],
     # 计算每日涨跌序列
     changes = []
     for i in range(1, len(closes)):
-        changes.append(closes[i] - closes[i-1])
+        changes.append(closes[i] - closes[i - 1])
 
     if len(changes) < period:
         return 50
@@ -604,7 +630,9 @@ def calculate_rsi(klines: List[DailyData],
     rsi = avg_up / (avg_up + avg_down) * 100
 
     return round(rsi, 2)
-def calculate_rsi_multi(klines: List[DailyData]) -> Tuple[float, float, float]:
+
+
+def calculate_rsi_multi(klines: list[DailyData]) -> tuple[float, float, float]:
     """
     计算多周期 RSI (RSI6, RSI12, RSI24)
 
@@ -620,7 +648,7 @@ def calculate_rsi_multi(klines: List[DailyData]) -> Tuple[float, float, float]:
     return rsi6, rsi12, rsi24
 
 
-def detect_macd_trap(dif_list: List[float], dea_list: List[float]) -> Dict[str, bool]:
+def detect_macd_trap(dif_list: list[float], dea_list: list[float]) -> dict[str, bool]:
     """
     MACD 金叉空 / 死叉多 陷阱识别
 
@@ -643,7 +671,7 @@ def detect_macd_trap(dif_list: List[float], dea_list: List[float]) -> Dict[str, 
         {'is_gold_trap': bool, 'is_dead_trap': bool}
     """
     if len(dif_list) < 5 or len(dea_list) < 5:
-        return {'is_gold_trap': False, 'is_dead_trap': False}
+        return {"is_gold_trap": False, "is_dead_trap": False}
 
     # 取最近5天
     dif = dif_list[-5:]
@@ -669,11 +697,10 @@ def detect_macd_trap(dif_list: List[float], dea_list: List[float]) -> Dict[str, 
     # 最终 DIF 仍在 DEA 上方
     is_dead_trap = is_above and is_approaching_dead and is_turn_up and dif[4] > dea[4]
 
-    return {
-        'is_gold_trap': is_gold_trap,
-        'is_dead_trap': is_dead_trap
-    }
-def calculate_wr(klines: List[DailyData], period: int = 14) -> float:
+    return {"is_gold_trap": is_gold_trap, "is_dead_trap": is_dead_trap}
+
+
+def calculate_wr(klines: list[DailyData], period: int = 14) -> float:
     """
     计算 Williams %R 威廉指标
 
@@ -703,7 +730,9 @@ def calculate_wr(klines: List[DailyData], period: int = 14) -> float:
     wr = (high - close) / (high - low) * 100
 
     return round(wr, 2)
-def calculate_wr_multi(klines: List[DailyData]) -> Tuple[float, float]:
+
+
+def calculate_wr_multi(klines: list[DailyData]) -> tuple[float, float]:
     """
     计算多周期 WR (WR5, WR10)
 
@@ -716,9 +745,11 @@ def calculate_wr_multi(klines: List[DailyData]) -> Tuple[float, float]:
     wr5 = calculate_wr(klines, 5) if len(klines) >= 5 else -50
     wr10 = calculate_wr(klines, 10) if len(klines) >= 10 else -50
     return wr5, wr10
-def calculate_bollinger(klines: List[DailyData],
-                       period: int = 20,
-                       std_dev: float = 2.0) -> Tuple[float, float, float, float, float]:
+
+
+def calculate_bollinger(
+    klines: list[DailyData], period: int = 20, std_dev: float = 2.0
+) -> tuple[float, float, float, float, float]:
     """
     计算布林带
 
@@ -746,7 +777,7 @@ def calculate_bollinger(klines: List[DailyData],
 
     # 计算标准差
     variance = sum((c - mid) ** 2 for c in recent_closes) / period
-    std = variance ** 0.5
+    std = variance**0.5
 
     upper = mid + std_dev * std
     lower = mid - std_dev * std
@@ -765,7 +796,9 @@ def calculate_bollinger(klines: List[DailyData],
         position = 50
 
     return round(mid, 2), round(upper, 2), round(lower, 2), round(width, 2), round(position, 1)
-def calculate_vol_ratio(klines: List[DailyData], period: int = 5) -> float:
+
+
+def calculate_vol_ratio(klines: list[DailyData], period: int = 5) -> float:
     """
     计算量比
 
@@ -782,7 +815,7 @@ def calculate_vol_ratio(klines: List[DailyData], period: int = 5) -> float:
         return 1.0  # 默认等量
 
     # 取最近 period 天的平均量（不包括今天）
-    recent_vols = [klines[i].vol for i in range(-period-1, -1)]
+    recent_vols = [klines[i].vol for i in range(-period - 1, -1)]
 
     if not recent_vols:
         return 1.0

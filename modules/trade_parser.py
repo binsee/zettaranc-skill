@@ -5,7 +5,7 @@
 
 import re
 from datetime import datetime, date
-from typing import Dict, Optional, Tuple, Any
+from typing import Optional, Any
 from dataclasses import dataclass
 
 from .database import get_trade_record_by_id, update_trade_record
@@ -14,9 +14,10 @@ from .database import get_trade_record_by_id, update_trade_record
 @dataclass
 class ParseResult:
     """解析结果"""
+
     success: bool
     confidence: float  # 0-1 置信度
-    data: Optional[Dict[str, Any]]
+    data: dict[str, Any] | None
     missing_fields: list  # 缺失的字段
     error_message: str = ""
 
@@ -70,17 +71,16 @@ class TradeParser:
     def _is_json(self, text: str) -> bool:
         """判断是否为JSON格式"""
         text = text.strip()
-        return (text.startswith('{') and text.endswith('}')) or \
-               (text.startswith('[') and text.endswith(']'))
+        return (text.startswith("{") and text.endswith("}")) or (text.startswith("[") and text.endswith("]"))
 
     def _is_csv(self, text: str) -> bool:
         """判断是否为CSV/表格格式"""
-        lines = text.strip().split('\n')
+        lines = text.strip().split("\n")
         if len(lines) < 2:
             return False
 
         # 检查是否有明显的分隔符
-        for sep in ['|', '\t', ',']:
+        for sep in ["|", "\t", ","]:
             if sep in lines[0] and sep in lines[1]:
                 return True
         return False
@@ -88,6 +88,7 @@ class TradeParser:
     def _parse_json(self, text: str) -> ParseResult:
         """解析JSON格式"""
         import json
+
         try:
             data = json.loads(text)
             if isinstance(data, list):
@@ -100,32 +101,23 @@ class TradeParser:
             missing = self._check_required_fields(mapped)
             confidence = 1.0 if not missing else 0.7
 
-            return ParseResult(
-                success=True,
-                confidence=confidence,
-                data=mapped,
-                missing_fields=missing
-            )
+            return ParseResult(success=True, confidence=confidence, data=mapped, missing_fields=missing)
         except json.JSONDecodeError as e:
             return ParseResult(
-                success=False,
-                confidence=0,
-                data=None,
-                missing_fields=[],
-                error_message=f"JSON解析失败: {str(e)}"
+                success=False, confidence=0, data=None, missing_fields=[], error_message=f"JSON解析失败: {str(e)}"
             )
 
     def _parse_csv(self, text: str) -> ParseResult:
         """解析CSV/表格格式"""
         try:
-            lines = [l.strip() for l in text.strip().split('\n') if l.strip()]
+            lines = [line.strip() for line in text.strip().split("\n") if line.strip()]
 
             # 确定分隔符
-            sep = '|'
-            if '\t' in lines[0]:
-                sep = '\t'
-            elif ',' in lines[0]:
-                sep = ','
+            sep = "|"
+            if "\t" in lines[0]:
+                sep = "\t"
+            elif "," in lines[0]:
+                sep = ","
 
             # 解析标题行
             headers = [h.strip() for h in lines[0].split(sep)]
@@ -139,19 +131,10 @@ class TradeParser:
             missing = self._check_required_fields(mapped)
             confidence = 0.9 if not missing else 0.6
 
-            return ParseResult(
-                success=True,
-                confidence=confidence,
-                data=mapped,
-                missing_fields=missing
-            )
+            return ParseResult(success=True, confidence=confidence, data=mapped, missing_fields=missing)
         except Exception as e:
             return ParseResult(
-                success=False,
-                confidence=0,
-                data=None,
-                missing_fields=[],
-                error_message=f"CSV解析失败: {str(e)}"
+                success=False, confidence=0, data=None, missing_fields=[], error_message=f"CSV解析失败: {str(e)}"
             )
 
     def _parse_natural(self, text: str) -> ParseResult:
@@ -162,10 +145,10 @@ class TradeParser:
 
         # 日期提取
         date_patterns = [
-            r'(\d{4}[-/]\d{1,2}[-/]\d{1,2})',
-            r'(\d{1,2}[月/-]\d{1,2}[日/-]?)',
-            r'今天|昨天|前天|前日',
-            r'今儿|昨儿'
+            r"(\d{4}[-/]\d{1,2}[-/]\d{1,2})",
+            r"(\d{1,2}[月/-]\d{1,2}[日/-]?)",
+            r"今天|昨天|前天|前日",
+            r"今儿|昨儿",
         ]
 
         today = datetime.now()
@@ -178,32 +161,32 @@ class TradeParser:
                     date_text = match.group(1)
                 else:
                     date_text = match.group(0)
-                if '今天' in date_text or '今儿' in text:
-                    date_str = today.strftime('%Y-%m-%d')
-                elif '昨天' in date_text or '昨儿' in text:
-                    date_str = (today.replace(day=today.day - 1)).strftime('%Y-%m-%d')
-                elif '前天' in date_text or '前日' in text:
-                    date_str = (today.replace(day=today.day - 2)).strftime('%Y-%m-%d')
-                elif '-' in date_text or '/' in date_text:
+                if "今天" in date_text or "今儿" in text:
+                    date_str = today.strftime("%Y-%m-%d")
+                elif "昨天" in date_text or "昨儿" in text:
+                    date_str = (today.replace(day=today.day - 1)).strftime("%Y-%m-%d")
+                elif "前天" in date_text or "前日" in text:
+                    date_str = (today.replace(day=today.day - 2)).strftime("%Y-%m-%d")
+                elif "-" in date_text or "/" in date_text:
                     if len(date_text) == 10:  # yyyy-mm-dd
-                        date_str = date_text.replace('/', '-')
+                        date_str = date_text.replace("/", "-")
                     else:  # mm-dd 或 m-d
-                        parts = re.split(r'[-/]', date_text)
+                        parts = re.split(r"[-/]", date_text)
                         if len(parts) == 2:
                             date_str = f"{today.year}-{parts[0].zfill(2)}-{parts[1].zfill(2)}"
                 break
 
         if date_str:
-            data['trade_date'] = date_str
+            data["trade_date"] = date_str
         else:
-            missing.append('trade_date')
-            data['trade_date'] = today.strftime('%Y-%m-%d')  # 默认今天
+            missing.append("trade_date")
+            data["trade_date"] = today.strftime("%Y-%m-%d")  # 默认今天
 
         # 股票代码提取
         code_patterns = [
-            r'([012]\d{5})',  # 6位数字代码
-            r'（(\d{6})）',  # 中文括号
-            r'\((\d{6})\)'  # 英文括号
+            r"([012]\d{5})",  # 6位数字代码
+            r"（(\d{6})）",  # 中文括号
+            r"\((\d{6})\)",  # 英文括号
         ]
 
         ts_code = None
@@ -217,40 +200,40 @@ class TradeParser:
         for name, code in self.name_to_code.items():
             if name in text:
                 ts_code = code
-                if 'name' not in data:
-                    data['name'] = name
+                if "name" not in data:
+                    data["name"] = name
                 break
 
         if ts_code:
             # 标准化代码格式
             if len(ts_code) == 6:
-                if ts_code.startswith('0') or ts_code.startswith('3'):
+                if ts_code.startswith("0") or ts_code.startswith("3"):
                     ts_code = f"{ts_code}.SZ"
-                elif ts_code.startswith('6'):
+                elif ts_code.startswith("6"):
                     ts_code = f"{ts_code}.SH"
-                elif ts_code.startswith('4') or ts_code.startswith('8'):
+                elif ts_code.startswith("4") or ts_code.startswith("8"):
                     ts_code = f"{ts_code}.BJ"
-            data['ts_code'] = ts_code
+            data["ts_code"] = ts_code
         else:
-            missing.append('ts_code')
+            missing.append("ts_code")
 
         # 交易方向
         action = None
-        if '买' in text:
-            action = 'BUY'
-            data['action'] = 'BUY'
-        elif '卖' in text:
-            action = 'SELL'
-            data['action'] = 'SELL'
+        if "买" in text:
+            action = "BUY"
+            data["action"] = "BUY"
+        elif "卖" in text:
+            action = "SELL"
+            data["action"] = "SELL"
 
         if not action:
-            missing.append('action')
+            missing.append("action")
 
         # 价格提取
         price_patterns = [
-            r'(\d+(?:\.\d{1,2})?)\s*(?:元|块|块)',
-            r'价格[是为]*\s*(\d+(?:\.\d{1,2})?)',
-            r'@\s*(\d+(?:\.\d{1,2})?)',
+            r"(\d+(?:\.\d{1,2})?)\s*(?:元|块|块)",
+            r"价格[是为]*\s*(\d+(?:\.\d{1,2})?)",
+            r"@\s*(\d+(?:\.\d{1,2})?)",
         ]
 
         price = None
@@ -261,16 +244,16 @@ class TradeParser:
                 break
 
         if price:
-            data['price'] = price
+            data["price"] = price
         else:
-            missing.append('price')
+            missing.append("price")
 
         # 数量提取
         qty_patterns = [
-            r'(\d+)\s*(?:股|手)',
-            r'数量\s*(\d+)',
-            r'买了?\s*(\d+)',
-            r'卖[出]?\s*(\d+)',
+            r"(\d+)\s*(?:股|手)",
+            r"数量\s*(\d+)",
+            r"买了?\s*(\d+)",
+            r"卖[出]?\s*(\d+)",
         ]
 
         quantity = None
@@ -281,16 +264,16 @@ class TradeParser:
                 break
 
         if quantity:
-            data['quantity'] = quantity
+            data["quantity"] = quantity
         else:
-            missing.append('quantity')
+            missing.append("quantity")
 
         # 计算金额
         if price and quantity:
-            data['amount'] = round(price * quantity, 2)
+            data["amount"] = round(price * quantity, 2)
 
         # 置信度计算
-        if not data.get('ts_code') or not data.get('action'):
+        if not data.get("ts_code") or not data.get("action"):
             confidence = 0.4
         elif missing:
             confidence = 0.6
@@ -302,36 +285,36 @@ class TradeParser:
             confidence=confidence,
             data=data if data else None,
             missing_fields=missing,
-            error_message=",".join(errors) if errors else ""
+            error_message=",".join(errors) if errors else "",
         )
 
-    def _map_fields(self, data: Dict) -> Dict:
+    def _map_fields(self, data: dict) -> dict:
         """映射字段名到标准格式"""
         field_mapping = {
-            'code': 'ts_code',
-            '股票代码': 'ts_code',
-            'date': 'trade_date',
-            '日期': 'trade_date',
-            'time': 'trade_date',
-            'action': 'action',
-            'type': 'action',
-            '买卖': 'action',
-            '买入': 'action',
-            '卖出': 'action',
-            'price': 'price',
-            '单价': 'price',
-            '成交价': 'price',
-            'quantity': 'quantity',
-            'num': 'quantity',
-            '数量': 'quantity',
-            '股数': 'quantity',
-            '股': 'quantity',
-            'amount': 'amount',
-            '金额': 'amount',
-            'total': 'amount',
-            'name': 'name',
-            '股票名称': 'name',
-            '证券名称': 'name',
+            "code": "ts_code",
+            "股票代码": "ts_code",
+            "date": "trade_date",
+            "日期": "trade_date",
+            "time": "trade_date",
+            "action": "action",
+            "type": "action",
+            "买卖": "action",
+            "买入": "action",
+            "卖出": "action",
+            "price": "price",
+            "单价": "price",
+            "成交价": "price",
+            "quantity": "quantity",
+            "num": "quantity",
+            "数量": "quantity",
+            "股数": "quantity",
+            "股": "quantity",
+            "amount": "amount",
+            "金额": "amount",
+            "total": "amount",
+            "name": "name",
+            "股票名称": "name",
+            "证券名称": "name",
         }
 
         mapped = {}
@@ -340,29 +323,29 @@ class TradeParser:
             mapped[mapped_key] = value
 
         # 标准化 action
-        if 'action' in mapped:
-            action = str(mapped['action']).upper()
-            if '买' in action:
-                mapped['action'] = 'BUY'
-            elif '卖' in action:
-                mapped['action'] = 'SELL'
+        if "action" in mapped:
+            action = str(mapped["action"]).upper()
+            if "买" in action:
+                mapped["action"] = "BUY"
+            elif "卖" in action:
+                mapped["action"] = "SELL"
 
         # 标准化 ts_code 格式
-        if 'ts_code' in mapped:
-            code = str(mapped['ts_code'])
-            if len(code) == 6 and '.' not in code:
-                if code.startswith('0') or code.startswith('3'):
-                    mapped['ts_code'] = f"{code}.SZ"
-                elif code.startswith('6'):
-                    mapped['ts_code'] = f"{code}.SH"
-                elif code.startswith('4') or code.startswith('8'):
-                    mapped['ts_code'] = f"{code}.BJ"
+        if "ts_code" in mapped:
+            code = str(mapped["ts_code"])
+            if len(code) == 6 and "." not in code:
+                if code.startswith("0") or code.startswith("3"):
+                    mapped["ts_code"] = f"{code}.SZ"
+                elif code.startswith("6"):
+                    mapped["ts_code"] = f"{code}.SH"
+                elif code.startswith("4") or code.startswith("8"):
+                    mapped["ts_code"] = f"{code}.BJ"
 
         return mapped
 
-    def _check_required_fields(self, data: Dict) -> list:
+    def _check_required_fields(self, data: dict) -> list:
         """检查必填字段"""
-        required = ['trade_date', 'ts_code', 'action', 'price', 'quantity']
+        required = ["trade_date", "ts_code", "action", "price", "quantity"]
         missing = []
 
         for field in required:
@@ -371,7 +354,7 @@ class TradeParser:
 
         return missing
 
-    def confirm_and_fill(self, data: Dict, user_response: str) -> Dict:
+    def confirm_and_fill(self, data: dict, user_response: str) -> dict:
         """
         根据用户的确认/修正信息更新数据
 
@@ -383,9 +366,8 @@ class TradeParser:
             更新后的数据
         """
         # 确认词
-        confirm_words = ['对', '是的', '正确', '嗯', '好', 'ok', 'confirm']
+        confirm_words = ["对", "是的", "正确", "嗯", "好", "ok", "confirm"]
         # 否定词
-        deny_words = ['不', '不是', '错', 'no', '不对']
 
         response = user_response.strip().lower()
 
@@ -401,37 +383,37 @@ class TradeParser:
 
         return data
 
-    def generate_confirm_message(self, data: Dict) -> str:
+    def generate_confirm_message(self, data: dict) -> str:
         """生成确认消息"""
         lines = []
 
-        if 'trade_date' in data:
+        if "trade_date" in data:
             lines.append(f"日期: {data['trade_date']}")
-        if 'ts_code' in data:
-            name = data.get('name', data['ts_code'])
+        if "ts_code" in data:
+            name = data.get("name", data["ts_code"])
             lines.append(f"股票: {name} ({data['ts_code']})")
-        if 'action' in data:
-            action_text = "买入" if data['action'] == 'BUY' else "卖出"
+        if "action" in data:
+            action_text = "买入" if data["action"] == "BUY" else "卖出"
             lines.append(f"方向: {action_text}")
-        if 'price' in data:
+        if "price" in data:
             lines.append(f"价格: {data['price']}元")
-        if 'quantity' in data:
+        if "quantity" in data:
             lines.append(f"数量: {data['quantity']}股")
-        if 'amount' in data:
+        if "amount" in data:
             lines.append(f"金额: {data['amount']}元")
 
         return "确认一下：" + "，".join(lines)
 
 
-def format_trade_for_review(data: Dict) -> str:
+def format_trade_for_review(data: dict) -> str:
     """格式化交易数据用于Z哥点评"""
-    action_text = "买入" if data.get('action') == 'BUY' else "卖出"
-    name = data.get('name', data.get('ts_code', ''))
-    ts_code = data.get('ts_code', '')
+    action_text = "买入" if data.get("action") == "BUY" else "卖出"
+    name = data.get("name", data.get("ts_code", ""))
+    ts_code = data.get("ts_code", "")
 
     lines = [
-        f"📋 交易记录确认",
-        f"",
+        "📋 交易记录确认",
+        "",
         f"📅 日期: {data.get('trade_date', '未设置')}",
         f"📈 股票: {name} ({ts_code})",
         f"📊 方向: {action_text}",
@@ -439,10 +421,10 @@ def format_trade_for_review(data: Dict) -> str:
         f"🔢 数量: {data.get('quantity', '?')}股",
     ]
 
-    if 'amount' in data:
+    if "amount" in data:
         lines.append(f"💵 金额: {data['amount']}元")
 
-    if 'reason' in data and data['reason']:
+    if "reason" in data and data["reason"]:
         lines.append(f"📝 原因: {data['reason']}")
 
     return "\n".join(lines)

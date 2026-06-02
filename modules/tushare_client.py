@@ -8,7 +8,7 @@ Tushare 中转 API 客户端
 import os
 import time
 import logging
-from typing import Optional, List
+from typing import Optional
 
 try:
     import requests
@@ -41,23 +41,22 @@ class TushareClient:
     - get_trade_cal: 交易日历
     """
 
-    def __init__(self, token: Optional[str] = None):
+    def __init__(self, token: str | None = None):
         self.token = token or TUSHARE_TOKEN
         data_mode = os.getenv("DATA_MODE", "websearch")
 
         # 仅在 JNB 模式下强制检查 API 配置
-        if data_mode == 'jnb':
+        if data_mode == "jnb":
             if not self.token:
                 raise ValueError(
-                    "JNB 模式下未设置 TUSHARE_TOKEN，请在 .env 中配置。\n"
-                    "或者将 DATA_MODE 改为 websearch。"
+                    "JNB 模式下未设置 TUSHARE_TOKEN，请在 .env 中配置。\n或者将 DATA_MODE 改为 websearch。"
                 )
             if not TUSHARE_API_URL:
                 raise ValueError(
                     "JNB 模式下未设置 TUSHARE_API_URL，请在 .env 中配置中转 API 地址。\n"
                     "示例：TUSHARE_API_URL=https://tt.xiaodefa.cn"
                 )
-            
+
             # 初始化 Tushare SDK
             ts.set_token(self.token)
             self._pro = ts.pro_api()
@@ -67,6 +66,7 @@ class TushareClient:
 
         try:
             from tushare.stock import cons as ct
+
             ct.verify_token_url = VERIFY_TOKEN_URL
         except Exception:
             pass
@@ -80,7 +80,7 @@ class TushareClient:
             time.sleep(self.min_request_interval - elapsed)
         self.last_request_time = time.time()
 
-    def get_daily(self, ts_code: str, start_date: str, end_date: str) -> Optional[pd.DataFrame]:
+    def get_daily(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
         """获取日线行情（个股，前复权）"""
         self._rate_limit()
         try:
@@ -88,14 +88,14 @@ class TushareClient:
                 ts_code=ts_code,
                 start_date=start_date,
                 end_date=end_date,
-                adj='qfq',
+                adj="qfq",
                 api=self._pro,
             )
         except Exception as e:
             logger.error(f"get_daily 失败: {e}")
             return pd.DataFrame()
 
-    def get_index_daily(self, ts_code: str, start_date: str, end_date: str) -> Optional[pd.DataFrame]:
+    def get_index_daily(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
         """获取指数日线（如沪深300）"""
         self._rate_limit()
         try:
@@ -104,7 +104,7 @@ class TushareClient:
             logger.error(f"get_index_daily 失败: {e}")
             return pd.DataFrame()
 
-    def get_realtime_quote(self, ts_codes: List[str]) -> Optional[pd.DataFrame]:
+    def get_realtime_quote(self, ts_codes: list[str]) -> pd.DataFrame | None:
         """获取 A 股实时行情"""
         self._rate_limit()
         try:
@@ -114,7 +114,7 @@ class TushareClient:
             logger.error(f"get_realtime_quote 失败: {e}")
             return pd.DataFrame()
 
-    def get_moneyflow(self, ts_code: str, trade_date: str) -> Optional[pd.DataFrame]:
+    def get_moneyflow(self, ts_code: str, trade_date: str) -> pd.DataFrame | None:
         """获取个股资金流向"""
         self._rate_limit()
         try:
@@ -123,8 +123,7 @@ class TushareClient:
             logger.error(f"get_moneyflow 失败: {e}")
             return pd.DataFrame()
 
-    def get_stock_basic(self, ts_code: Optional[str] = None,
-                        name: Optional[str] = None) -> Optional[pd.DataFrame]:
+    def get_stock_basic(self, ts_code: str | None = None, name: str | None = None) -> pd.DataFrame | None:
         """获取股票基本信息"""
         self._rate_limit()
         try:
@@ -138,7 +137,7 @@ class TushareClient:
             logger.error(f"get_stock_basic 失败: {e}")
             return pd.DataFrame()
 
-    def get_limit_list(self, trade_date: str) -> Optional[pd.DataFrame]:
+    def get_limit_list(self, trade_date: str) -> pd.DataFrame | None:
         """获取涨跌停列表"""
         self._rate_limit()
         try:
@@ -147,7 +146,7 @@ class TushareClient:
             logger.error(f"get_limit_list 失败: {e}")
             return pd.DataFrame()
 
-    def get_top_list(self, trade_date: str) -> Optional[pd.DataFrame]:
+    def get_top_list(self, trade_date: str) -> pd.DataFrame | None:
         """获取龙虎榜数据"""
         self._rate_limit()
         try:
@@ -156,8 +155,7 @@ class TushareClient:
             logger.error(f"get_top_list 失败: {e}")
             return pd.DataFrame()
 
-    def get_financial_data(self, ts_code: str, start_date: str,
-                            end_date: str) -> Optional[pd.DataFrame]:
+    def get_financial_data(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
         """获取财务指标"""
         self._rate_limit()
         try:
@@ -166,8 +164,7 @@ class TushareClient:
             logger.error(f"get_financial_data 失败: {e}")
             return pd.DataFrame()
 
-    def get_trade_cal(self, exchange: str = "SSE",
-                       start_date: str = "", end_date: str = "") -> Optional[pd.DataFrame]:
+    def get_trade_cal(self, exchange: str = "SSE", start_date: str = "", end_date: str = "") -> pd.DataFrame | None:
         """获取交易日历"""
         self._rate_limit()
         try:
@@ -189,7 +186,9 @@ class TushareClient:
 
 # 测试
 if __name__ == "__main__":
-    import sys, io
+    import sys
+    import io
+
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
     logging.basicConfig(level=logging.INFO)
 
@@ -206,20 +205,20 @@ if __name__ == "__main__":
     print("\n=== 平安银行 (000001.SZ) 日线 ===")
     df = client.get_daily("000001.SZ", "20250508", "20250515")
     if df is not None and len(df) > 0:
-        print(df[['trade_date', 'open', 'high', 'low', 'close', 'pct_chg']].to_string(index=False))
+        print(df[["trade_date", "open", "high", "low", "close", "pct_chg"]].to_string(index=False))
     else:
         print("无数据")
 
     print("\n=== 沪深300 (000300.SH) 指数日线 ===")
     df2 = client.get_index_daily("000300.SH", "20250508", "20250515")
     if df2 is not None and len(df2) > 0:
-        print(df2[['trade_date', 'open', 'high', 'low', 'close', 'pct_chg']].to_string(index=False))
+        print(df2[["trade_date", "open", "high", "low", "close", "pct_chg"]].to_string(index=False))
     else:
         print("无数据")
 
     print("\n=== 实时行情 ===")
     df3 = client.get_realtime_quote(["000300.SH", "000001.SZ"])
     if df3 is not None and len(df3) > 0:
-        print(df3[['TS_CODE', 'NAME', 'PRICE', 'HIGH', 'LOW', 'VOLUME']].to_string(index=False))
+        print(df3[["TS_CODE", "NAME", "PRICE", "HIGH", "LOW", "VOLUME"]].to_string(index=False))
     else:
         print("无数据")

@@ -1,8 +1,8 @@
-from typing import List, Dict, Optional
+from typing import Optional
 from .core import StrategyType, StrategySignal, Priority, Action, _calc_kdj
 
-def detect_changan(klines: List[Dict], index: int,
-                   kirin_context: Optional[Dict] = None) -> Optional[StrategySignal]:
+
+def detect_changan(klines: list[dict], index: int, kirin_context: dict | None = None) -> StrategySignal | None:
     """
     检测长安战法（已升级 MDC 验证 + 麒麟背景）
 
@@ -18,24 +18,24 @@ def detect_changan(klines: List[Dict], index: int,
     if index < 3:
         return None
 
-    day1 = klines[index-2]
-    day2 = klines[index-1]
+    klines[index - 2]
+    day2 = klines[index - 1]
     day3 = klines[index]
 
     # 1. 第一天：B1（J<-13）
-    k1, d1, j1 = _calc_kdj(klines[:index-1])
+    k1, d1, j1 = _calc_kdj(klines[: index - 1])
     if j1 >= -13:
         return None
 
     # 2. 第二天：放量长阳，J拐头
     k2, d2, j2 = _calc_kdj(klines[:index])
-    if not (day2['pct_chg'] >= 4 and day2['is_beidou'] and j2 > j1):
+    if not (day2["pct_chg"] >= 4 and day2["is_beidou"] and j2 > j1):
         return None
 
     # 3. 第三天：分歧转一致，缩半量
-    pct_chg = day3['pct_chg']
-    amplitude = (day3['high'] - day3['low']) / day3['prev_close'] * 100
-    is_half_vol = day3['vol'] <= day2['vol'] * 0.5
+    pct_chg = day3["pct_chg"]
+    amplitude = (day3["high"] - day3["low"]) / day3["prev_close"] * 100
+    is_half_vol = day3["vol"] <= day2["vol"] * 0.5
 
     if not (0 < pct_chg < 2 and amplitude < 7 and is_half_vol):
         return None
@@ -43,35 +43,37 @@ def detect_changan(klines: List[Dict], index: int,
     # 4. MDC 评分
     confidence = 0.75
     mdc_details = []
-    
+
     # 验证第二天的资金流 (真假突破)
-    if day2.get('large_inflow', 0) > day2.get('large_outflow', 0):
-        inflow_ratio = (day2['large_inflow'] - day2['large_outflow']) / day2['amount'] if day2['amount'] > 0 else 0
+    if day2.get("large_inflow", 0) > day2.get("large_outflow", 0):
+        inflow_ratio = (day2["large_inflow"] - day2["large_outflow"]) / day2["amount"] if day2["amount"] > 0 else 0
         if inflow_ratio > 0.05:
             confidence += 0.15
-            mdc_details.append(f"Day2主力大单强力流入({inflow_ratio*100:.1f}%)")
-            
-    if kirin_context and kirin_context.get('stage') == '拉升':
+            mdc_details.append(f"Day2主力大单强力流入({inflow_ratio * 100:.1f}%)")
+
+    if kirin_context and kirin_context.get("stage") == "拉升":
         confidence += 0.10
         mdc_details.append("处于主力拉升期")
 
     return StrategySignal(
-        ts_code=day3['ts_code'],
-        trade_date=day3['trade_date'],
+        ts_code=day3["ts_code"],
+        trade_date=day3["trade_date"],
         strategy=StrategyType.CHANGAN,
         confidence=round(min(confidence, 0.98), 2),
-        description=f"长安战法确认(胜率75%) " + ", ".join(mdc_details),
+        description="长安战法确认(胜率75%) " + ", ".join(mdc_details),
         details={
-            'j1': j1, 'j2': j2,
-            'day2_pct': day2['pct_chg'],
-            'mdc': mdc_details,
+            "j1": j1,
+            "j2": j2,
+            "day2_pct": day2["pct_chg"],
+            "mdc": mdc_details,
         },
         action=Action.BUY.value,
-        stop_loss=day3['low'],
-        priority=Priority.OPPORTUNITY)
+        stop_loss=day3["low"],
+        priority=Priority.OPPORTUNITY,
+    )
 
 
-def detect_sifen_zhiyi_sanyin(klines: List[Dict], index: int) -> Optional[StrategySignal]:
+def detect_sifen_zhiyi_sanyin(klines: list[dict], index: int) -> StrategySignal | None:
     """
     检测四分之三阴量战法
 
@@ -81,40 +83,40 @@ def detect_sifen_zhiyi_sanyin(klines: List[Dict], index: int) -> Optional[Strate
         return None
 
     today = klines[index]
-    yesterday = klines[index-1]
+    yesterday = klines[index - 1]
 
     # 昨日大阳线
-    if yesterday['pct_chg'] < 3:
+    if yesterday["pct_chg"] < 3:
         return None
 
     # 今日阴线
-    if today['close'] >= today['open']:
+    if today["close"] >= today["open"]:
         return None
 
     # 阴量判断
-    vol_ratio = today['vol'] / yesterday['vol']
+    vol_ratio = today["vol"] / yesterday["vol"]
 
     if vol_ratio > 0.75:
         # 假突破！主力出货
         return StrategySignal(
-            ts_code=today['ts_code'],
-            trade_date=today['trade_date'],
+            ts_code=today["ts_code"],
+            trade_date=today["trade_date"],
             strategy=StrategyType.SI_FEN_ZHI_SAN,
             confidence=0.9,
             description=f"假突破！阴量{vol_ratio:.0%}超过阳量75%",
             details={
-                'yang_vol': yesterday['vol'],
-                'yin_vol': today['vol'],
-                'vol_ratio': vol_ratio,
+                "yang_vol": yesterday["vol"],
+                "yin_vol": today["vol"],
+                "vol_ratio": vol_ratio,
             },
             action=Action.SELL.value,
-        priority=Priority.OPPORTUNITY)
+            priority=Priority.OPPORTUNITY,
+        )
 
     return None
 
 
-def detect_nana(klines: List[Dict], index: int,
-                kirin_context: Optional[Dict] = None) -> Optional[StrategySignal]:
+def detect_nana(klines: list[dict], index: int, kirin_context: dict | None = None) -> StrategySignal | None:
     """
     检测娜娜图形（已升级 MDC 验证）
 
@@ -129,65 +131,66 @@ def detect_nana(klines: List[Dict], index: int,
 
     # 检查连续放量上涨（最近3-5天）
     rise_count = 0
-    for i in range(index-4, index+1):
+    for i in range(index - 4, index + 1):
         if i < 1:
             continue
-        if klines[i]['is_rise'] and klines[i]['is_beidou']:
+        if klines[i]["is_rise"] and klines[i]["is_beidou"]:
             rise_count += 1
 
     if rise_count < 3:
         return None
 
     # 检查顶部无巨量阴线
-    for i in range(index-4, index):
-        if klines[i]['is_fangliang_yinxian']:
+    for i in range(index - 4, index):
+        if klines[i]["is_fangliang_yinxian"]:
             return None
 
     # 检查连续缩量回调
     suoliang_count = 0
-    for i in range(index-4, index):
-        if klines[i]['is_suoliang']:
+    for i in range(index - 4, index):
+        if klines[i]["is_suoliang"]:
             suoliang_count += 1
 
     if suoliang_count < 2:
         return None
 
     # J值负值
-    k, d, j = _calc_kdj(klines[:index+1])
+    k, d, j = _calc_kdj(klines[: index + 1])
     if j >= 0:
         return None
 
     # MDC 验证
     confidence = 0.85
     mdc_details = []
-    
+
     today = klines[index]
-    if today.get('boll_lower') and today['close'] <= today['boll_lower'] * 1.05:
+    if today.get("boll_lower") and today["close"] <= today["boll_lower"] * 1.05:
         confidence += 0.10
         mdc_details.append("回踩布林下轨支撑")
-        
-    if kirin_context and kirin_context.get('stage') in ('吸筹', '拉升'):
+
+    if kirin_context and kirin_context.get("stage") in ("吸筹", "拉升"):
         confidence += 0.05
         mdc_details.append(f"处于主力{kirin_context['stage']}期")
 
     return StrategySignal(
-        ts_code=klines[index]['ts_code'],
-        trade_date=klines[index]['trade_date'],
+        ts_code=klines[index]["ts_code"],
+        trade_date=klines[index]["trade_date"],
         strategy=StrategyType.NANA,
         confidence=round(min(confidence, 0.98), 2),
         description=f"娜娜图形 J={j:.2f} " + ", ".join(mdc_details),
         details={
-            'j': j,
-            'rise_count': rise_count,
-            'suoliang_count': suoliang_count,
-            'mdc': mdc_details,
+            "j": j,
+            "rise_count": rise_count,
+            "suoliang_count": suoliang_count,
+            "mdc": mdc_details,
         },
         action=Action.BUY.value,
-        stop_loss=klines[index]['low'],
-        priority=Priority.OPPORTUNITY)
+        stop_loss=klines[index]["low"],
+        priority=Priority.OPPORTUNITY,
+    )
 
 
-def detect_yidong_dilian(klines: List[Dict], index: int) -> Optional[StrategySignal]:
+def detect_yidong_dilian(klines: list[dict], index: int) -> StrategySignal | None:
     """
     检测异动+地量地价战法
 
@@ -203,9 +206,9 @@ def detect_yidong_dilian(klines: List[Dict], index: int) -> Optional[StrategySig
 
     # 检查前几天是否有异动
     yidong_index = None
-    for i in range(index-1, max(0, index-10), -1):
+    for i in range(index - 1, max(0, index - 10), -1):
         # 异动：放量+上涨
-        if klines[i]['is_beidou'] and klines[i]['is_rise']:
+        if klines[i]["is_beidou"] and klines[i]["is_rise"]:
             yidong_index = i
             break
 
@@ -218,32 +221,33 @@ def detect_yidong_dilian(klines: List[Dict], index: int) -> Optional[StrategySig
         return None
 
     # 回调期间应该有缩量
-    has_suoliang = any(klines[j]['is_suoliang'] for j in range(yidong_index+1, index+1))
+    any(klines[j]["is_suoliang"] for j in range(yidong_index + 1, index + 1))
 
     # 今日地量（最佳买点）
-    if not today['is_suoliang']:
+    if not today["is_suoliang"]:
         return None
 
     # J值判断
-    k, d, j = _calc_kdj(klines[:index+1])
+    k, d, j = _calc_kdj(klines[: index + 1])
 
     return StrategySignal(
-        ts_code=today['ts_code'],
-        trade_date=today['trade_date'],
+        ts_code=today["ts_code"],
+        trade_date=today["trade_date"],
         strategy=StrategyType.YIDONG_DILIAN,
         confidence=0.8,
         description=f"异动+地量地价 异动后{days_after}天缩量回调 J={j:.2f}",
         details={
-            'yidong_date': klines[yidong_index]['trade_date'],
-            'days_after': days_after,
-            'j': j,
+            "yidong_date": klines[yidong_index]["trade_date"],
+            "days_after": days_after,
+            "j": j,
         },
         action=Action.BUY.value,
-        stop_loss=today['low'],
-        priority=Priority.OPPORTUNITY)
+        stop_loss=today["low"],
+        priority=Priority.OPPORTUNITY,
+    )
 
 
-def detect_pinghang(klines: List[Dict], index: int) -> Optional[StrategySignal]:
+def detect_pinghang(klines: list[dict], index: int) -> StrategySignal | None:
     """
     检测平行重炮 / 多门重炮
 
@@ -259,7 +263,7 @@ def detect_pinghang(klines: List[Dict], index: int) -> Optional[StrategySignal]:
     # 收集最近7天内的放量阳线索引
     yang_indices = []
     for i in range(max(0, index - 6), index + 1):
-        if klines[i]['is_rise'] and klines[i]['is_beidou']:
+        if klines[i]["is_rise"] and klines[i]["is_beidou"]:
             yang_indices.append(i)
 
     if len(yang_indices) < 2:
@@ -274,53 +278,54 @@ def detect_pinghang(klines: List[Dict], index: int) -> Optional[StrategySignal]:
         return None
 
     # 中间阴线数量占比过半
-    yin_count = sum(1 for i in range(y1 + 1, y2) if not klines[i]['is_rise'])
+    yin_count = sum(1 for i in range(y1 + 1, y2) if not klines[i]["is_rise"])
     if yin_count < between_count * 0.5:
         return None
 
     # 阳线成交量压住阴线
-    max_yin_vol = max(klines[i]['vol'] for i in range(y1 + 1, y2))
-    if klines[y1]['vol'] < max_yin_vol * 1.2 or klines[y2]['vol'] < max_yin_vol * 1.2:
+    max_yin_vol = max(klines[i]["vol"] for i in range(y1 + 1, y2))
+    if klines[y1]["vol"] < max_yin_vol * 1.2 or klines[y2]["vol"] < max_yin_vol * 1.2:
         return None
 
     # 第二根阳线涨幅 >= 4%
-    if klines[y2]['pct_chg'] < 4:
+    if klines[y2]["pct_chg"] < 4:
         return None
 
     # 第二根量能 >= 第一根 90%
-    if klines[y2]['vol'] < klines[y1]['vol'] * 0.9:
+    if klines[y2]["vol"] < klines[y1]["vol"] * 0.9:
         return None
 
     # J 值 < 55
-    k, d, j = _calc_kdj(klines[:y2 + 1])
+    k, d, j = _calc_kdj(klines[: y2 + 1])
     if j >= 55:
         return None
 
     # 无上影线（可选加分）
-    has_upper_shadow = klines[y2]['high'] > klines[y2]['close'] * 1.01
+    has_upper_shadow = klines[y2]["high"] > klines[y2]["close"] * 1.01
     confidence = 0.85 if not has_upper_shadow else 0.75
 
     return StrategySignal(
-        ts_code=klines[y2]['ts_code'],
-        trade_date=klines[y2]['trade_date'],
+        ts_code=klines[y2]["ts_code"],
+        trade_date=klines[y2]["trade_date"],
         strategy=StrategyType.PINGHANG,
         confidence=confidence,
         description=f"平行重炮 涨{klines[y2]['pct_chg']:.1f}% J={j:.1f} 夹{between_count}阴",
         details={
-            'j': j,
-            'yang1_vol': klines[y1]['vol'],
-            'yang2_vol': klines[y2]['vol'],
-            'between_count': between_count,
-            'yin_count': yin_count,
-            'pct_chg': klines[y2]['pct_chg'],
-            'has_upper_shadow': has_upper_shadow,
+            "j": j,
+            "yang1_vol": klines[y1]["vol"],
+            "yang2_vol": klines[y2]["vol"],
+            "between_count": between_count,
+            "yin_count": yin_count,
+            "pct_chg": klines[y2]["pct_chg"],
+            "has_upper_shadow": has_upper_shadow,
         },
         action=Action.BUY.value,
-        stop_loss=klines[y2]['low'],
-        priority=Priority.OPPORTUNITY)
+        stop_loss=klines[y2]["low"],
+        priority=Priority.OPPORTUNITY,
+    )
 
 
-def detect_kengqi(klines: List[Dict], index: int) -> Optional[StrategySignal]:
+def detect_kengqi(klines: list[dict], index: int) -> StrategySignal | None:
     """
     检测坑里起好货 / 填坑战法
 
@@ -335,14 +340,14 @@ def detect_kengqi(klines: List[Dict], index: int) -> Optional[StrategySignal]:
     today = klines[index]
 
     # 找坑：最近15天内的最低点
-    recent_low = min(klines[i]['low'] for i in range(index - 14, index + 1))
-    low_index = next(i for i in range(index - 14, index + 1) if klines[i]['low'] == recent_low)
+    recent_low = min(klines[i]["low"] for i in range(index - 14, index + 1))
+    low_index = next(i for i in range(index - 14, index + 1) if klines[i]["low"] == recent_low)
 
     # 坑前高点（坑前5天的最高点）
     if low_index < 5:
         return None
 
-    pre_high = max(klines[i]['high'] for i in range(low_index - 5, low_index))
+    pre_high = max(klines[i]["high"] for i in range(low_index - 5, low_index))
 
     # 坑深条件：跌幅 >= 10%
     keng_depth = (pre_high - recent_low) / pre_high
@@ -351,17 +356,17 @@ def detect_kengqi(klines: List[Dict], index: int) -> Optional[StrategySignal]:
 
     # 挖坑日必须放量下跌
     keng_day = klines[low_index]
-    if not (keng_day['close'] < keng_day['open'] and keng_day['vol'] > klines[low_index - 1]['vol'] * 1.3):
+    if not (keng_day["close"] < keng_day["open"] and keng_day["vol"] > klines[low_index - 1]["vol"] * 1.3):
         return None
 
     # 填坑：从坑底到当前，价格回升到坑沿的 80% 以上
-    fill_ratio = (today['close'] - recent_low) / (pre_high - recent_low)
+    fill_ratio = (today["close"] - recent_low) / (pre_high - recent_low)
     if fill_ratio < 0.8:
         return None
 
     # 填坑过程缩量（坑后5日均量 < 坑前5日均量）
-    post_vols = [klines[i]['vol'] for i in range(low_index + 1, min(low_index + 6, index + 1))]
-    pre_vols = [klines[i]['vol'] for i in range(low_index - 5, low_index)]
+    post_vols = [klines[i]["vol"] for i in range(low_index + 1, min(low_index + 6, index + 1))]
+    pre_vols = [klines[i]["vol"] for i in range(low_index - 5, low_index)]
     if post_vols and pre_vols:
         post_avg = sum(post_vols) / len(post_vols)
         pre_avg = sum(pre_vols) / len(pre_vols)
@@ -372,24 +377,25 @@ def detect_kengqi(klines: List[Dict], index: int) -> Optional[StrategySignal]:
     target_price = round(2 * pre_high - recent_low, 2)
 
     return StrategySignal(
-        ts_code=today['ts_code'],
-        trade_date=today['trade_date'],
+        ts_code=today["ts_code"],
+        trade_date=today["trade_date"],
         strategy=StrategyType.KENGQI,
         confidence=0.8,
-        description=f"坑里起好货 坑深{keng_depth*100:.0f}% 填{fill_ratio*100:.0f}% 目标{target_price:.1f}",
+        description=f"坑里起好货 坑深{keng_depth * 100:.0f}% 填{fill_ratio * 100:.0f}% 目标{target_price:.1f}",
         details={
-            'keng_depth': round(keng_depth, 4),
-            'fill_ratio': round(fill_ratio, 4),
-            'pre_high': pre_high,
-            'keng_low': recent_low,
-            'target_price': target_price,
+            "keng_depth": round(keng_depth, 4),
+            "fill_ratio": round(fill_ratio, 4),
+            "pre_high": pre_high,
+            "keng_low": recent_low,
+            "target_price": target_price,
         },
         action=Action.BUY.value,
         stop_loss=recent_low,
-        priority=Priority.OPPORTUNITY)
+        priority=Priority.OPPORTUNITY,
+    )
 
 
-def detect_duichen_va(klines: List[Dict], index: int) -> Optional[StrategySignal]:
+def detect_duichen_va(klines: list[dict], index: int) -> StrategySignal | None:
     """
     检测对称 VA 战法
 
@@ -408,9 +414,9 @@ def detect_duichen_va(klines: List[Dict], index: int) -> Optional[StrategySignal
     today = klines[index]
 
     # 找近期高点和低点（过去20天）
-    window = klines[index - 19:index + 1]
-    highs = [(i, k['high']) for i, k in enumerate(window)]
-    lows = [(i, k['low']) for i, k in enumerate(window)]
+    window = klines[index - 19 : index + 1]
+    highs = [(i, k["high"]) for i, k in enumerate(window)]
+    lows = [(i, k["low"]) for i, k in enumerate(window)]
 
     peak_idx, peak_price = max(highs, key=lambda x: x[1])
     trough_idx, trough_price = min(lows, key=lambda x: x[1])
@@ -425,7 +431,7 @@ def detect_duichen_va(klines: List[Dict], index: int) -> Optional[StrategySignal
 
     # 下跌波段（高点后至今）
     down_days = len(window) - 1 - peak_idx
-    down_pct = (peak_price - window[-1]['close']) / peak_price
+    down_pct = (peak_price - window[-1]["close"]) / peak_price
 
     # 时间对称：下跌天数 / 上涨天数 在 0.8~1.5 之间
     time_sym = down_days / up_days if up_days > 0 else 0
@@ -438,8 +444,8 @@ def detect_duichen_va(klines: List[Dict], index: int) -> Optional[StrategySignal
         return None
 
     # 守恒被破坏的标志：当前已企稳（缩量 + J 低位）
-    k, d, j = _calc_kdj(klines[:index + 1])
-    is_stable = today['vol'] < klines[index - 1]['vol'] * 0.7 and j < 20
+    k, d, j = _calc_kdj(klines[: index + 1])
+    is_stable = today["vol"] < klines[index - 1]["vol"] * 0.7 and j < 20
 
     if not is_stable:
         return None
@@ -448,21 +454,22 @@ def detect_duichen_va(klines: List[Dict], index: int) -> Optional[StrategySignal
     sym_type = "直接对称(A杀)" if space_sym >= 0.85 else "间接对称(回调一半)"
 
     return StrategySignal(
-        ts_code=today['ts_code'],
-        trade_date=today['trade_date'],
+        ts_code=today["ts_code"],
+        trade_date=today["trade_date"],
         strategy=StrategyType.DUIchen,
         confidence=0.75,
         description=f"对称VA {sym_type} 时{time_sym:.1f}空{space_sym:.1f} J={j:.1f}",
         details={
-            'sym_type': sym_type,
-            'time_symmetry': round(time_sym, 2),
-            'space_symmetry': round(space_sym, 2),
-            'up_days': up_days,
-            'down_days': down_days,
-            'up_pct': round(up_pct * 100, 2),
-            'down_pct': round(down_pct * 100, 2),
-            'j': j,
+            "sym_type": sym_type,
+            "time_symmetry": round(time_sym, 2),
+            "space_symmetry": round(space_sym, 2),
+            "up_days": up_days,
+            "down_days": down_days,
+            "up_pct": round(up_pct * 100, 2),
+            "down_pct": round(down_pct * 100, 2),
+            "j": j,
         },
         action=Action.BUY.value,
         stop_loss=trough_price,
-        priority=Priority.OPPORTUNITY)
+        priority=Priority.OPPORTUNITY,
+    )

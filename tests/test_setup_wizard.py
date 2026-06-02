@@ -9,8 +9,12 @@ from pathlib import Path
 from unittest.mock import patch
 
 from modules.setup_wizard import (
-    check_env_exists, check_data_mode, write_env_file,
-    get_mode_display_name, MODE_JNB, MODE_NORMAL
+    check_env_exists,
+    check_data_mode,
+    write_env_file,
+    get_mode_display_name,
+    MODE_JNB,
+    MODE_NORMAL,
 )
 
 

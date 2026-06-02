@@ -5,12 +5,12 @@
 核心：建仓波 → 拉升波 → 冲刺波
 """
 
-from typing import List, Dict, Tuple, Optional
+from typing import Optional
 
 from .core import DailyData
 
 
-def _find_recent_low(klines: List[DailyData], window: int = 5) -> Tuple[int, float]:
+def _find_recent_low(klines: list[DailyData], window: int = 5) -> tuple[int, float]:
     """
     找近期低点：在 klines 中找局部最小值（连续 window 日最低点）
 
@@ -41,7 +41,7 @@ def _find_recent_low(klines: List[DailyData], window: int = 5) -> Tuple[int, flo
     return min_idx, klines[min_idx].low
 
 
-def _count_limit_up(klines: List[DailyData], start_idx: int) -> int:
+def _count_limit_up(klines: list[DailyData], start_idx: int) -> int:
     """统计从 start_idx 到今日的涨停次数（pct_chg >= 9.9%）"""
     count = 0
     for k in klines[start_idx:]:
@@ -50,7 +50,7 @@ def _count_limit_up(klines: List[DailyData], start_idx: int) -> int:
     return count
 
 
-def _calculate_red_ratio(klines: List[DailyData], start_idx: int) -> float:
+def _calculate_red_ratio(klines: list[DailyData], start_idx: int) -> float:
     """计算从 start_idx 到今日的阳线占比"""
     segment = klines[start_idx:]
     if not segment:
@@ -59,7 +59,7 @@ def _calculate_red_ratio(klines: List[DailyData], start_idx: int) -> float:
     return red_count / len(segment)
 
 
-def _calculate_avg_daily_gain(klines: List[DailyData], start_idx: int) -> float:
+def _calculate_avg_daily_gain(klines: list[DailyData], start_idx: int) -> float:
     """计算从 start_idx 到今日的日均涨幅（%）"""
     segment = klines[start_idx:]
     if len(segment) < 2:
@@ -68,14 +68,14 @@ def _calculate_avg_daily_gain(klines: List[DailyData], start_idx: int) -> float:
     return total_gain / len(segment)
 
 
-def _calculate_20day_gain(klines: List[DailyData]) -> float:
+def _calculate_20day_gain(klines: list[DailyData]) -> float:
     """计算最近 20 日涨幅"""
     if len(klines) < 20:
         return 0.0
     return (klines[-1].close / klines[-20].close - 1) * 100
 
 
-def detect_three_waves(klines: List[DailyData]) -> Dict:
+def detect_three_waves(klines: list[DailyData]) -> dict:
     """
     识别当前处于三波理论的哪个阶段
 
@@ -101,10 +101,10 @@ def detect_three_waves(klines: List[DailyData]) -> Dict:
     }
     """
     result = {
-        'wave': '未知',
-        'confidence': 0.0,
-        'stats': {},
-        'b1_suggestion': '观望',
+        "wave": "未知",
+        "confidence": 0.0,
+        "stats": {},
+        "b1_suggestion": "观望",
     }
 
     if len(klines) < 30:
@@ -129,16 +129,16 @@ def detect_three_waves(klines: List[DailyData]) -> Dict:
     gain_20day = _calculate_20day_gain(klines)
 
     stats = {
-        'low_price': round(low_price, 2),
-        'high_price': round(high_price, 2),
-        'gain_pct': round(gain_pct, 2),
-        'limit_up_count': limit_up_count,
-        'red_ratio': round(red_ratio, 2),
-        'avg_daily_gain': round(avg_daily_gain, 2),
-        'gain_20day': round(gain_20day, 2),
-        'days_from_low': days_from_low,
+        "low_price": round(low_price, 2),
+        "high_price": round(high_price, 2),
+        "gain_pct": round(gain_pct, 2),
+        "limit_up_count": limit_up_count,
+        "red_ratio": round(red_ratio, 2),
+        "avg_daily_gain": round(avg_daily_gain, 2),
+        "gain_20day": round(gain_20day, 2),
+        "days_from_low": days_from_low,
     }
-    result['stats'] = stats
+    result["stats"] = stats
 
     # ========== 冲刺波判断 ==========
     # 涨幅 > 100% 且频繁涨停（≥3次）
@@ -153,9 +153,9 @@ def detect_three_waves(klines: List[DailyData]) -> Dict:
         sprint_score += 10
 
     if sprint_score >= 60:
-        result['wave'] = '冲刺波'
-        result['confidence'] = round(min(sprint_score / 100, 1.0), 2)
-        result['b1_suggestion'] = '不看'
+        result["wave"] = "冲刺波"
+        result["confidence"] = round(min(sprint_score / 100, 1.0), 2)
+        result["b1_suggestion"] = "不看"
         return result
 
     # ========== 拉升波判断 ==========
@@ -177,9 +177,9 @@ def detect_three_waves(klines: List[DailyData]) -> Dict:
         pull_score += 15
 
     if pull_score >= 50:
-        result['wave'] = '拉升波'
-        result['confidence'] = round(min(pull_score / 100, 1.0), 2)
-        result['b1_suggestion'] = '等回调'
+        result["wave"] = "拉升波"
+        result["confidence"] = round(min(pull_score / 100, 1.0), 2)
+        result["b1_suggestion"] = "等回调"
         return result
 
     # ========== 建仓波判断 ==========
@@ -201,17 +201,17 @@ def detect_three_waves(klines: List[DailyData]) -> Dict:
         build_score += 20
 
     if build_score >= 50:
-        result['wave'] = '建仓波'
-        result['confidence'] = round(min(build_score / 100, 1.0), 2)
-        result['b1_suggestion'] = '可干'
+        result["wave"] = "建仓波"
+        result["confidence"] = round(min(build_score / 100, 1.0), 2)
+        result["b1_suggestion"] = "可干"
         return result
 
     # 无法明确判断
-    result['confidence'] = round(max(sprint_score, pull_score, build_score) / 100, 2)
+    result["confidence"] = round(max(sprint_score, pull_score, build_score) / 100, 2)
     return result
 
 
-def classify_wave_for_b1(klines: List[DailyData]) -> str:
+def classify_wave_for_b1(klines: list[DailyData]) -> str:
     """
     简化接口：直接返回 B1 操作建议
 
@@ -221,13 +221,14 @@ def classify_wave_for_b1(klines: List[DailyData]) -> str:
     未知 → 观望
     """
     result = detect_three_waves(klines)
-    return result['b1_suggestion']
+    return result["b1_suggestion"]
 
 
 if __name__ == "__main__":
     # 简单测试
     import sys
     from pathlib import Path
+
     sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
     from modules.indicators import DailyData
@@ -240,7 +241,7 @@ if __name__ == "__main__":
         price *= 1.005
         k = DailyData(
             ts_code="000001.SZ",
-            trade_date=f"202601{i+1:02d}",
+            trade_date=f"202601{i + 1:02d}",
             open=price * 0.998,
             high=price * 1.01,
             low=price * 0.995,
@@ -267,7 +268,7 @@ if __name__ == "__main__":
             pct = 3.0
         k = DailyData(
             ts_code="000001.SZ",
-            trade_date=f"202601{i+1:02d}",
+            trade_date=f"202601{i + 1:02d}",
             open=price * 0.99,
             high=price * 1.05,
             low=price * 0.98,

@@ -3,7 +3,7 @@ Z哥 风格语料库 V3.0
 为 LLM 提供 Z哥风格的参考语料，点评由 LLM 生成，此模块只做数据格式化
 """
 
-from typing import Dict, List, Any
+from typing import Any
 import random
 
 
@@ -106,58 +106,59 @@ JARGON_DICT = {
 
 # ========== 数据格式化工具 ==========
 
+
 def format_money(amount: float) -> str:
     """格式化金额"""
     if amount >= 10000:
-        return f"{amount/10000:.1f}万"
+        return f"{amount / 10000:.1f}万"
     return f"{amount:.0f}元"
 
 
-def pick_random(category: List[str]) -> str:
+def pick_random(category: list[str]) -> str:
     """随机选一句"""
     return random.choice(category)
 
 
-def format_stock_data(data: Dict) -> str:
+def format_stock_data(data: dict) -> str:
     """格式化股票数据为 LLM 上下文"""
     lines = []
 
     # 基础行情
-    if 'name' in data:
+    if "name" in data:
         lines.append(f"股票: {data['name']}")
-    if 'ts_code' in data:
+    if "ts_code" in data:
         lines.append(f"代码: {data['ts_code']}")
 
     # 价格信息
-    if 'close' in data:
+    if "close" in data:
         lines.append(f"现价: {data['close']}元")
-    if 'pct_chg' in data:
-        pct = data['pct_chg']
+    if "pct_chg" in data:
+        pct = data["pct_chg"]
         sign = "+" if pct > 0 else ""
         lines.append(f"涨跌幅: {sign}{pct:.2f}%")
 
     # KDJ
-    if 'j' in data and data['j'] is not None:
-        k = data.get('k', 0)
-        d = data.get('d', 0)
-        j = data['j']
+    if "j" in data and data["j"] is not None:
+        k = data.get("k", 0)
+        d = data.get("d", 0)
+        j = data["j"]
         lines.append(f"KDJ: K={k:.1f} D={d:.1f} J={j:.1f}")
 
     # MACD
-    if 'dif' in data and data['dif'] is not None:
-        dif = data['dif']
-        dea = data.get('dea', 0)
-        macd = data.get('macd_hist', 0)
+    if "dif" in data and data["dif"] is not None:
+        dif = data["dif"]
+        dea = data.get("dea", 0)
+        macd = data.get("macd_hist", 0)
         lines.append(f"MACD: DIF={dif:.4f} DEA={dea:.4f} 柱={macd:.4f}")
 
     # BBI
-    if 'bbi' in data and data['bbi']:
+    if "bbi" in data and data["bbi"]:
         lines.append(f"BBI: {data['bbi']:.2f}")
 
     # 信号
-    if 'signal' in data:
+    if "signal" in data:
         lines.append(f"信号: {data['signal']}")
-    if 'sell_score' in data:
+    if "sell_score" in data:
         lines.append(f"防卖飞评分: {data['sell_score']}/5")
 
     return "\n".join(lines)
@@ -208,6 +209,7 @@ STOCK_ANALYSIS_PROMPT = """你以 zettaranc（Z哥）的身份分析股票。
 
 # ========== 兼容旧接口（废弃警告）==========
 
+
 class ZettarancVoice:
     """
     ⚠️ 已废弃：此模块不再生成点评，点评由 LLM 用 Z哥角色生成
@@ -216,19 +218,16 @@ class ZettarancVoice:
 
     def __init__(self):
         import warnings
-        warnings.warn(
-            "ZettarancVoice 已废弃，点评由 LLM 生成。",
-            DeprecationWarning,
-            stacklevel=2
-        )
+
+        warnings.warn("ZettarancVoice 已废弃，点评由 LLM 生成。", DeprecationWarning, stacklevel=2)
 
     @staticmethod
-    def get_jargon() -> Dict[str, str]:
+    def get_jargon() -> dict[str, str]:
         """获取黑话词典"""
         return JARGON_DICT
 
     @staticmethod
-    def format_stock(data: Dict) -> str:
+    def format_stock(data: dict) -> str:
         """格式化股票数据（仅保留用于兼容）"""
         return format_stock_data(data)
 

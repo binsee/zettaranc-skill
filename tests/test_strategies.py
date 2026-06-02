@@ -4,13 +4,30 @@ strategies.py 战法识别测试
 
 import pytest
 from modules.strategies import (
-    StrategyType, StrategySignal,
-    get_kline_data, calculate_ma, calculate_kdj, calculate_bbi,
-    detect_b1, detect_b2, detect_b3, detect_sb1,
-    detect_changan, detect_sifen_zhiyi_sanyin, detect_nana,
-    detect_yidong_dilian, detect_pinghang, detect_kengqi, detect_duichen_va,
-    detect_s1, detect_s2, detect_s3, analyze_kirin_phase,
-    detect_all_strategies, get_latest_signal, detect_brick_signals,
+    StrategyType,
+    StrategySignal,
+    get_kline_data,
+    calculate_ma,
+    calculate_kdj,
+    calculate_bbi,
+    detect_b1,
+    detect_b2,
+    detect_b3,
+    detect_sb1,
+    detect_changan,
+    detect_sifen_zhiyi_sanyin,
+    detect_nana,
+    detect_yidong_dilian,
+    detect_pinghang,
+    detect_kengqi,
+    detect_duichen_va,
+    detect_s1,
+    detect_s2,
+    detect_s3,
+    analyze_kirin_phase,
+    detect_all_strategies,
+    get_latest_signal,
+    detect_brick_signals,
 )
 from datetime import datetime, timedelta
 from tests.conftest import make_kline_row, generate_uptrend_klines
@@ -111,18 +128,14 @@ class TestDetectSifenZhiyiSanyin:
         """大阳线后次日阴量超过 75%"""
         klines = []
         # 第一天大阳线
-        klines.append(make_kline_row(
-            base_price=100.0, base_vol=10000.0, base_date="20260101"
-        ))
+        klines.append(make_kline_row(base_price=100.0, base_vol=10000.0, base_date="20260101"))
         # 修改为大阳线
         klines[-1]["pct_chg"] = 5.0
         klines[-1]["close"] = 105.0
         klines[-1]["high"] = 106.0
         klines[-1]["open"] = 101.0
         # 第二天阴线，阴量 > 阳量 * 0.75
-        klines.append(make_kline_row(
-            base_price=103.0, base_vol=8000.0, base_date="20260102"
-        ))
+        klines.append(make_kline_row(base_price=103.0, base_vol=8000.0, base_date="20260102"))
         klines[-1]["close"] = 103.0
         klines[-1]["open"] = 104.0
         klines[-1]["high"] = 104.5
@@ -167,6 +180,7 @@ class TestDetectAllStrategies:
     def test_with_data(self, temp_db, db_conn):
         """写入数据后检测"""
         from tests.conftest import write_klines_to_db, write_stock_basic
+
         write_stock_basic(db_conn, "600519.SH", "测试股票")
         rows = generate_uptrend_klines(n=120, ts_code="600519.SH")
         write_klines_to_db(db_conn, rows)
@@ -242,13 +256,12 @@ class TestDetectPinghang:
     def test_parallel_cannon(self):
         """构造平行重炮场景：两根放量阳线夹4根阴线，J<55"""
         from datetime import datetime, timedelta
+
         # 先构造40天下跌（把J值压到低位）
         klines = generate_downtrend_klines(n=40, start_price=200.0, daily_pct=-1.5)
         dt = datetime.strptime(klines[-1]["trade_date"], "%Y%m%d") + timedelta(days=1)
         # 第一根放量阳线
-        klines.append(make_kline_row(
-            base_price=105.0, base_vol=30000.0, base_date=dt.strftime("%Y%m%d")
-        ))
+        klines.append(make_kline_row(base_price=105.0, base_vol=30000.0, base_date=dt.strftime("%Y%m%d")))
         klines[-1]["open"] = 101.0
         klines[-1]["high"] = 106.0
         klines[-1]["low"] = 100.0
@@ -258,9 +271,7 @@ class TestDetectPinghang:
         dt += timedelta(days=1)
         # 中间4根阴线，缩量
         for i in range(4):
-            k = make_kline_row(
-                base_price=104.0 - i * 0.5, base_vol=8000.0, base_date=dt.strftime("%Y%m%d")
-            )
+            k = make_kline_row(base_price=104.0 - i * 0.5, base_vol=8000.0, base_date=dt.strftime("%Y%m%d"))
             k["open"] = 104.5 - i * 0.5
             k["high"] = k["open"]
             k["low"] = k["close"] * 0.99
@@ -270,9 +281,7 @@ class TestDetectPinghang:
             klines.append(k)
             dt += timedelta(days=1)
         # 第二根放量阳线
-        klines.append(make_kline_row(
-            base_price=108.0, base_vol=32000.0, base_date=dt.strftime("%Y%m%d")
-        ))
+        klines.append(make_kline_row(base_price=108.0, base_vol=32000.0, base_date=dt.strftime("%Y%m%d")))
         klines[-1]["open"] = 104.0
         klines[-1]["high"] = 108.5
         klines[-1]["low"] = 103.5
@@ -357,6 +366,7 @@ class TestDetectDuichenVA:
 
 # ==================== 正向测试补充 ====================
 
+
 class TestDetectB2Positive:
     def test_b2_after_b1(self):
         """B1后放量长阳应触发B2"""
@@ -364,9 +374,9 @@ class TestDetectB2Positive:
         klines = generate_downtrend_klines(n=20, start_price=200.0, daily_pct=-2.0)
         dt = datetime.strptime(klines[-1]["trade_date"], "%Y%m%d") + timedelta(days=1)
         # 第21天：放量长阳
-        klines.append(make_kline_row(
-            base_price=klines[-1]["close"] * 1.05, base_vol=50000.0, base_date=dt.strftime("%Y%m%d")
-        ))
+        klines.append(
+            make_kline_row(base_price=klines[-1]["close"] * 1.05, base_vol=50000.0, base_date=dt.strftime("%Y%m%d"))
+        )
         klines[-1]["open"] = klines[-2]["close"] * 0.99
         klines[-1]["high"] = klines[-1]["close"] * 1.01
         klines[-1]["low"] = klines[-1]["open"] * 0.98
@@ -384,11 +394,12 @@ class TestDetectS2Positive:
     def test_macd_divergence(self):
         """价格创新高但DIF未创新高 → S2顶背离"""
         from datetime import datetime, timedelta
+
         # 构造30天数据：前25天快速上涨，后5天缓慢上涨
         klines = generate_uptrend_klines(n=30, start_price=100.0, daily_pct=0.8)
         # 把后5天的涨幅调小（价格仍涨但动能减弱）
         for i in range(25, 30):
-            klines[i]["close"] = klines[i-1]["close"] * 1.002
+            klines[i]["close"] = klines[i - 1]["close"] * 1.002
             klines[i]["high"] = klines[i]["close"] * 1.005
             klines[i]["pct_chg"] = 0.2
 
@@ -401,12 +412,11 @@ class TestDetectS3Positive:
     def test_rebound_failure(self):
         """放量阴线后反弹无力 → S3最后逃生"""
         from datetime import datetime, timedelta
+
         klines = generate_uptrend_klines(n=20, start_price=100.0, daily_pct=0.5)
         dt = datetime.strptime(klines[-1]["trade_date"], "%Y%m%d") + timedelta(days=1)
         # 第21天：放量阴线（S1）
-        klines.append(make_kline_row(
-            base_price=110.0, base_vol=50000.0, base_date=dt.strftime("%Y%m%d")
-        ))
+        klines.append(make_kline_row(base_price=110.0, base_vol=50000.0, base_date=dt.strftime("%Y%m%d")))
         klines[-1]["open"] = 115.0
         klines[-1]["high"] = 116.0
         klines[-1]["low"] = 108.0
@@ -416,9 +426,7 @@ class TestDetectS3Positive:
         klines[-1]["is_yinxian"] = True
         dt += timedelta(days=1)
         # 第22天：反弹到S1开盘价附近，但量能不足，涨幅<2%
-        klines.append(make_kline_row(
-            base_price=113.0, base_vol=20000.0, base_date=dt.strftime("%Y%m%d")
-        ))
+        klines.append(make_kline_row(base_price=113.0, base_vol=20000.0, base_date=dt.strftime("%Y%m%d")))
         klines[-1]["open"] = 110.0
         klines[-1]["high"] = 114.0
         klines[-1]["low"] = 109.5
@@ -438,10 +446,10 @@ class TestDetectBrickSignalsPositive:
         klines = generate_uptrend_klines(n=20, start_price=100.0, daily_pct=1.0)
         # 最后3天快速下跌（砖值下降）
         for i in range(3):
-            klines[-(3-i)]["close"] = klines[-(4-i)]["close"] * 0.97
-            klines[-(3-i)]["high"] = klines[-(4-i)]["close"] * 0.99
-            klines[-(3-i)]["low"] = klines[-(3-i)]["close"] * 0.98
-            klines[-(3-i)]["pct_chg"] = -3.0
+            klines[-(3 - i)]["close"] = klines[-(4 - i)]["close"] * 0.97
+            klines[-(3 - i)]["high"] = klines[-(4 - i)]["close"] * 0.99
+            klines[-(3 - i)]["low"] = klines[-(3 - i)]["close"] * 0.98
+            klines[-(3 - i)]["pct_chg"] = -3.0
 
         for i in range(10, len(klines)):
             signal = detect_brick_signals(klines, i)
@@ -461,24 +469,24 @@ class TestDetectBrickSignalsPositive:
             dt = base_date + timedelta(days=i)
             close = price * 1.003
             k = make_kline_row(base_price=close, base_vol=10000.0, base_date=dt.strftime("%Y%m%d"))
-            k['open'] = price
-            k['high'] = close * 1.005
-            k['low'] = price * 0.995
-            k['close'] = close
-            k['pct_chg'] = 0.3
-            k['is_rise'] = True
+            k["open"] = price
+            k["high"] = close * 1.005
+            k["low"] = price * 0.995
+            k["close"] = close
+            k["pct_chg"] = 0.3
+            k["is_rise"] = True
             klines.append(k)
             price = close
         for i in range(4):
             dt = base_date + timedelta(days=10 + i)
             close = price * 1.03
             k = make_kline_row(base_price=close, base_vol=30000.0, base_date=dt.strftime("%Y%m%d"))
-            k['open'] = price * 1.01
-            k['high'] = close * 1.03
-            k['low'] = price * 0.98
-            k['close'] = close
-            k['pct_chg'] = 3.0
-            k['is_rise'] = True
+            k["open"] = price * 1.01
+            k["high"] = close * 1.03
+            k["low"] = price * 0.98
+            k["close"] = close
+            k["pct_chg"] = 3.0
+            k["is_rise"] = True
             klines.append(k)
             price = close
 
@@ -499,24 +507,24 @@ class TestDetectBrickSignalsPositive:
             dt = base_date + timedelta(days=i)
             close = price * 1.02
             k = make_kline_row(base_price=close, base_vol=10000.0, base_date=dt.strftime("%Y%m%d"))
-            k['open'] = price
-            k['high'] = close * 1.02
-            k['low'] = price * 0.98
-            k['close'] = close
-            k['pct_chg'] = 2.0
-            k['is_rise'] = True
+            k["open"] = price
+            k["high"] = close * 1.02
+            k["low"] = price * 0.98
+            k["close"] = close
+            k["pct_chg"] = 2.0
+            k["is_rise"] = True
             klines.append(k)
             price = close
         for i in range(4):
             dt = base_date + timedelta(days=10 + i)
             close = price * 0.95
             k = make_kline_row(base_price=close, base_vol=30000.0, base_date=dt.strftime("%Y%m%d"))
-            k['open'] = price * 0.98
-            k['high'] = price * 0.99
-            k['low'] = close * 0.97
-            k['close'] = close
-            k['pct_chg'] = -5.0
-            k['is_rise'] = False
+            k["open"] = price * 0.98
+            k["high"] = price * 0.99
+            k["low"] = close * 0.97
+            k["close"] = close
+            k["pct_chg"] = -5.0
+            k["is_rise"] = False
             klines.append(k)
             price = close
 

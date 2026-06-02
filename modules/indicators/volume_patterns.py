@@ -2,15 +2,21 @@
 量价模式检测模块
 """
 
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any, Optional
 
 from .core import (
-    DailyData, TradeSignal, IndicatorResult,
-    calculate_ma, calculate_bbi, calculate_kdj, calculate_macd,
+    DailyData,
+    TradeSignal,
+    IndicatorResult,
+    calculate_ma,
+    calculate_bbi,
+    calculate_kdj,
+    calculate_macd,
 )
 from .price_patterns import detect_volume_pattern, detect_macd_signals
 
-def detect_volume_anomaly(klines: List[DailyData]) -> Dict:
+
+def detect_volume_anomaly(klines: list[DailyData]) -> dict:
     """
     异动选股法检测
 
@@ -23,10 +29,10 @@ def detect_volume_anomaly(klines: List[DailyData]) -> Dict:
     返回异动信息，供后续缩量回调时介入
     """
     result = {
-        'is_yidong': False,
-        'yidong_type': '',
-        'yidong_vol_ratio': 0,
-        'yidong_above_60d': False,
+        "is_yidong": False,
+        "yidong_type": "",
+        "yidong_vol_ratio": 0,
+        "yidong_above_60d": False,
     }
     if len(klines) < 65:  # 需要60日均线数据
         return result
@@ -37,7 +43,7 @@ def detect_volume_anomaly(klines: List[DailyData]) -> Dict:
         return result
 
     # 量比检测：今日量 / 5日均量 >= 2.0
-    avg_vol_5 = sum(klines[i].vol for i in range(max(1, len(klines)-6), len(klines)-1)) / 5
+    avg_vol_5 = sum(klines[i].vol for i in range(max(1, len(klines) - 6), len(klines) - 1)) / 5
     vol_ratio = today.vol / avg_vol_5 if avg_vol_5 > 0 else 0
 
     if vol_ratio < 2.0:
@@ -52,8 +58,8 @@ def detect_volume_anomaly(klines: List[DailyData]) -> Dict:
     ma60 = sum(closes_60) / 60
     above_60d = today.close >= ma60 * 0.95  # 在60日线上下5%以内或上方
 
-    result['yidong_vol_ratio'] = round(vol_ratio, 2)
-    result['yidong_above_60d'] = above_60d
+    result["yidong_vol_ratio"] = round(vol_ratio, 2)
+    result["yidong_above_60d"] = above_60d
 
     # 判断异动等级
     # 詹姆斯级：量大 + 涨幅可观 + 有阳线堆积迹象
@@ -61,17 +67,19 @@ def detect_volume_anomaly(klines: List[DailyData]) -> Dict:
         # 检查最近几天是否有阳线堆积
         red_count = sum(1 for k in klines[-5:] if k.close > k.open)
         if red_count >= 3:
-            result['is_yidong'] = True
-            result['yidong_type'] = '詹姆斯级'
+            result["is_yidong"] = True
+            result["yidong_type"] = "詹姆斯级"
             return result
 
     # 徐杰级：单根放量阳线
     if vol_ratio >= 2.0 and today.pct_chg >= 2:
-        result['is_yidong'] = True
-        result['yidong_type'] = '徐杰级'
+        result["is_yidong"] = True
+        result["yidong_type"] = "徐杰级"
 
     return result
-def calculate_sell_score(klines: List[DailyData]) -> Tuple[int, str, Dict[str, bool]]:
+
+
+def calculate_sell_score(klines: list[DailyData]) -> tuple[int, str, dict[str, bool]]:
     """
     计算防卖飞评分 V1.4（5分制）
 
@@ -96,8 +104,10 @@ def calculate_sell_score(klines: List[DailyData]) -> Tuple[int, str, Dict[str, b
     items = {}
 
     # 1. 收盘涨？
-    close_up = today.close > today.prev_close if hasattr(today, 'prev_close') and today.prev_close > 0 else today.pct_chg > 0
-    items['收盘上涨'] = close_up
+    close_up = (
+        today.close > today.prev_close if hasattr(today, "prev_close") and today.prev_close > 0 else today.pct_chg > 0
+    )
+    items["收盘上涨"] = close_up
     if not close_up:
         score -= 1
         reasons.append("收盘不涨")
@@ -106,15 +116,15 @@ def calculate_sell_score(klines: List[DailyData]) -> Tuple[int, str, Dict[str, b
     if len(klines) >= 24:
         bbi = calculate_bbi(klines)
         bbi_ok = today.close >= bbi
-        items['BBI支撑'] = bbi_ok
+        items["BBI支撑"] = bbi_ok
         if not bbi_ok:
             score -= 1
             reasons.append("跌破BBI")
 
     # 3. 不是放量阴线？
     vol_pattern = detect_volume_pattern(today, yesterday)
-    not_bearish_vol = not vol_pattern['is_fangliang_yinxian']
-    items['非放量阴线'] = not_bearish_vol
+    not_bearish_vol = not vol_pattern["is_fangliang_yinxian"]
+    items["非放量阴线"] = not_bearish_vol
     if not not_bearish_vol:
         score -= 1
         reasons.append("放量阴线")
@@ -124,7 +134,7 @@ def calculate_sell_score(klines: List[DailyData]) -> Tuple[int, str, Dict[str, b
         ma5_today = calculate_ma([k.close for k in klines[-5:]], 5)
         ma5_yesterday = calculate_ma([k.close for k in klines[-6:-1]], 5)
         trend_up = ma5_today > ma5_yesterday
-        items['趋势向上'] = trend_up
+        items["趋势向上"] = trend_up
         if not trend_up:
             score -= 1
             reasons.append("均线向下")
@@ -133,14 +143,16 @@ def calculate_sell_score(klines: List[DailyData]) -> Tuple[int, str, Dict[str, b
     if len(klines) >= 9:
         k, d, j = calculate_kdj(klines)
         j_ok = j >= d or j < 80  # J没有从高位下穿
-        items['KDJ未死叉'] = j_ok
+        items["KDJ未死叉"] = j_ok
         if not j_ok:
             score -= 1
             reasons.append("KDJ死叉")
 
     reason_str = "；".join(reasons) if reasons else "无扣分项"
     return score, reason_str, items
-def detect_trade_signal(klines: List[DailyData]) -> TradeSignal:
+
+
+def detect_trade_signal(klines: list[DailyData]) -> TradeSignal:
     """
     检测交易信号（集成 MACD 一票否决权）
 
@@ -159,7 +171,7 @@ def detect_trade_signal(klines: List[DailyData]) -> TradeSignal:
     # 计算当前指标
     k, d, j = calculate_kdj(klines)
     dif_list, dea_list, macd_list = calculate_macd(klines)
-    macd_hist = macd_list[-1] if macd_list else 0
+    macd_list[-1] if macd_list else 0
 
     # MACD 语料判断
     macd_signals = {}
@@ -167,10 +179,10 @@ def detect_trade_signal(klines: List[DailyData]) -> TradeSignal:
         macd_signals = detect_macd_signals(klines, dif_list, dea_list, macd_list)
 
     # === 一票否决权：MACD 说不能买 → 绝对不买 ===
-    if macd_signals.get('macd_veto', False):
+    if macd_signals.get("macd_veto", False):
         return TradeSignal.WATCH
 
-    if macd_signals.get('is_gold_fake', False):
+    if macd_signals.get("is_gold_fake", False):
         return TradeSignal.S1
 
     bbi = calculate_bbi(klines)
@@ -179,19 +191,19 @@ def detect_trade_signal(klines: List[DailyData]) -> TradeSignal:
     # ========== 卖出信号检测 ==========
 
     # S1: 放量阴线（最高优先级）
-    if vol_pattern['is_fangliang_yinxian'] and today.pct_chg < -3:
+    if vol_pattern["is_fangliang_yinxian"] and today.pct_chg < -3:
         return TradeSignal.S1
 
-    if macd_signals.get('is_top_divergence', False):
+    if macd_signals.get("is_top_divergence", False):
         return TradeSignal.S2
 
-    if macd_signals.get('is_bottom_divergence', False):
+    if macd_signals.get("is_bottom_divergence", False):
         return TradeSignal.B1
 
-    if macd_signals.get('is_dead_fake', False):
+    if macd_signals.get("is_dead_fake", False):
         return TradeSignal.B2
 
-    if j < -10 and vol_pattern['is_suoliang']:
+    if j < -10 and vol_pattern["is_suoliang"]:
         return TradeSignal.B1
 
     # B2: B1后放量确认
@@ -202,13 +214,13 @@ def detect_trade_signal(klines: List[DailyData]) -> TradeSignal:
             prev_j_list.append(pj)
 
         if any(pj < -10 for pj in prev_j_list):
-            if today.pct_chg > 4 and vol_pattern['is_beidou']:
+            if today.pct_chg > 4 and vol_pattern["is_beidou"]:
                 return TradeSignal.B2
 
     if len(klines) >= 5:
         prev_2 = klines[-3]
         if prev_2.close < prev_2.open and prev_2.vol > klines[-4].vol * 1.5:
-            if j < -5 and vol_pattern['is_suoliang']:
+            if j < -5 and vol_pattern["is_suoliang"]:
                 return TradeSignal.SB1
 
     if today.close > bbi and j > 0 and today.pct_chg > 0:
@@ -217,7 +229,7 @@ def detect_trade_signal(klines: List[DailyData]) -> TradeSignal:
     return TradeSignal.WATCH
 
 
-def detect_chuhuo_wushi(klines: List[DailyData]) -> Dict:
+def detect_chuhuo_wushi(klines: list[DailyData]) -> dict:
     """
     主力出货五种经典方式识别
 
@@ -227,17 +239,17 @@ def detect_chuhuo_wushi(klines: List[DailyData]) -> Dict:
     返回五种出货方式的检测结果，每种有独立置信度。
     """
     if len(klines) < 20:
-        return {'total_score': 0, 'patterns': []}
+        return {"total_score": 0, "patterns": []}
 
     today = klines[-1]
     recent_20 = klines[-20:]
     recent_10 = klines[-10:]
     recent_high = max(k.high for k in recent_20)
-    recent_low = min(k.low for k in recent_20)
+    min(k.low for k in recent_20)
 
     # 必须处于相对高位（当前 >= 近期高点 × 0.85）
     if today.close < recent_high * 0.85:
-        return {'total_score': 0, 'patterns': []}
+        return {"total_score": 0, "patterns": []}
 
     patterns: list[dict[str, Any]] = []
     vols = [k.vol for k in recent_20]
@@ -251,11 +263,13 @@ def detect_chuhuo_wushi(klines: List[DailyData]) -> Dict:
         up_pct_10 = (recent_high - price_10_days_ago) / price_10_days_ago if price_10_days_ago > 0 else 0
         is_tianliang = today.vol >= max_vol_20 * 0.8 or today.vol >= avg_vol_5 * 2
         if up_pct_10 > 0.20 and today.pct_chg < -5 and is_tianliang:
-            patterns.append({
-                'type': '方式一：加速后单日放天量大阴',
-                'confidence': 0.95,
-                'desc': f'10日涨{up_pct_10*100:.0f}%后，当天跌{abs(today.pct_chg):.1f}%，天量'
-            })
+            patterns.append(
+                {
+                    "type": "方式一：加速后单日放天量大阴",
+                    "confidence": 0.95,
+                    "desc": f"10日涨{up_pct_10 * 100:.0f}%后，当天跌{abs(today.pct_chg):.1f}%，天量",
+                }
+            )
 
     # ===== 方式二：次高点巨量长阴 =====
     # 近5天创过新高，当天挑战高点失败，放量长阴
@@ -264,16 +278,17 @@ def detect_chuhuo_wushi(klines: List[DailyData]) -> Dict:
     is_big_yin = today.pct_chg < -3 and today.close < today.open
     is_juliang = today.vol >= klines[-2].vol * 1.5 if len(klines) >= 2 else False
     if is_near_high and is_big_yin and is_juliang:
-        patterns.append({
-            'type': '方式二：次高点巨量长阴',
-            'confidence': 0.90,
-            'desc': f'挑战高点({high_5d:.2f})失败，放量长阴跌{abs(today.pct_chg):.1f}%'
-        })
+        patterns.append(
+            {
+                "type": "方式二：次高点巨量长阴",
+                "confidence": 0.90,
+                "desc": f"挑战高点({high_5d:.2f})失败，放量长阴跌{abs(today.pct_chg):.1f}%",
+            }
+        )
 
     # ===== 方式三：阶梯放量下跌 =====
     # 连续3-5根阴线，成交量维持高位，价格阶梯跌
     consecutive_yin = 0
-    vol_increase = True
     for i in range(1, min(6, len(klines))):
         k = klines[-i]
         if k.close < k.open:  # 阴线
@@ -285,11 +300,13 @@ def detect_chuhuo_wushi(klines: List[DailyData]) -> Dict:
         yin_vols = [klines[-i].vol for i in range(1, consecutive_yin + 1)]
         yin_vol_avg = sum(yin_vols) / len(yin_vols)
         if yin_vol_avg >= avg_vol_5 * 1.2:
-            patterns.append({
-                'type': '方式三：阶梯放量下跌',
-                'confidence': 0.85,
-                'desc': f'连续{consecutive_yin}根阴线放量下跌，平均量{yin_vol_avg/avg_vol_5:.1f}倍'
-            })
+            patterns.append(
+                {
+                    "type": "方式三：阶梯放量下跌",
+                    "confidence": 0.85,
+                    "desc": f"连续{consecutive_yin}根阴线放量下跌，平均量{yin_vol_avg / avg_vol_5:.1f}倍",
+                }
+            )
 
     # ===== 方式四：双头双放量巨阴 =====
     # 近20天有两个相近高点，每个后都有放量阴线
@@ -309,12 +326,15 @@ def detect_chuhuo_wushi(klines: List[DailyData]) -> Dict:
                         if k.close < k.open and k.vol >= avg_vol_5 * 1.3:
                             return True
                     return False
+
                 if has_fangliang_yinxian_after(h1_idx) and has_fangliang_yinxian_after(h2_idx):
-                    patterns.append({
-                        'type': '方式四：双头双放量巨阴',
-                        'confidence': 0.90,
-                        'desc': f'双头({h1:.2f}/{h2:.2f})，均出现放量阴线'
-                    })
+                    patterns.append(
+                        {
+                            "type": "方式四：双头双放量巨阴",
+                            "confidence": 0.90,
+                            "desc": f"双头({h1:.2f}/{h2:.2f})，均出现放量阴线",
+                        }
+                    )
 
     # ===== 方式五：顶部绿肥红瘦 =====
     # 近10天阴量 > 阳量 × 1.5
@@ -326,19 +346,17 @@ def detect_chuhuo_wushi(klines: List[DailyData]) -> Dict:
         else:
             yang_vol_total += k.vol
     if yang_vol_total > 0 and yin_vol_total / yang_vol_total > 1.5:
-        patterns.append({
-            'type': '方式五：顶部绿肥红瘦',
-            'confidence': 0.80,
-            'desc': f'近10天阴量/阳量={yin_vol_total/yang_vol_total:.1f}倍'
-        })
+        patterns.append(
+            {
+                "type": "方式五：顶部绿肥红瘦",
+                "confidence": 0.80,
+                "desc": f"近10天阴量/阳量={yin_vol_total / yang_vol_total:.1f}倍",
+            }
+        )
 
     # 总分 = 最高置信度 + 0.1 × (模式数 - 1)
-    total_score = max([p['confidence'] for p in patterns], default=0.0)
+    total_score = max([p["confidence"] for p in patterns], default=0.0)
     total_score += 0.1 * max(0, len(patterns) - 1)
     total_score = min(total_score, 1.0)
 
-    return {
-        'total_score': round(total_score, 2),
-        'patterns': patterns,
-        'is_selling': total_score >= 0.80
-    }
+    return {"total_score": round(total_score, 2), "patterns": patterns, "is_selling": total_score >= 0.80}

@@ -4,9 +4,12 @@ portfolio_diagnosis.py 持股诊断测试
 
 import pytest
 from modules.portfolio_diagnosis import (
-    diagnose_stock, DiagnosisReport,
-    _judge_price_position, _judge_trend,
-    _make_recommendation, _daily_to_dict,
+    diagnose_stock,
+    DiagnosisReport,
+    _judge_price_position,
+    _judge_trend,
+    _make_recommendation,
+    _daily_to_dict,
     format_report,
 )
 from modules.indicators import IndicatorResult, DailyData
@@ -26,29 +29,25 @@ class TestDailyToDict:
 
 class TestJudgePricePosition:
     def test_above_bbi(self):
-        ind = IndicatorResult(ts_code="600519.SH", trade_date="20260101",
-                              bbi=100, zg_white=105, dg_yellow=95)
+        ind = IndicatorResult(ts_code="600519.SH", trade_date="20260101", bbi=100, zg_white=105, dg_yellow=95)
         pos = _judge_price_position(ind, price=110)
         assert "BBI之上" in pos
         assert "白线之上" in pos
         assert "黄线之上" in pos
 
     def test_below_bbi(self):
-        ind = IndicatorResult(ts_code="600519.SH", trade_date="20260101",
-                              bbi=100, zg_white=105, dg_yellow=95)
+        ind = IndicatorResult(ts_code="600519.SH", trade_date="20260101", bbi=100, zg_white=105, dg_yellow=95)
         pos = _judge_price_position(ind, price=90)
         assert "BBI之下" in pos
 
 
 class TestJudgeTrend:
     def test_dead_cross(self):
-        ind = IndicatorResult(ts_code="600519.SH", trade_date="20260101",
-                              is_dead_cross=True)
+        ind = IndicatorResult(ts_code="600519.SH", trade_date="20260101", is_dead_cross=True)
         assert "死叉" in _judge_trend(ind)
 
     def test_macd_veto(self):
-        ind = IndicatorResult(ts_code="600519.SH", trade_date="20260101",
-                              macd_veto=True, is_dif_positive=True)
+        ind = IndicatorResult(ts_code="600519.SH", trade_date="20260101", macd_veto=True, is_dif_positive=True)
         assert "一票否决" in _judge_trend(ind)
 
 
@@ -96,6 +95,7 @@ class TestDiagnoseStock:
     def test_without_data(self, temp_db, db_conn):
         """无数据时应返回基本报告不抛异常"""
         from tests.conftest import write_stock_basic
+
         write_stock_basic(db_conn, "000001.SZ", "平安银行")
         report = diagnose_stock("000001.SZ")
         assert report.ts_code == "000001.SZ"

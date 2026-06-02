@@ -6,16 +6,17 @@
     python -m modules.intent_chat          # 交互模式
     python -m modules.intent_chat "B1 买点怎么判断"   # 单次查询
 """
+
 import os
 import sys
 from pathlib import Path
 
 # 清除代理
-for k in ['http_proxy', 'https_proxy', 'HTTP_PROXY', 'HTTPS_PROXY']:
+for k in ["http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY"]:
     os.environ.pop(k, None)
-os.environ['no_proxy'] = 'localhost,127.0.0.1'
+os.environ["no_proxy"] = "localhost,127.0.0.1"
 
-from .intent_router import IntentRouter
+from .intent_router import IntentRouter  # noqa: E402
 
 # 意图显示名称
 INTENT_LABELS = {
@@ -29,15 +30,16 @@ INTENT_LABELS = {
 
 def get_llm():
     """获取 LLM 实例
-    
+
     如果未配置 LLM_API_KEY，返回 None，不影响主流程。
     """
     api_key = os.getenv("LLM_API_KEY", "")
     if not api_key:
         return None
-    
+
     try:
         from .llm_providers import MiniMaxProvider
+
         return MiniMaxProvider(
             api_key=api_key,
             base_url=os.getenv("LLM_BASE_URL"),
@@ -58,17 +60,17 @@ def generate_reply(llm, system_prompt: str, user_message: str) -> str:
 def chat_once(router: IntentRouter, message: str, llm=None):
     """单次意图识别 + RAG + LLM 查询"""
     result = router.process(message)
-    
+
     # 显示识别结果
     label = INTENT_LABELS.get(result.intent, result.intent)
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"🎯 意图: {label}")
     print(f"📊 置信度: {result.confidence:.0%}")
     if result.rule_matched:
         print(f"📏 匹配规则: {result.rule_matched}")
     if result.matched_keywords:
         print(f"🔑 命中词: {', '.join(result.matched_keywords[:5])}")
-    
+
     # 显示知识库检索结果
     if result.knowledge_context:
         card_count = result.knowledge_context.count("---") // 2 + 1
@@ -77,10 +79,10 @@ def chat_once(router: IntentRouter, message: str, llm=None):
         for line in result.knowledge_context.split("\n"):
             if line.startswith("[") and "] " in line:
                 print(f"   {line}")
-    
+
     print(f"📝 系统提示: {len(result.system_prompt)} 字符")
-    print(f"{'='*60}\n")
-    
+    print(f"{'=' * 60}\n")
+
     # 生成回复
     if result.intent == "chat":
         # chat 模式：不加载角色框架，直接用用户消息
@@ -94,12 +96,12 @@ def chat_once(router: IntentRouter, message: str, llm=None):
         if not result.system_prompt:
             print("[系统提示为空]")
             return
-        print(f"🤖 正在生成回复...")
+        print("🤖 正在生成回复...")
         reply = generate_reply(llm, result.system_prompt, message)
-    
-    print(f"\n{'='*60}")
+
+    print(f"\n{'=' * 60}")
     print(reply)
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
 
 def chat_interactive(router: IntentRouter, llm):
@@ -113,27 +115,27 @@ def chat_interactive(router: IntentRouter, llm):
     print("输入消息自动识别意图并检索知识库")
     print("输入 'quit' 或 'exit' 退出")
     print("=" * 60 + "\n")
-    
+
     while True:
         try:
             message = input("你> ").strip()
         except (EOFError, KeyboardInterrupt):
             print("\n再见！")
             break
-        
+
         if not message:
             continue
-        if message.lower() in ('quit', 'exit', 'q'):
+        if message.lower() in ("quit", "exit", "q"):
             print("再见！")
             break
-        
+
         chat_once(router, message, llm)
 
 
 def main():
     router = IntentRouter()
     llm = get_llm()
-    
+
     if len(sys.argv) > 1:
         # 单次查询
         message = " ".join(sys.argv[1:])

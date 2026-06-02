@@ -12,7 +12,7 @@ import collections
 import multiprocessing
 import concurrent.futures
 from datetime import datetime, timedelta
-from typing import List, Optional, Dict, Any
+from typing import Optional, Any
 from pathlib import Path
 
 try:
@@ -83,9 +83,7 @@ class _RateLimiter:
 
 
 # 模块级单例（v2.10.0 P1-4 替代原 instance-level _rate_limit_lock）
-_GLOBAL_LIMITER = _RateLimiter(
-    max_per_min=int(os.environ.get("TUSHARE_RPM", "180"))
-)
+_GLOBAL_LIMITER = _RateLimiter(max_per_min=int(os.environ.get("TUSHARE_RPM", "180")))
 
 
 def _rate_limit_global() -> None:
@@ -96,15 +94,13 @@ def _rate_limit_global() -> None:
 class DataSyncer:
     """数据同步器"""
 
-    def __init__(self, token: Optional[str] = None):
+    def __init__(self, token: str | None = None):
         self.token = token or os.environ.get("TUSHARE_TOKEN")
         # 仅在 JNB 模式下强制检查 Tushare 配置
         data_mode = os.getenv("DATA_MODE", "websearch")
-        if data_mode == 'jnb':
+        if data_mode == "jnb":
             if not self.token:
-                raise ValueError(
-                    "JNB 模式下未设置 TUSHARE_TOKEN，请检查 .env 文件。"
-                )
+                raise ValueError("JNB 模式下未设置 TUSHARE_TOKEN，请检查 .env 文件。")
             if not TUSHARE_API_URL:
                 raise ValueError(
                     "JNB 模式下未设置 TUSHARE_API_URL，请在 .env 中配置中转 API 地址。\n"
@@ -129,34 +125,42 @@ class DataSyncer:
         # 保留旧字段更新，便于外部观察（不影响实际限流）
         self.last_request_time[api_name] = time.time()
 
-    def _log_sync(self, data_type: str, ts_code: Optional[str], last_date: str,
-                  status: str, message: str = ""):
+    def _log_sync(self, data_type: str, ts_code: str | None, last_date: str, status: str, message: str = ""):
         """记录同步日志"""
         with get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO sync_log (data_type, ts_code, last_date, status, message)
                 VALUES (?, ?, ?, ?, ?)
-            """, (data_type, ts_code, last_date, status, message))
+            """,
+                (data_type, ts_code, last_date, status, message),
+            )
 
-    def _get_last_date(self, data_type: str, ts_code: Optional[str] = None) -> Optional[str]:
+    def _get_last_date(self, data_type: str, ts_code: str | None = None) -> str | None:
         """获取最后同步日期"""
         with get_connection() as conn:
             cursor = conn.cursor()
             if ts_code:
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT last_date FROM sync_log
                     WHERE data_type = ? AND ts_code = ? AND status = 'success'
                     ORDER BY created_at DESC LIMIT 1
-                """, (data_type, ts_code))
+                """,
+                    (data_type, ts_code),
+                )
             else:
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT last_date FROM sync_log
                     WHERE data_type = ? AND ts_code IS NULL AND status = 'success'
                     ORDER BY created_at DESC LIMIT 1
-                """, (data_type,))
+                """,
+                    (data_type,),
+                )
             result = cursor.fetchone()
-            return result['last_date'] if result else None
+            return result["last_date"] if result else None
 
     # ==================== 股票基本信息 ====================
 
@@ -169,9 +173,7 @@ class DataSyncer:
         try:
             self._rate_limit("stock_basic")
             df = self.pro.stock_basic(
-                exchange='',
-                list_status='L',
-                fields='ts_code,name,area,industry,market,list_date,is_hs'
+                exchange="", list_status="L", fields="ts_code,name,area,industry,market,list_date,is_hs"
             )
 
             if df is None or len(df) == 0:
@@ -179,9 +181,9 @@ class DataSyncer:
                 return 0
 
             # 填充 NaN 以免插入失败，且保留必要的列
-            df = df[['ts_code', 'name', 'area', 'industry', 'market', 'list_date', 'is_hs']].fillna('')
+            df = df[["ts_code", "name", "area", "industry", "market", "list_date", "is_hs"]].fillna("")
             with get_connection() as conn:
-                df.to_sql('stock_basic', conn, if_exists='append', index=False, method='multi')
+                df.to_sql("stock_basic", conn, if_exists="append", index=False, method="multi")
 
             self._log_sync("stock_basic", None, datetime.now().strftime("%Y%m%d"), "success")
             logger.info(f"股票基本信息同步完成，共 {len(df)} 只")
@@ -194,8 +196,7 @@ class DataSyncer:
 
     # ==================== 日线K线数据 ====================
 
-    def sync_daily_kline(self, ts_code: str, start_date: Optional[str] = None,
-                         end_date: Optional[str] = None) -> int:
+    def sync_daily_kline(self, ts_code: str, start_date: str | None = None, end_date: str | None = None) -> int:
         """
         同步单只股票的日线数据（增量更新）
 
@@ -227,7 +228,7 @@ class DataSyncer:
                 ts_code=ts_code,
                 start_date=start_date,
                 end_date=end_date,
-                adj='qfq',
+                adj="qfq",
                 api=self.pro,
             )
 
@@ -236,33 +237,45 @@ class DataSyncer:
 
             # 计算量比（需要历史数据，这里先跳过，由指标计算模块处理）
             # 计算涨跌停标记
-            df['is_limit_up'] = df['pct_chg'].apply(lambda x: 1 if x >= 9.9 else 0)
-            df['is_limit_down'] = df['pct_chg'].apply(lambda x: 1 if x <= -9.9 else 0)
+            df["is_limit_up"] = df["pct_chg"].apply(lambda x: 1 if x >= 9.9 else 0)
+            df["is_limit_down"] = df["pct_chg"].apply(lambda x: 1 if x <= -9.9 else 0)
 
             with get_connection() as conn:
                 cursor = conn.cursor()
-                
+
                 # 准备批量插入的数据
                 records = []
                 for row in df.itertuples(index=False):
                     row_dict = row._asdict()
-                    records.append((
-                        row_dict['ts_code'], row_dict['trade_date'],
-                        row_dict['open'], row_dict['high'], row_dict['low'], row_dict['close'],
-                        row_dict['vol'], row_dict['amount'], row_dict.get('pct_chg', 0),
-                        None,  # vol_ratio later
-                        row_dict.get('is_limit_up', 0), row_dict.get('is_limit_down', 0)
-                    ))
-                
-                cursor.executemany("""
+                    records.append(
+                        (
+                            row_dict["ts_code"],
+                            row_dict["trade_date"],
+                            row_dict["open"],
+                            row_dict["high"],
+                            row_dict["low"],
+                            row_dict["close"],
+                            row_dict["vol"],
+                            row_dict["amount"],
+                            row_dict.get("pct_chg", 0),
+                            None,  # vol_ratio later
+                            row_dict.get("is_limit_up", 0),
+                            row_dict.get("is_limit_down", 0),
+                        )
+                    )
+
+                cursor.executemany(
+                    """
                     INSERT OR REPLACE INTO daily_kline
                     (ts_code, trade_date, open, high, low, close, vol, amount,
                      pct_chg, vol_ratio, is_limit_up, is_limit_down)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, records)
+                """,
+                    records,
+                )
 
             # 更新同步日志
-            latest_date = df['trade_date'].max()
+            latest_date = df["trade_date"].max()
             self._log_sync("daily_kline", ts_code, latest_date, "success")
 
             logger.info(f"日线数据同步完成: {ts_code}, {len(df)} 条, {start_date}-{latest_date}")
@@ -273,7 +286,7 @@ class DataSyncer:
             self._log_sync("daily_kline", ts_code, "", "failed", str(e))
             return 0
 
-    def sync_missing(self, ts_codes: List[str], days: int = 730) -> Dict[str, int]:
+    def sync_missing(self, ts_codes: list[str], days: int = 730) -> dict[str, int]:
         """
         同步 ts_codes 中"在 daily_kline 表里完全缺失"的股票（增量补齐）
 
@@ -311,8 +324,7 @@ class DataSyncer:
             results[code] = count
         return results
 
-    def sync_all_daily_kline(self, ts_codes: Optional[List[str]] = None,
-                              days: int = 730) -> Dict[str, int]:
+    def sync_all_daily_kline(self, ts_codes: list[str] | None = None, days: int = 730) -> dict[str, int]:
         """
         批量同步多只股票的日线数据（并发执行）
 
@@ -330,14 +342,14 @@ class DataSyncer:
             with get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT ts_code FROM stock_basic")
-                ts_codes = [row['ts_code'] for row in cursor.fetchall()]
+                ts_codes = [row["ts_code"] for row in cursor.fetchall()]
 
         logger.info(f"开始批量同步日线数据，共 {len(ts_codes)} 只股票...")
 
         # 计算起始日期
         start_date = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
         end_date = datetime.now().strftime("%Y%m%d")
-        
+
         # 进度追踪锁
         progress_lock = threading.Lock()
         completed = 0
@@ -353,15 +365,15 @@ class DataSyncer:
                     if (datetime.now() - last_dt).days < 2:
                         with progress_lock:
                             completed += 1
-                        return ts_code, 0 # Skip
+                        return ts_code, 0  # Skip
 
                 count = self.sync_daily_kline(ts_code, start_date, end_date)
-                
+
                 with progress_lock:
                     completed += 1
                     if completed % 10 == 0:
                         logger.info(f"进度: {completed}/{total}")
-                        
+
                 return ts_code, count
             except Exception as e:
                 logger.error(f"同步失败 {ts_code}: {e}")
@@ -394,13 +406,27 @@ class DataSyncer:
         try:
             # 导入指标计算模块
             from .indicators import (
-                get_kline_data, precompute_kdj_sequence, precompute_macd_sequence,
-                calculate_bbi, calculate_ma, calculate_rsi_multi, calculate_wr_multi,
-                calculate_bollinger, calculate_vol_ratio, calculate_zg_white,
-                calculate_dg_yellow, detect_double_line_cross, detect_needle_20,
-                calculate_brick_value, calculate_brick_history, detect_brick_trend,
-                detect_fanbao, detect_volume_pattern, calculate_sell_score,
-                detect_trade_signal, calculate_dmi
+                get_kline_data,
+                precompute_kdj_sequence,
+                precompute_macd_sequence,
+                calculate_bbi,
+                calculate_ma,
+                calculate_rsi_multi,
+                calculate_wr_multi,
+                calculate_bollinger,
+                calculate_vol_ratio,
+                calculate_zg_white,
+                calculate_dg_yellow,
+                detect_double_line_cross,
+                detect_needle_20,
+                calculate_brick_value,
+                calculate_brick_history,
+                detect_brick_trend,
+                detect_fanbao,
+                detect_volume_pattern,
+                calculate_sell_score,
+                detect_trade_signal,
+                calculate_dmi,
             )
 
             # 获取K线数据
@@ -410,7 +436,9 @@ class DataSyncer:
 
             # 预计算指标序列（避免循环中O(n²)重复计算）
             kdj_seq = precompute_kdj_sequence(klines) if len(klines) >= 9 else None
-            macd_dif_seq, macd_dea_seq, macd_hist_seq = precompute_macd_sequence(klines) if len(klines) >= 30 else (None, None, None)
+            macd_dif_seq, macd_dea_seq, macd_hist_seq = (
+                precompute_macd_sequence(klines) if len(klines) >= 30 else (None, None, None)
+            )
 
             # 准备写入数据
             with get_connection() as conn:
@@ -418,7 +446,7 @@ class DataSyncer:
 
                 for i, kline in enumerate(klines):
                     # 计算单日指标
-                    sub_klines = klines[:i+1]
+                    sub_klines = klines[: i + 1]
                     today = kline
                     yesterday = sub_klines[-2] if len(sub_klines) > 1 else None
 
@@ -446,18 +474,26 @@ class DataSyncer:
                     rsi6, rsi12, rsi24 = calculate_rsi_multi(sub_klines) if len(sub_klines) >= 25 else (50, 50, 50)
                     wr5, wr10 = calculate_wr_multi(sub_klines) if len(sub_klines) >= 10 else (-50, -50)
 
-                    boll_mid, boll_upper, boll_lower, boll_width, boll_pos = calculate_bollinger(sub_klines) if len(sub_klines) >= 20 else (0, 0, 0, 0, 50)
+                    boll_mid, boll_upper, boll_lower, boll_width, boll_pos = (
+                        calculate_bollinger(sub_klines) if len(sub_klines) >= 20 else (0, 0, 0, 0, 50)
+                    )
 
                     vol_ratio = calculate_vol_ratio(sub_klines)
 
                     zg_white = calculate_zg_white(sub_klines) if len(sub_klines) >= 115 else 0
                     dg_yellow = calculate_dg_yellow(sub_klines) if len(sub_klines) >= 115 else 0
-                    gold_cross, dead_cross = detect_double_line_cross(sub_klines) if len(sub_klines) >= 115 else (False, False)
+                    gold_cross, dead_cross = (
+                        detect_double_line_cross(sub_klines) if len(sub_klines) >= 115 else (False, False)
+                    )
 
-                    rsl_short, rsl_long, is_needle = detect_needle_20(sub_klines) if len(sub_klines) >= 22 else (50, 50, False)
+                    rsl_short, rsl_long, is_needle = (
+                        detect_needle_20(sub_klines) if len(sub_klines) >= 22 else (50, 50, False)
+                    )
 
                     brick_value = calculate_brick_value(sub_klines) if len(sub_klines) >= 8 else 0
-                    brick_trend, brick_count = calculate_brick_history(sub_klines) if len(sub_klines) >= 10 else ("NEUTRAL", 0)
+                    brick_trend, brick_count = (
+                        calculate_brick_history(sub_klines) if len(sub_klines) >= 10 else ("NEUTRAL", 0)
+                    )
                     brick_trend_up = detect_brick_trend(sub_klines) if len(sub_klines) >= 115 else False
                     is_fanbao = detect_fanbao(sub_klines) if len(sub_klines) >= 4 else False
 
@@ -465,9 +501,9 @@ class DataSyncer:
                     sell_result = calculate_sell_score(sub_klines) if len(sub_klines) >= 5 else (3, {})
                     sell_score = sell_result[0]
                     sell_items = sell_result[1] if isinstance(sell_result[1], dict) else {}
-                    sell_reason = ','.join([k for k, v in sell_items.items() if not v]) if sell_items else '数据不足'
+                    sell_reason = ",".join([k for k, v in sell_items.items() if not v]) if sell_items else "数据不足"
                     signal = detect_trade_signal(sub_klines) if len(sub_klines) >= 30 else "WATCH"
-                    signal_desc = signal.value if hasattr(signal, 'value') else str(signal)
+                    signal_desc = signal.value if hasattr(signal, "value") else str(signal)
 
                     dmi_plus, dmi_minus, adx = calculate_dmi(sub_klines) if len(sub_klines) >= 30 else (0, 0, 0)
 
@@ -475,7 +511,8 @@ class DataSyncer:
                     prev_high = sub_klines[-2].high if len(sub_klines) > 1 else 0
                     prev_low = sub_klines[-2].low if len(sub_klines) > 1 else 0
 
-                    cursor.execute("""
+                    cursor.execute(
+                        """
                         INSERT OR REPLACE INTO indicator_cache
                         (ts_code, trade_date, close, open, high, low, vol, pct_chg,
                          k, d, j, dif, dea, macd_hist, bbi,
@@ -492,23 +529,74 @@ class DataSyncer:
                          net_lg_mf, net_elg_mf, last_b1_date, last_b1_price,
                          last_yidong_date, market_pct_chg, market_dir, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        ts_code, today.trade_date, today.close, today.open, today.high, today.low, today.vol, today.pct_chg,
-                        k, d, j, dif, dea, macd_hist, bbi,
-                        ma5, ma10, ma20, ma60,
-                        rsi6, rsi12, rsi24, wr5, wr10,
-                        boll_mid, boll_upper, boll_lower, boll_width, boll_pos,
-                        vol_ratio, zg_white, dg_yellow,
-                        int(gold_cross), int(dead_cross),
-                        rsl_short, rsl_long, int(is_needle),
-                        brick_value, brick_trend, brick_count, int(brick_trend_up), int(is_fanbao),
-                        int(vol_pattern.get('is_beidou', 0)), int(vol_pattern.get('is_suoliang', 0)),
-                        int(vol_pattern.get('is_jiayin_zhenyang', 0)), int(vol_pattern.get('is_jiayang_zhenyin', 0)),
-                        int(vol_pattern.get('is_fangliang_yinxian', 0)),
-                        sell_score, sell_reason, signal_desc, signal_desc,
-                        prev_high, prev_low, dmi_plus, dmi_minus, adx,
-                        0, 0, None, 0, None, 0, 'NEUTRAL', None
-                    ))
+                    """,
+                        (
+                            ts_code,
+                            today.trade_date,
+                            today.close,
+                            today.open,
+                            today.high,
+                            today.low,
+                            today.vol,
+                            today.pct_chg,
+                            k,
+                            d,
+                            j,
+                            dif,
+                            dea,
+                            macd_hist,
+                            bbi,
+                            ma5,
+                            ma10,
+                            ma20,
+                            ma60,
+                            rsi6,
+                            rsi12,
+                            rsi24,
+                            wr5,
+                            wr10,
+                            boll_mid,
+                            boll_upper,
+                            boll_lower,
+                            boll_width,
+                            boll_pos,
+                            vol_ratio,
+                            zg_white,
+                            dg_yellow,
+                            int(gold_cross),
+                            int(dead_cross),
+                            rsl_short,
+                            rsl_long,
+                            int(is_needle),
+                            brick_value,
+                            brick_trend,
+                            brick_count,
+                            int(brick_trend_up),
+                            int(is_fanbao),
+                            int(vol_pattern.get("is_beidou", 0)),
+                            int(vol_pattern.get("is_suoliang", 0)),
+                            int(vol_pattern.get("is_jiayin_zhenyang", 0)),
+                            int(vol_pattern.get("is_jiayang_zhenyin", 0)),
+                            int(vol_pattern.get("is_fangliang_yinxian", 0)),
+                            sell_score,
+                            sell_reason,
+                            signal_desc,
+                            signal_desc,
+                            prev_high,
+                            prev_low,
+                            dmi_plus,
+                            dmi_minus,
+                            adx,
+                            0,
+                            0,
+                            None,
+                            0,
+                            None,
+                            0,
+                            "NEUTRAL",
+                            None,
+                        ),
+                    )
 
             self._log_sync("indicator_cache", ts_code, klines[-1].trade_date, "success")
             logger.info(f"指标缓存同步完成: {ts_code}, {len(klines)} 条")
@@ -519,7 +607,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
             self._log_sync("indicator_cache", ts_code, "", "failed", str(e))
             return 0
 
-    def sync_all_indicators(self, ts_codes: Optional[List[str]] = None) -> Dict[str, int]:
+    def sync_all_indicators(self, ts_codes: list[str] | None = None) -> dict[str, int]:
         """
         批量同步所有股票的指标缓存（并发执行）
 
@@ -535,7 +623,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
             with get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT DISTINCT ts_code FROM daily_kline")
-                ts_codes = [row['ts_code'] for row in cursor.fetchall()]
+                ts_codes = [row["ts_code"] for row in cursor.fetchall()]
 
         logger.info(f"开始批量同步指标缓存，共 {len(ts_codes)} 只股票...")
 
@@ -567,8 +655,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
         logger.info(f"批量指标同步完成，成功 {sum(1 for v in results.values() if v > 0)}/{len(ts_codes)}")
         return results
 
-    def sync_daily_and_compute(self, ts_codes: Optional[List[str]] = None,
-                               days: int = 730) -> Dict[str, int]:
+    def sync_daily_and_compute(self, ts_codes: list[str] | None = None, days: int = 730) -> dict[str, int]:
         """
         一站式：同步日线 K 线 + 同步指标缓存
 
@@ -595,8 +682,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
 
     # ==================== Tushare 官方指标（用于 diff 验证） ====================
 
-    def sync_stk_factor(self, ts_code: str, start_date: Optional[str] = None,
-                        end_date: Optional[str] = None) -> int:
+    def sync_stk_factor(self, ts_code: str, start_date: str | None = None, end_date: str | None = None) -> int:
         """
         同步单只股票的 Tushare 官方技术指标（stk_factor 接口）
 
@@ -622,22 +708,22 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
 
             # 字段映射：Tushare 字段名 -> 数据库字段名
             field_map = {
-                'ts_code': 'ts_code',
-                'trade_date': 'trade_date',
-                'close': 'close',
-                'macd_dif': 'macd_dif',
-                'macd_dea': 'macd_dea',
-                'macd': 'macd',
-                'kdj_k': 'kdj_k',
-                'kdj_d': 'kdj_d',
-                'kdj_j': 'kdj_j',
-                'rsi_6': 'rsi_6',
-                'rsi_12': 'rsi_12',
-                'rsi_24': 'rsi_24',
-                'boll_upper': 'boll_upper',
-                'boll_mid': 'boll_mid',
-                'boll_lower': 'boll_lower',
-                'cci': 'cci',
+                "ts_code": "ts_code",
+                "trade_date": "trade_date",
+                "close": "close",
+                "macd_dif": "macd_dif",
+                "macd_dea": "macd_dea",
+                "macd": "macd",
+                "kdj_k": "kdj_k",
+                "kdj_d": "kdj_d",
+                "kdj_j": "kdj_j",
+                "rsi_6": "rsi_6",
+                "rsi_12": "rsi_12",
+                "rsi_24": "rsi_24",
+                "boll_upper": "boll_upper",
+                "boll_mid": "boll_mid",
+                "boll_lower": "boll_lower",
+                "cci": "cci",
             }
 
             with get_connection() as conn:
@@ -647,16 +733,19 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
                     row_dict = row._asdict()
                     values = [row_dict.get(field_map.get(k, k), 0) for k in field_map.keys()]
                     records.append(values)
-                    
-                cursor.executemany("""
+
+                cursor.executemany(
+                    """
                     INSERT OR REPLACE INTO tushare_indicator_cache
                     (ts_code, trade_date, close, macd_dif, macd_dea, macd,
                      kdj_k, kdj_d, kdj_j, rsi_6, rsi_12, rsi_24,
                      boll_upper, boll_mid, boll_lower, cci)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, records)
+                """,
+                    records,
+                )
 
-            latest_date = df['trade_date'].max()
+            latest_date = df["trade_date"].max()
             self._log_sync("stk_factor", ts_code, latest_date, "success")
             logger.info(f"Tushare 指标同步完成: {ts_code}, {len(df)} 条")
             return len(df)
@@ -666,8 +755,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
             self._log_sync("stk_factor", ts_code, "", "failed", str(e))
             return 0
 
-    def sync_all_stk_factor(self, ts_codes: Optional[List[str]] = None,
-                            days: int = 365) -> Dict[str, int]:
+    def sync_all_stk_factor(self, ts_codes: list[str] | None = None, days: int = 365) -> dict[str, int]:
         """
         批量同步多只股票的 Tushare 官方指标（并发执行）
 
@@ -684,13 +772,13 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
             with get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT ts_code FROM stock_basic")
-                ts_codes = [row['ts_code'] for row in cursor.fetchall()]
+                ts_codes = [row["ts_code"] for row in cursor.fetchall()]
 
         logger.info(f"开始批量同步 Tushare 指标，共 {len(ts_codes)} 只股票...")
 
         start_date = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
         end_date = datetime.now().strftime("%Y%m%d")
-        
+
         progress_lock = threading.Lock()
         completed = 0
         total = len(ts_codes)
@@ -719,7 +807,6 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
         logger.info(f"批量 Tushare 指标同步完成，成功 {sum(1 for v in results.values() if v > 0)}/{len(ts_codes)}")
         return results
 
-
     # ==================== 每日估值指标 (PE/PB/PS) ====================
 
     def ensure_daily_basic_columns(self):
@@ -730,9 +817,13 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
             existing = {row[1] for row in cursor.fetchall()}
 
             for col_name, col_type in [
-                ('pe', 'REAL'), ('pe_ttm', 'REAL'), ('pb', 'REAL'),
-                ('ps', 'REAL'), ('ps_ttm', 'REAL'),
-                ('total_mv', 'REAL'), ('circ_mv', 'REAL'),
+                ("pe", "REAL"),
+                ("pe_ttm", "REAL"),
+                ("pb", "REAL"),
+                ("ps", "REAL"),
+                ("ps_ttm", "REAL"),
+                ("total_mv", "REAL"),
+                ("circ_mv", "REAL"),
             ]:
                 if col_name not in existing:
                     cursor.execute(f"ALTER TABLE daily_kline ADD COLUMN {col_name} {col_type}")
@@ -774,17 +865,25 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
                 cursor = conn.cursor()
                 for row in df.itertuples(index=False):
                     row_dict = row._asdict()
-                    cursor.execute("""
+                    cursor.execute(
+                        """
                         UPDATE daily_kline SET
                             pe = ?, pe_ttm = ?, pb = ?, ps = ?, ps_ttm = ?,
                             total_mv = ?, circ_mv = ?
                         WHERE ts_code = ? AND trade_date = ?
-                    """, (
-                        row_dict.get('pe'), row_dict.get('pe_ttm'),
-                        row_dict.get('pb'), row_dict.get('ps'), row_dict.get('ps_ttm'),
-                        row_dict.get('total_mv'), row_dict.get('circ_mv'),
-                        row_dict['ts_code'], row_dict['trade_date'],
-                    ))
+                    """,
+                        (
+                            row_dict.get("pe"),
+                            row_dict.get("pe_ttm"),
+                            row_dict.get("pb"),
+                            row_dict.get("ps"),
+                            row_dict.get("ps_ttm"),
+                            row_dict.get("total_mv"),
+                            row_dict.get("circ_mv"),
+                            row_dict["ts_code"],
+                            row_dict["trade_date"],
+                        ),
+                    )
 
             self._log_sync("daily_basic", ts_code, end_date, "success")
             return len(df)
@@ -794,8 +893,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
             self._log_sync("daily_basic", ts_code, "", "failed", str(e))
             return 0
 
-    def sync_all_daily_basic(self, ts_codes: Optional[List[str]] = None,
-                              days: int = 730) -> Dict[str, int]:
+    def sync_all_daily_basic(self, ts_codes: list[str] | None = None, days: int = 730) -> dict[str, int]:
         """
         批量同步多只股票的每日估值指标（并发执行）
 
@@ -873,23 +971,34 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
                 records = []
                 for row in df.itertuples(index=False):
                     row_dict = row._asdict()
-                    records.append((
-                        row_dict['ts_code'], row_dict['trade_date'],
-                        row_dict.get('buy_sm_amount'), row_dict.get('buy_md_amount'),
-                        row_dict.get('buy_lg_amount'), row_dict.get('buy_elg_amount'),
-                        row_dict.get('sell_sm_amount'), row_dict.get('sell_md_amount'),
-                        row_dict.get('sell_lg_amount'), row_dict.get('sell_elg_amount'),
-                        row_dict.get('net_mf'), row_dict.get('pct_mf')
-                    ))
-                
-                cursor.executemany("""
+                    records.append(
+                        (
+                            row_dict["ts_code"],
+                            row_dict["trade_date"],
+                            row_dict.get("buy_sm_amount"),
+                            row_dict.get("buy_md_amount"),
+                            row_dict.get("buy_lg_amount"),
+                            row_dict.get("buy_elg_amount"),
+                            row_dict.get("sell_sm_amount"),
+                            row_dict.get("sell_md_amount"),
+                            row_dict.get("sell_lg_amount"),
+                            row_dict.get("sell_elg_amount"),
+                            row_dict.get("net_mf"),
+                            row_dict.get("pct_mf"),
+                        )
+                    )
+
+                cursor.executemany(
+                    """
                     INSERT OR REPLACE INTO moneyflow
                     (ts_code, trade_date, buy_sm_amount, buy_md_amount,
                      buy_lg_amount, buy_elg_amount, sell_sm_amount,
                      sell_md_amount, sell_lg_amount, sell_elg_amount,
                      net_mf, pct_mf)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, records)
+                """,
+                    records,
+                )
 
             self._log_sync("moneyflow", ts_code, trade_date, "success")
             return len(df)
@@ -901,17 +1010,17 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
 
     # ==================== 工具方法 ====================
 
-    def get_sync_status(self) -> Dict[str, Any]:
+    def get_sync_status(self) -> dict[str, Any]:
         """获取同步状态"""
         with get_connection() as conn:
             cursor = conn.cursor()
 
             # 各表数据量
             cursor.execute("SELECT COUNT(*) as cnt FROM stock_basic")
-            stock_count = cursor.fetchone()['cnt']
+            stock_count = cursor.fetchone()["cnt"]
 
             cursor.execute("SELECT COUNT(*) as cnt FROM daily_kline")
-            kline_count = cursor.fetchone()['cnt']
+            kline_count = cursor.fetchone()["cnt"]
 
             # 最后同步时间
             cursor.execute("""
@@ -927,35 +1036,39 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
                 "stock_count": stock_count,
                 "kline_count": kline_count,
                 "db_path": str(get_db_path()),
-                "sync_status": sync_status
+                "sync_status": sync_status,
             }
 
 
 # ==================== 命令行工具 ====================
+
 
 def main():
     """命令行入口"""
     import argparse
 
     parser = argparse.ArgumentParser(description="Tushare 数据同步工具")
-    parser.add_argument("action", choices=["init", "sync", "status", "stk-factor"],
-                        help="操作: init=初始化数据库, sync=同步数据, status=查看状态, stk-factor=同步Tushare官方指标")
+    parser.add_argument(
+        "action",
+        choices=["init", "sync", "status", "stk-factor"],
+        help="操作: init=初始化数据库, sync=同步数据, status=查看状态, stk-factor=同步Tushare官方指标",
+    )
     parser.add_argument("--ts_code", help="股票代码，如 000001.SZ")
     parser.add_argument("--days", type=int, default=730, help="同步天数")
-    parser.add_argument("--indicators", action="store_true",
-                        help="同步完成后计算并缓存技术指标（indicator_cache 表）")
-    parser.add_argument("--skip-indicators", action="store_true",
-                        help="跳过指标缓存同步（默认单只股票自动同步，批量需指定 --indicators）")
+    parser.add_argument("--indicators", action="store_true", help="同步完成后计算并缓存技术指标（indicator_cache 表）")
+    parser.add_argument(
+        "--skip-indicators",
+        action="store_true",
+        help="跳过指标缓存同步（默认单只股票自动同步，批量需指定 --indicators）",
+    )
 
     args = parser.parse_args()
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s"
-    )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
     if args.action == "init":
         from .database import init_database
+
         init_database()
         print("数据库初始化完成")
 
@@ -1005,7 +1118,7 @@ def main():
         print(f"K线数据: {status['kline_count']}")
         print("-" * 50)
         print("同步状态:")
-        for s in status['sync_status']:
+        for s in status["sync_status"]:
             print(f"  {s['data_type']}: {s['last_date']} ({s['status']})")
 
 

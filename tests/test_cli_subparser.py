@@ -7,6 +7,7 @@ P1-2 回归测试：5 个独立 main() 合并到 cli.py
 - 顶层 subcommand 缺失时 exit 非 0
 - 全局 prog = "zt"
 """
+
 import subprocess
 import sys
 from pathlib import Path
@@ -20,7 +21,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 def run_zt(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, "-m", "modules.cli", *args],
-        capture_output=True, text=True, timeout=15,
+        capture_output=True,
+        text=True,
+        timeout=15,
         cwd=str(PROJECT_ROOT),
     )
 
@@ -41,9 +44,10 @@ def test_top_level_help_lists_all_seven_commands():
 @pytest.mark.parametrize("cmd", EXPECTED_TOP_COMMANDS)
 def test_each_top_command_has_help(cmd):
     """每个顶层 subcommand 必须支持 --help"""
-    result = runzt_safe = run_zt(cmd, "--help")
-    assert result.returncode == 0, \
+    result = run_zt(cmd, "--help")
+    assert result.returncode == 0, (
         f"{cmd} --help exit {result.returncode}\nstdout: {result.stdout}\nstderr: {result.stderr}"
+    )
 
 
 def test_missing_command_exits_nonzero():
@@ -111,10 +115,17 @@ def test_sync_stk_factor_help():
 # ==================== screen 11 种 strategy 仍被接受 ====================
 
 STRATEGY_ALIAS = {
-    "B1": "b1", "B2": "b2_breakout", "B3": "b3_consensus",
-    "完美图形": "perfect", "超级B1": "super_b1",
-    "长安战法": "changan", "建仓波": "build_wave",
-    "吸筹": "xishou", "安全": "safe", "超跌": "oversold", "突破": "breakout",
+    "B1": "b1",
+    "B2": "b2_breakout",
+    "B3": "b3_consensus",
+    "完美图形": "perfect",
+    "超级B1": "super_b1",
+    "长安战法": "changan",
+    "建仓波": "build_wave",
+    "吸筹": "xishou",
+    "安全": "safe",
+    "超跌": "oversold",
+    "突破": "breakout",
 }
 
 
@@ -127,6 +138,7 @@ def test_screen_accepts_all_strategies_via_cli(strategy):
 
 
 # ==================== analyze / diagnose / score / workflow 必要 flag ====================
+
 
 def test_analyze_help_has_required_args():
     result = run_zt("analyze", "--help")
@@ -155,6 +167,7 @@ def test_workflow_help_works():
 
 
 # ==================== zt 整体可用性 smoke ====================
+
 
 def test_zt_help_does_not_crash():
     """最简单 smoke：zt --help 完整跑通"""

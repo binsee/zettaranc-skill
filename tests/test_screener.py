@@ -4,10 +4,17 @@ screener.py 选股测试
 
 import pytest
 from modules.screener import (
-    StockScore, MarketStatus,
-    calculate_ma, calculate_vol_ma, calculate_kdj, calculate_bbi,
-    is_perfect_pattern, score_b1_opportunity, score_trend,
-    score_volume_pattern, score_risk,
+    StockScore,
+    MarketStatus,
+    calculate_ma,
+    calculate_vol_ma,
+    calculate_kdj,
+    calculate_bbi,
+    is_perfect_pattern,
+    score_b1_opportunity,
+    score_trend,
+    score_volume_pattern,
+    score_risk,
 )
 from tests.conftest import generate_uptrend_klines, generate_downtrend_klines
 

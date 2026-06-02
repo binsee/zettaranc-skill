@@ -7,9 +7,13 @@ import pytest
 from datetime import datetime, timedelta
 
 from modules.indicators import (
-    IndicatorResult, DailyData, TradeSignal,
-    _save_indicator_cache, _load_indicator_cache,
-    clear_indicator_memory_cache, _indicator_memory_cache,
+    IndicatorResult,
+    DailyData,
+    TradeSignal,
+    _save_indicator_cache,
+    _load_indicator_cache,
+    clear_indicator_memory_cache,
+    _indicator_memory_cache,
 )
 
 
@@ -22,18 +26,20 @@ def _make_daily_klines(ts_code="600519.SH", n=5, start_price=100.0):
         date_str = dt.strftime("%Y%m%d")
         prev_close = price
         price *= 1.01
-        klines.append(DailyData(
-            ts_code=ts_code,
-            trade_date=date_str,
-            open=prev_close,
-            high=price * 1.02,
-            low=prev_close * 0.98,
-            close=price,
-            vol=10000 + i * 100,
-            amount=price * (10000 + i * 100),
-            pct_chg=1.0,
-            prev_close=prev_close,
-        ))
+        klines.append(
+            DailyData(
+                ts_code=ts_code,
+                trade_date=date_str,
+                open=prev_close,
+                high=price * 1.02,
+                low=prev_close * 0.98,
+                close=price,
+                vol=10000 + i * 100,
+                amount=price * (10000 + i * 100),
+                pct_chg=1.0,
+                prev_close=prev_close,
+            )
+        )
         dt += timedelta(days=1)
     return klines
 

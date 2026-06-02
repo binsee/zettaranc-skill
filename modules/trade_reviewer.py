@@ -3,7 +3,7 @@
 只负责数据准备，不生成点评（点评由 LLM 用 Z哥角色输出）
 """
 
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Optional, Any
 from dataclasses import dataclass, asdict
 from datetime import datetime
 
@@ -16,6 +16,7 @@ from .zettaranc_voice import TRADE_REVIEW_PROMPT, JARGON_DICT
 @dataclass
 class ReviewContext:
     """点评上下文 - 准备给 LLM 的数据包"""
+
     # 基础交易信息
     ts_code: str
     name: str
@@ -27,21 +28,21 @@ class ReviewContext:
     reason: str
 
     # 计算数据（买点/卖点特有）
-    avg_cost: Optional[float] = None  # 对于卖出，计算平均成本
-    profit_pct: Optional[float] = None  # 对于卖出，计算盈亏比例
-    holding_days: Optional[int] = None  # 持仓天数
+    avg_cost: float | None = None  # 对于卖出，计算平均成本
+    profit_pct: float | None = None  # 对于卖出，计算盈亏比例
+    holding_days: int | None = None  # 持仓天数
 
     # 指标数据（获取当时的）
-    indicators: Optional[Dict] = None  # 当时的技术指标
+    indicators: dict | None = None  # 当时的技术指标
 
     # 对应交易
-    matched_buy: Optional[Dict] = None  # 对于卖出，找对应的买入
-    matched_sell: Optional[Dict] = None  # 对于买入，找对应的卖出
+    matched_buy: dict | None = None  # 对于卖出，找对应的买入
+    matched_sell: dict | None = None  # 对于买入，找对应的卖出
 
     # 元数据
     is_complete_trade: bool = False  # 是否是完整交易（有买有卖）
-    signal_type: Optional[str] = None  # 卤煮/止损/卖飞/建仓
-    tags: Optional[List[str]] = None
+    signal_type: str | None = None  # 卤煮/止损/卖飞/建仓
+    tags: list[str] | None = None
 
     def __post_init__(self):
         if self.tags is None:
@@ -49,7 +50,7 @@ class ReviewContext:
 
     def to_llm_prompt(self) -> str:
         """转换为给 LLM 的提示词"""
-        parts = [f"【交易记录】"]
+        parts = ["【交易记录】"]
 
         # 基础信息
         action_text = "买入" if self.action == "BUY" else "卖出"
@@ -81,15 +82,15 @@ class ReviewContext:
             ind = self.indicators
             parts.append("")
             parts.append("【当时技术指标】")
-            if 'j' in ind and ind['j']:
+            if "j" in ind and ind["j"]:
                 parts.append(f"J值: {ind['j']:.1f}")
-            if 'k' in ind and ind['k']:
+            if "k" in ind and ind["k"]:
                 parts.append(f"KDJ: K={ind['k']:.1f} D={ind['d']:.1f}")
-            if 'bbi' in ind and ind['bbi']:
+            if "bbi" in ind and ind["bbi"]:
                 parts.append(f"BBI: {ind['bbi']:.2f}")
-            if 'signal' in ind:
+            if "signal" in ind:
                 parts.append(f"信号: {ind['signal']}")
-            if 'sell_score' in ind:
+            if "sell_score" in ind:
                 parts.append(f"防卖飞评分: {ind['sell_score']}/5")
 
         # 完整交易信息
@@ -123,7 +124,7 @@ class TradeReviewer:
     def __init__(self):
         self.parser = TradeParser()
 
-    def parse_input(self, text: str) -> Tuple[ParseResult, Optional[Dict]]:
+    def parse_input(self, text: str) -> tuple[ParseResult, dict | None]:
         """
         解析用户输入
         Returns: (解析结果, 状态数据)
@@ -131,7 +132,9 @@ class TradeReviewer:
         result = self.parser.parse(text)
         return result, result.data
 
-    def prepare_review_context(self, data: Dict, action_type: Optional[str] = None, extra_info: Optional[Dict] = None) -> ReviewContext:
+    def prepare_review_context(
+        self, data: dict, action_type: str | None = None, extra_info: dict | None = None
+    ) -> ReviewContext:
         """
         准备点评上下文
 
@@ -141,22 +144,22 @@ class TradeReviewer:
             extra_info: 额外信息（如卤煮/止损/建仓等）
         """
         ctx = ReviewContext(
-            ts_code=data.get('ts_code', ''),
-            name=data.get('name', data.get('ts_code', '')),
-            trade_date=data.get('trade_date', datetime.now().strftime('%Y-%m-%d')),
-            action=action_type or data.get('action', 'BUY'),
-            price=data.get('price', 0),
-            quantity=data.get('quantity', 0),
-            amount=data.get('amount', 0),
-            reason=data.get('reason', '')
+            ts_code=data.get("ts_code", ""),
+            name=data.get("name", data.get("ts_code", "")),
+            trade_date=data.get("trade_date", datetime.now().strftime("%Y-%m-%d")),
+            action=action_type or data.get("action", "BUY"),
+            price=data.get("price", 0),
+            quantity=data.get("quantity", 0),
+            amount=data.get("amount", 0),
+            reason=data.get("reason", ""),
         )
 
         # 如果有额外信息
         if extra_info:
-            if 'signal_type' in extra_info:
-                ctx.signal_type = extra_info['signal_type']
-            if 'tags' in extra_info:
-                ctx.tags = extra_info['tags']
+            if "signal_type" in extra_info:
+                ctx.signal_type = extra_info["signal_type"]
+            if "tags" in extra_info:
+                ctx.tags = extra_info["tags"]
 
         return ctx
 
@@ -166,13 +169,13 @@ class TradeReviewer:
             result = analyze_stock(ctx.ts_code, days=days)
             if result:
                 ctx.indicators = {
-                    'j': getattr(result, 'j', None),
-                    'k': getattr(result, 'k', None),
-                    'd': getattr(result, 'd', None),
-                    'bbi': getattr(result, 'bbi', None),
-                    'signal': getattr(result, 'signal', None),
-                    'sell_score': getattr(result, 'sell_score', None),
-                    'pct_chg': getattr(result, 'pct_chg', None),
+                    "j": getattr(result, "j", None),
+                    "k": getattr(result, "k", None),
+                    "d": getattr(result, "d", None),
+                    "bbi": getattr(result, "bbi", None),
+                    "signal": getattr(result, "signal", None),
+                    "sell_score": getattr(result, "sell_score", None),
+                    "pct_chg": getattr(result, "pct_chg", None),
                 }
         except Exception as e:
             print(f"获取指标失败: {e}")
@@ -182,12 +185,12 @@ class TradeReviewer:
     def enrich_with_buy_info(self, ctx: ReviewContext) -> ReviewContext:
         """对于卖出，补充买入信息和盈亏计算"""
         trades = get_trade_records(ts_code=ctx.ts_code, limit=100)
-        buy_trades = [t for t in trades if t.get('action') == 'BUY']
+        buy_trades = [t for t in trades if t.get("action") == "BUY"]
 
         if buy_trades:
             # 计算平均成本
-            total_amount = sum(t.get('amount', 0) for t in buy_trades)
-            total_qty = sum(t.get('quantity', 0) for t in buy_trades)
+            total_amount = sum(t.get("amount", 0) for t in buy_trades)
+            total_qty = sum(t.get("quantity", 0) for t in buy_trades)
             ctx.avg_cost = total_amount / total_qty if total_qty > 0 else 0
 
             # 计算盈亏
@@ -196,19 +199,15 @@ class TradeReviewer:
 
             # 计算持仓天数（第一笔买入到卖出）
             first_buy = buy_trades[-1]
-            if first_buy.get('trade_date') and ctx.trade_date:
+            if first_buy.get("trade_date") and ctx.trade_date:
                 try:
-                    d1 = datetime.strptime(first_buy['trade_date'], '%Y-%m-%d')
-                    d2 = datetime.strptime(ctx.trade_date, '%Y-%m-%d')
+                    d1 = datetime.strptime(first_buy["trade_date"], "%Y-%m-%d")
+                    d2 = datetime.strptime(ctx.trade_date, "%Y-%m-%d")
                     ctx.holding_days = (d2 - d1).days
-                except:
+                except Exception:
                     pass
 
-            ctx.matched_buy = {
-                'price': ctx.avg_cost,
-                'date': first_buy.get('trade_date'),
-                'quantity': total_qty
-            }
+            ctx.matched_buy = {"price": ctx.avg_cost, "date": first_buy.get("trade_date"), "quantity": total_qty}
 
         return ctx
 
@@ -216,15 +215,15 @@ class TradeReviewer:
         """检查是否有对应的买卖交易"""
         trades = get_trade_records(ts_code=ctx.ts_code, limit=100)
 
-        if ctx.action == 'BUY':
+        if ctx.action == "BUY":
             # 查找是否有卖出
-            sell_trades = [t for t in trades if t.get('action') == 'SELL']
+            sell_trades = [t for t in trades if t.get("action") == "SELL"]
             if sell_trades:
                 ctx.is_complete_trade = True
                 ctx.matched_sell = sell_trades[0]
         else:
             # 查找是否有买入
-            buy_trades = [t for t in trades if t.get('action') == 'BUY']
+            buy_trades = [t for t in trades if t.get("action") == "BUY"]
             if buy_trades:
                 ctx.is_complete_trade = True
 
@@ -233,15 +232,15 @@ class TradeReviewer:
     def save_trade(self, ctx: ReviewContext) -> int:
         """保存交易记录"""
         record = {
-            'ts_code': ctx.ts_code,
-            'trade_date': ctx.trade_date,
-            'action': ctx.action,
-            'price': ctx.price,
-            'quantity': ctx.quantity,
-            'amount': ctx.amount,
-            'reason': ctx.reason,
-            'signal_type': ctx.signal_type or '',
-            'tags': ','.join(ctx.tags) if ctx.tags else '',
+            "ts_code": ctx.ts_code,
+            "trade_date": ctx.trade_date,
+            "action": ctx.action,
+            "price": ctx.price,
+            "quantity": ctx.quantity,
+            "amount": ctx.amount,
+            "reason": ctx.reason,
+            "signal_type": ctx.signal_type or "",
+            "tags": ",".join(ctx.tags) if ctx.tags else "",
         }
         return save_trade_record(record)
 

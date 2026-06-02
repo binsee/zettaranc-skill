@@ -6,7 +6,8 @@
 import os
 import sqlite3
 from pathlib import Path
-from typing import Optional, List, Dict, Any, Generator
+from typing import Optional, Any
+from collections.abc import Generator
 from dataclasses import dataclass
 from contextlib import contextmanager
 
@@ -14,6 +15,7 @@ from contextlib import contextmanager
 @dataclass
 class TradeRecord:
     """交易记录数据类"""
+
     ts_code: str
     trade_date: str
     action: str
@@ -32,14 +34,13 @@ class TradeRecord:
 @dataclass
 class StockInfo:
     """股票信息数据类"""
+
     ts_code: str
     name: str = ""
     area: str = ""
     industry: str = ""
     market: str = ""
 
-
-from contextlib import contextmanager
 
 # 模块首次 import 时由 modules/__init__.py 统一加载 .env，
 # 此处不再重复加载（保留仅为兼容独立脚本运行 `python modules/database.py`）
@@ -422,14 +423,18 @@ def init_database() -> None:
 
 # ============== 自选股观察池操作 ==============
 
+
 def add_watchlist_item(ts_code: str, name: str = "", tags: str = "", notes: str = "") -> int:
     """添加自选股，返回ID"""
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT OR REPLACE INTO watchlist (ts_code, name, tags, notes)
             VALUES (?, ?, ?, ?)
-        """, (ts_code, name, tags, notes))
+        """,
+            (ts_code, name, tags, notes),
+        )
         return cursor.lastrowid if cursor.lastrowid is not None else 0
 
 
@@ -441,7 +446,7 @@ def remove_watchlist_item(ts_code: str) -> bool:
         return cursor.rowcount > 0
 
 
-def get_watchlist(tags: Optional[str] = None) -> List[Dict]:
+def get_watchlist(tags: str | None = None) -> list[dict]:
     """获取自选股列表"""
     with get_connection() as conn:
         cursor = conn.cursor()
@@ -454,7 +459,7 @@ def get_watchlist(tags: Optional[str] = None) -> List[Dict]:
         return [dict(row) for row in cursor.fetchall()]
 
 
-def update_watchlist_item(ts_code: str, updates: Dict[str, Any]) -> bool:
+def update_watchlist_item(ts_code: str, updates: dict[str, Any]) -> bool:
     """更新自选股信息"""
     allowed = {"name", "tags", "alert_enabled", "notes"}
     updates = {k: v for k, v in updates.items() if k in allowed}
@@ -464,49 +469,50 @@ def update_watchlist_item(ts_code: str, updates: Dict[str, Any]) -> bool:
     values = list(updates.values()) + [ts_code]
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute(
-            f"UPDATE watchlist SET {set_clause}, updated_at = CURRENT_TIMESTAMP WHERE ts_code = ?",
-            values
-        )
+        cursor.execute(f"UPDATE watchlist SET {set_clause}, updated_at = CURRENT_TIMESTAMP WHERE ts_code = ?", values)
         return cursor.rowcount > 0
 
 
 # ============== 随堂测试/交易记录操作 ==============
 
-def save_trade_record(record: Dict[str, Any]) -> int:
+
+def save_trade_record(record: dict[str, Any]) -> int:
     """保存交易记录，返回记录ID"""
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO trade_records (
                 ts_code, trade_date, action, price, quantity, amount,
                 reason, signal_type, zg_review, broker, fee, tags, notes
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            record.get("ts_code"),
-            record.get("trade_date"),
-            record.get("action"),
-            record.get("price"),
-            record.get("quantity"),
-            record.get("amount"),
-            record.get("reason", ""),
-            record.get("signal_type", ""),
-            record.get("zg_review", ""),
-            record.get("broker", ""),
-            record.get("fee", 0),
-            record.get("tags", ""),
-            record.get("notes", "")
-        ))
+        """,
+            (
+                record.get("ts_code"),
+                record.get("trade_date"),
+                record.get("action"),
+                record.get("price"),
+                record.get("quantity"),
+                record.get("amount"),
+                record.get("reason", ""),
+                record.get("signal_type", ""),
+                record.get("zg_review", ""),
+                record.get("broker", ""),
+                record.get("fee", 0),
+                record.get("tags", ""),
+                record.get("notes", ""),
+            ),
+        )
         return cursor.lastrowid if cursor.lastrowid is not None else 0
 
 
 def get_trade_records(
-    ts_code: Optional[str] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    action: Optional[str] = None,
-    limit: int = 100
-) -> List[Dict]:
+    ts_code: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    action: str | None = None,
+    limit: int = 100,
+) -> list[dict]:
     """查询交易记录"""
     with get_connection() as conn:
         cursor = conn.cursor()
@@ -533,7 +539,7 @@ def get_trade_records(
         return [dict(row) for row in cursor.fetchall()]
 
 
-def get_trade_record_by_id(trade_id: int) -> Optional[Dict]:
+def get_trade_record_by_id(trade_id: int) -> dict | None:
     """根据ID获取单条交易记录"""
     with get_connection() as conn:
         cursor = conn.cursor()
@@ -542,11 +548,9 @@ def get_trade_record_by_id(trade_id: int) -> Optional[Dict]:
         return dict(row) if row else None
 
 
-def update_trade_record(trade_id: int, updates: Dict[str, Any]) -> bool:
+def update_trade_record(trade_id: int, updates: dict[str, Any]) -> bool:
     """更新交易记录"""
-    allowed_fields = {
-        "reason", "signal_type", "zg_review", "broker", "fee", "tags", "notes"
-    }
+    allowed_fields = {"reason", "signal_type", "zg_review", "broker", "fee", "tags", "notes"}
     updates = {k: v for k, v in updates.items() if k in allowed_fields}
 
     if not updates:
@@ -557,10 +561,7 @@ def update_trade_record(trade_id: int, updates: Dict[str, Any]) -> bool:
 
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute(
-            f"UPDATE trade_records SET {set_clause} WHERE id = ?",
-            values
-        )
+        cursor.execute(f"UPDATE trade_records SET {set_clause} WHERE id = ?", values)
         return cursor.rowcount > 0
 
 
@@ -572,7 +573,7 @@ def delete_trade_record(trade_id: int) -> bool:
         return cursor.rowcount > 0
 
 
-def get_trade_summary(ts_code: Optional[str] = None, start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict:
+def get_trade_summary(ts_code: str | None = None, start_date: str | None = None, end_date: str | None = None) -> dict:
     """获取交易汇总统计"""
     with get_connection() as conn:
         cursor = conn.cursor()
@@ -594,10 +595,7 @@ def get_trade_summary(ts_code: Optional[str] = None, start_date: Optional[str] =
 
         result: dict[str, dict[str, Any]] = {"BUY": {}, "SELL": {}}
         for row in cursor.fetchall():
-            result[row["action"]] = {
-                "count": row["count"],
-                "total_amount": row["total_amount"] or 0
-            }
+            result[row["action"]] = {"count": row["count"], "total_amount": row["total_amount"] or 0}
         return result
 
 

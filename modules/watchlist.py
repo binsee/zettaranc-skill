@@ -4,33 +4,28 @@
 """
 
 import os
-from typing import List, Dict, Any, Optional
+from typing import Any, Optional
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 # dotenv 加载已移至 modules/__init__.py（包级别一次性加载）
 
-from .database import (
-    add_watchlist_item, remove_watchlist_item,
-    get_watchlist, update_watchlist_item
-)
+from .database import add_watchlist_item, remove_watchlist_item, get_watchlist, update_watchlist_item
 from .indicators import analyze_stock, get_kline_data
-from .strategies import (
-    detect_all_strategies, analyze_kirin_phase,
-    StrategyType, get_kline_data as get_strategy_klines
-)
+from .strategies import detect_all_strategies, analyze_kirin_phase, StrategyType, get_kline_data as get_strategy_klines
 from .screener import analyze_stock as screener_analyze
 
 
 @dataclass
 class WatchAlert:
     """观察警报"""
+
     ts_code: str
     name: str
-    alert_type: str      # B1/B2/BREAK/EXIT/ABNORMAL
-    level: str           # INFO/WARNING/CRITICAL
+    alert_type: str  # B1/B2/BREAK/EXIT/ABNORMAL
+    level: str  # INFO/WARNING/CRITICAL
     message: str
-    data: Dict[str, Any] = field(default_factory=dict)
+    data: dict[str, Any] = field(default_factory=dict)
 
 
 def add_watch(ts_code: str, name: str = "", tags: str = "", notes: str = "") -> int:
@@ -43,12 +38,12 @@ def remove_watch(ts_code: str) -> bool:
     return remove_watchlist_item(ts_code)
 
 
-def list_watch(tags: Optional[str] = None) -> List[Dict]:
+def list_watch(tags: str | None = None) -> list[dict]:
     """列出自选股"""
     return get_watchlist(tags=tags)
 
 
-def scan_watchlist(tags: Optional[str] = None) -> Dict[str, Any]:
+def scan_watchlist(tags: str | None = None) -> dict[str, Any]:
     """
     批量扫描自选股池
 
@@ -85,56 +80,80 @@ def scan_watchlist(tags: Optional[str] = None) -> Dict[str, Any]:
         # 1. B1/B2 信号提醒
         for s in signals[:3]:
             if s.strategy == StrategyType.B1 and s.action == "BUY":
-                alerts.append(WatchAlert(
-                    ts_code=ts_code, name=name,
-                    alert_type="B1", level="INFO",
-                    message=f"出现B1买点 J={s.details.get('j', 0):.1f}",
-                    data={"signal": s}
-                ))
+                alerts.append(
+                    WatchAlert(
+                        ts_code=ts_code,
+                        name=name,
+                        alert_type="B1",
+                        level="INFO",
+                        message=f"出现B1买点 J={s.details.get('j', 0):.1f}",
+                        data={"signal": s},
+                    )
+                )
                 summary["b1_count"] += 1
             elif s.strategy == StrategyType.B2 and s.action == "BUY":
-                alerts.append(WatchAlert(
-                    ts_code=ts_code, name=name,
-                    alert_type="B2", level="INFO",
-                    message=f"出现B2确认 涨{s.details.get('pct_chg', 0):.1f}%",
-                    data={"signal": s}
-                ))
+                alerts.append(
+                    WatchAlert(
+                        ts_code=ts_code,
+                        name=name,
+                        alert_type="B2",
+                        level="INFO",
+                        message=f"出现B2确认 涨{s.details.get('pct_chg', 0):.1f}%",
+                        data={"signal": s},
+                    )
+                )
                 summary["b2_count"] += 1
             elif s.strategy in (StrategyType.S1, StrategyType.S2, StrategyType.S3):
-                alerts.append(WatchAlert(
-                    ts_code=ts_code, name=name,
-                    alert_type="EXIT", level="CRITICAL",
-                    message=f"{s.strategy.value}逃顶信号",
-                    data={"signal": s}
-                ))
+                alerts.append(
+                    WatchAlert(
+                        ts_code=ts_code,
+                        name=name,
+                        alert_type="EXIT",
+                        level="CRITICAL",
+                        message=f"{s.strategy.value}逃顶信号",
+                        data={"signal": s},
+                    )
+                )
                 summary["exit_count"] += 1
 
         # 2. 破位预警（破白线/黄线/BBI）
         if ind.is_dead_cross:
-            alerts.append(WatchAlert(
-                ts_code=ts_code, name=name,
-                alert_type="BREAK", level="WARNING",
-                message="白线死叉黄线，趋势走坏",
-                data={"white": ind.zg_white, "yellow": ind.dg_yellow}
-            ))
+            alerts.append(
+                WatchAlert(
+                    ts_code=ts_code,
+                    name=name,
+                    alert_type="BREAK",
+                    level="WARNING",
+                    message="白线死叉黄线，趋势走坏",
+                    data={"white": ind.zg_white, "yellow": ind.dg_yellow},
+                )
+            )
             summary["break_count"] += 1
-        elif ind.bbi > 0 and hasattr(ind, 'close') and ind.close < ind.bbi * 0.95:
-            alerts.append(WatchAlert(
-                ts_code=ts_code, name=name,
-                alert_type="BREAK", level="WARNING",
-                message="跌破BBI",
-                data={"bbi": ind.bbi}
-            ))
+        elif ind.bbi > 0 and hasattr(ind, "close") and ind.close < ind.bbi * 0.95:
+            alerts.append(
+                WatchAlert(
+                    ts_code=ts_code,
+                    name=name,
+                    alert_type="BREAK",
+                    level="WARNING",
+                    message="跌破BBI",
+                    data={"bbi": ind.bbi},
+                )
+            )
             summary["break_count"] += 1
 
         # 3. 异动检测（量比 > 3 或涨跌幅 > 5%）
-        if ind.vol_ratio > 3 or (hasattr(ind, 'pct_chg') and abs(ind.pct_chg) > 5):
-            alerts.append(WatchAlert(
-                ts_code=ts_code, name=name,
-                alert_type="ABNORMAL", level="INFO",
-                message=f"异动 量比{ind.vol_ratio:.1f}",
-                data={"vol_ratio": ind.vol_ratio}
-            ))
+        if ind.vol_ratio > 3 or (hasattr(ind, "pct_chg") and abs(ind.pct_chg) > 5):
+            alerts.append(
+                WatchAlert(
+                    ts_code=ts_code,
+                    name=name,
+                    alert_type="ABNORMAL",
+                    level="INFO",
+                    message=f"异动 量比{ind.vol_ratio:.1f}",
+                    data={"vol_ratio": ind.vol_ratio},
+                )
+            )
             summary["abnormal_count"] += 1
 
     return {
@@ -143,7 +162,7 @@ def scan_watchlist(tags: Optional[str] = None) -> Dict[str, Any]:
     }
 
 
-def generate_daily_report(tags: Optional[str] = None) -> str:
+def generate_daily_report(tags: str | None = None) -> str:
     """
     生成每日观察报告（文本格式）
     """
@@ -153,9 +172,9 @@ def generate_daily_report(tags: Optional[str] = None) -> str:
 
     today = datetime.now().strftime("%Y-%m-%d")
     lines = []
-    lines.append(f"{'='*60}")
+    lines.append(f"{'=' * 60}")
     lines.append(f"自选股每日观察报告  {today}")
-    lines.append(f"{'='*60}")
+    lines.append(f"{'=' * 60}")
     lines.append(f"监控总数: {summary['total']}只")
     lines.append(f"B1信号: {summary['b1_count']}只 | B2信号: {summary['b2_count']}只")
     lines.append(f"逃顶信号: {summary['exit_count']}只 | 破位预警: {summary['break_count']}只")
@@ -163,10 +182,7 @@ def generate_daily_report(tags: Optional[str] = None) -> str:
     lines.append("")
 
     level_emoji = {"INFO": "ℹ️", "WARNING": "⚠️", "CRITICAL": "🚨"}
-    type_labels = {
-        "B1": "【买点】", "B2": "【买点】",
-        "EXIT": "【逃顶】", "BREAK": "【破位】", "ABNORMAL": "【异动】"
-    }
+    type_labels = {"B1": "【买点】", "B2": "【买点】", "EXIT": "【逃顶】", "BREAK": "【破位】", "ABNORMAL": "【异动】"}
 
     for a in alerts:
         emoji = level_emoji.get(a.level, "")
@@ -177,11 +193,12 @@ def generate_daily_report(tags: Optional[str] = None) -> str:
     if not alerts:
         lines.append("今日无特别信号，继续观察。")
 
-    lines.append(f"{'='*60}")
+    lines.append(f"{'=' * 60}")
     return "\n".join(lines)
 
 
 # ==================== 命令行工具 ====================
+
 
 def main():
     """命令行入口"""
@@ -227,11 +244,11 @@ def main():
 
     elif args.command == "list":
         watches = list_watch(tags=args.tags)
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"自选股列表 (共{len(watches)}只)")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         for w in watches:
-            tags_str = f" [{w['tags']}]" if w['tags'] else ""
+            tags_str = f" [{w['tags']}]" if w["tags"] else ""
             print(f"  {w['ts_code']:<12} {w.get('name', ''):<8}{tags_str}")
 
     elif args.command == "scan":

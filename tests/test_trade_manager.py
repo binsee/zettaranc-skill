@@ -22,6 +22,7 @@ class TestGetIndicatorData:
     def test_with_stock_basic_only(self, temp_db, db_conn):
         """仅有股票基本信息，无K线时返回 None"""
         from tests.conftest import write_stock_basic
+
         write_stock_basic(db_conn, "000001.SZ", "平安银行")
         result = get_indicator_data("000001.SZ", "20260101")
         assert result is None
@@ -30,6 +31,7 @@ class TestGetIndicatorData:
 class TestGetStockInfo:
     def test_exists(self, temp_db, db_conn):
         from tests.conftest import write_stock_basic
+
         write_stock_basic(db_conn, "600519.SH", "贵州茅台")
         info = get_stock_info("600519.SH")
         assert info is not None
@@ -53,17 +55,20 @@ class TestMatchStrategy:
 class TestTradeManagerCRUD:
     def test_add_and_get_trade(self, temp_db):
         from datetime import datetime, timedelta
+
         today = datetime.now().strftime("%Y-%m-%d")
         mgr = TradeManager()
-        trade_id = mgr.add_trade({
-            "ts_code": "600519.SH",
-            "trade_date": today,
-            "action": "BUY",
-            "price": 1500.0,
-            "quantity": 100,
-            "amount": 150000.0,
-            "reason": "B1买点",
-        })
+        trade_id = mgr.add_trade(
+            {
+                "ts_code": "600519.SH",
+                "trade_date": today,
+                "action": "BUY",
+                "price": 1500.0,
+                "quantity": 100,
+                "amount": 150000.0,
+                "reason": "B1买点",
+            }
+        )
         assert trade_id > 0
 
         trade = mgr.get_trade_history("600519.SH", days=30)
@@ -72,24 +77,29 @@ class TestTradeManagerCRUD:
 
     def test_get_stock_holding(self, temp_db):
         from datetime import datetime, timedelta
+
         today = datetime.now().strftime("%Y-%m-%d")
         mgr = TradeManager()
-        mgr.add_trade({
-            "ts_code": "600519.SH",
-            "trade_date": today,
-            "action": "BUY",
-            "price": 1400.0,
-            "quantity": 100,
-            "amount": 140000.0,
-        })
-        mgr.add_trade({
-            "ts_code": "600519.SH",
-            "trade_date": today,
-            "action": "SELL",
-            "price": 1500.0,
-            "quantity": 50,
-            "amount": 75000.0,
-        })
+        mgr.add_trade(
+            {
+                "ts_code": "600519.SH",
+                "trade_date": today,
+                "action": "BUY",
+                "price": 1400.0,
+                "quantity": 100,
+                "amount": 140000.0,
+            }
+        )
+        mgr.add_trade(
+            {
+                "ts_code": "600519.SH",
+                "trade_date": today,
+                "action": "SELL",
+                "price": 1500.0,
+                "quantity": 50,
+                "amount": 75000.0,
+            }
+        )
 
         holding = mgr.get_stock_holding("600519.SH")
         assert holding["current_qty"] == 50

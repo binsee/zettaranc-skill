@@ -8,6 +8,7 @@ P2-1 真实数据回归测试：自研指标 vs Tushare 官方 stk_factor
 - 阈值：v2.10.0 观察期 5%，v2.11.0 收紧到 2%，v3.0.0 目标 1%
 - 命名约定：test_<indicator>_vs_stk_factor（便于 pytest -k 单独跑）
 """
+
 import os
 from datetime import datetime, timedelta
 from typing import Optional
@@ -31,10 +32,12 @@ DIFF_TOLERANCE = 0.05  # 5% 阈值（观察期 v2.10.0）
 
 # ==================== Fixtures ====================
 
+
 @pytest.fixture(scope="module")
 def tushare_client():
     """拉真实 Tushare 客户端（需要 token）"""
     from modules.tushare_client import TushareClient
+
     return TushareClient(token=_TUSHARE_TOKEN)
 
 
@@ -65,10 +68,11 @@ def stk_factor_df(tushare_client, trade_dates) -> pd.DataFrame:
     """拉 Tushare 官方 stk_factor 指标"""
     start_date, end_date = trade_dates
     df = tushare_client._pro.stk_factor(
-        ts_code=REALDATA_TS_CODE, start_date=start_date, end_date=end_date,
+        ts_code=REALDATA_TS_CODE,
+        start_date=start_date,
+        end_date=end_date,
     )
-    assert df is not None and len(df) > 0, \
-        f"无法拉取 {REALDATA_TS_CODE} stk_factor（可能需要 5000 积分）"
+    assert df is not None and len(df) > 0, f"无法拉取 {REALDATA_TS_CODE} stk_factor（可能需要 5000 积分）"
     return df.sort_values("trade_date").reset_index(drop=True)
 
 
@@ -76,11 +80,14 @@ def stk_factor_df(tushare_client, trade_dates) -> pd.DataFrame:
 def merged(kline_df, stk_factor_df) -> pd.DataFrame:
     """内连接 K 线 + stk_factor（按 trade_date 对齐）"""
     return kline_df.merge(
-        stk_factor_df, on="trade_date", suffixes=("_ours", "_tushare"),
+        stk_factor_df,
+        on="trade_date",
+        suffixes=("_ours", "_tushare"),
     )
 
 
 # ==================== MACD 对比 ====================
+
 
 def test_macd_dif_vs_stk_factor(merged):
     """自研 MACD.dif vs Tushare stk_factor.macd_dif（v2.10.0 阈值 5%）"""
@@ -90,25 +97,30 @@ def test_macd_dif_vs_stk_factor(merged):
 
     daily_data = [
         DailyData(
-            ts_code=row["ts_code"], trade_date=row["trade_date"],
-            open=row["open"], high=row["high"], low=row["low"], close=row["close"],
-            vol=row["vol"], amount=row.get("amount", 0), pct_chg=row.get("pct_chg", 0),
+            ts_code=row["ts_code"],
+            trade_date=row["trade_date"],
+            open=row["open"],
+            high=row["high"],
+            low=row["low"],
+            close=row["close"],
+            vol=row["vol"],
+            amount=row.get("amount", 0),
+            pct_chg=row.get("pct_chg", 0),
         )
         for _, row in merged.iterrows()
     ]
     difs, deas, hists = calculate_macd(daily_data)
 
     merged["macd_dif_ours"] = difs
-    merged["macd_dif_diff_pct"] = (
-        (merged["macd_dif_ours"] - merged["macd_dif"]).abs() / merged["macd_dif"].abs()
-    )
+    merged["macd_dif_diff_pct"] = (merged["macd_dif_ours"] - merged["macd_dif"]).abs() / merged["macd_dif"].abs()
 
     median_diff = merged["macd_dif_diff_pct"].median()
     mean_diff = merged["macd_dif_diff_pct"].mean()
     max_diff = merged["macd_dif_diff_pct"].max()
 
-    assert median_diff < DIFF_TOLERANCE, \
+    assert median_diff < DIFF_TOLERANCE, (
         f"MACD.dif 中位数 diff {median_diff:.2%} > {DIFF_TOLERANCE:.0%}（mean={mean_diff:.2%} max={max_diff:.2%}）"
+    )
 
 
 def test_macd_dea_vs_stk_factor(merged):
@@ -118,24 +130,28 @@ def test_macd_dea_vs_stk_factor(merged):
 
     daily_data = [
         DailyData(
-            ts_code=row["ts_code"], trade_date=row["trade_date"],
-            open=row["open"], high=row["high"], low=row["low"], close=row["close"],
-            vol=row["vol"], amount=row.get("amount", 0), pct_chg=row.get("pct_chg", 0),
+            ts_code=row["ts_code"],
+            trade_date=row["trade_date"],
+            open=row["open"],
+            high=row["high"],
+            low=row["low"],
+            close=row["close"],
+            vol=row["vol"],
+            amount=row.get("amount", 0),
+            pct_chg=row.get("pct_chg", 0),
         )
         for _, row in merged.iterrows()
     ]
     difs, deas, hists = calculate_macd(daily_data)
     merged["macd_dea_ours"] = deas
-    merged["macd_dea_diff_pct"] = (
-        (merged["macd_dea_ours"] - merged["macd_dea"]).abs() / merged["macd_dea"].abs()
-    )
+    merged["macd_dea_diff_pct"] = (merged["macd_dea_ours"] - merged["macd_dea"]).abs() / merged["macd_dea"].abs()
 
     median_diff = merged["macd_dea_diff_pct"].median()
-    assert median_diff < DIFF_TOLERANCE, \
-        f"MACD.dea 中位数 diff {median_diff:.2%} > {DIFF_TOLERANCE:.0%}"
+    assert median_diff < DIFF_TOLERANCE, f"MACD.dea 中位数 diff {median_diff:.2%} > {DIFF_TOLERANCE:.0%}"
 
 
 # ==================== KDJ 对比 ====================
+
 
 def test_kdj_k_vs_stk_factor(merged):
     """自研 KDJ.k vs Tushare stk_factor.kdj_k"""
@@ -144,9 +160,15 @@ def test_kdj_k_vs_stk_factor(merged):
 
     daily_data = [
         DailyData(
-            ts_code=row["ts_code"], trade_date=row["trade_date"],
-            open=row["open"], high=row["high"], low=row["low"], close=row["close"],
-            vol=row["vol"], amount=row.get("amount", 0), pct_chg=row.get("pct_chg", 0),
+            ts_code=row["ts_code"],
+            trade_date=row["trade_date"],
+            open=row["open"],
+            high=row["high"],
+            low=row["low"],
+            close=row["close"],
+            vol=row["vol"],
+            amount=row.get("amount", 0),
+            pct_chg=row.get("pct_chg", 0),
         )
         for _, row in merged.iterrows()
     ]
@@ -168,9 +190,15 @@ def test_kdj_d_vs_stk_factor(merged):
 
     daily_data = [
         DailyData(
-            ts_code=row["ts_code"], trade_date=row["trade_date"],
-            open=row["open"], high=row["high"], low=row["low"], close=row["close"],
-            vol=row["vol"], amount=row.get("amount", 0), pct_chg=row.get("pct_chg", 0),
+            ts_code=row["ts_code"],
+            trade_date=row["trade_date"],
+            open=row["open"],
+            high=row["high"],
+            low=row["low"],
+            close=row["close"],
+            vol=row["vol"],
+            amount=row.get("amount", 0),
+            pct_chg=row.get("pct_chg", 0),
         )
         for _, row in merged.iterrows()
     ]
@@ -184,6 +212,7 @@ def test_kdj_d_vs_stk_factor(merged):
 
 # ==================== RSI 对比 ====================
 
+
 def test_rsi6_vs_stk_factor(merged):
     """自研 RSI6 vs Tushare stk_factor.rsi_6"""
     from modules.indicators import calculate_rsi
@@ -191,9 +220,15 @@ def test_rsi6_vs_stk_factor(merged):
 
     daily_data = [
         DailyData(
-            ts_code=row["ts_code"], trade_date=row["trade_date"],
-            open=row["open"], high=row["high"], low=row["low"], close=row["close"],
-            vol=row["vol"], amount=row.get("amount", 0), pct_chg=row.get("pct_chg", 0),
+            ts_code=row["ts_code"],
+            trade_date=row["trade_date"],
+            open=row["open"],
+            high=row["high"],
+            low=row["low"],
+            close=row["close"],
+            vol=row["vol"],
+            amount=row.get("amount", 0),
+            pct_chg=row.get("pct_chg", 0),
         )
         for _, row in merged.iterrows()
     ]
@@ -213,9 +248,15 @@ def test_rsi12_vs_stk_factor(merged):
 
     daily_data = [
         DailyData(
-            ts_code=row["ts_code"], trade_date=row["trade_date"],
-            open=row["open"], high=row["high"], low=row["low"], close=row["close"],
-            vol=row["vol"], amount=row.get("amount", 0), pct_chg=row.get("pct_chg", 0),
+            ts_code=row["ts_code"],
+            trade_date=row["trade_date"],
+            open=row["open"],
+            high=row["high"],
+            low=row["low"],
+            close=row["close"],
+            vol=row["vol"],
+            amount=row.get("amount", 0),
+            pct_chg=row.get("pct_chg", 0),
         )
         for _, row in merged.iterrows()
     ]
@@ -228,6 +269,7 @@ def test_rsi12_vs_stk_factor(merged):
 
 
 # ==================== 集成检查 ====================
+
 
 def test_merged_dataframe_has_minimum_samples(merged):
     """合并后的数据必须至少有 100 个交易日样本（保证统计意义）"""
@@ -244,15 +286,21 @@ def test_merged_dataframe_covers_expected_columns(merged):
 
 # ==================== 离线基线（v2.11.0 计划：保存 baseline JSON） ====================
 
+
 def test_indicator_diff_summary(merged):
     """汇总所有指标 diff（用于人工 review / v2.11.0 写 baseline）"""
     # 这个测试只打印汇总，不做断言
     summary_lines = ["\n=== 真实数据回归 diff 汇总（v2.10.0 观察期） ==="]
 
     # 已在前面 test_xxx 中计算过 diff 列
-    for col in ["macd_dif_diff_pct", "macd_dea_diff_pct",
-                "kdj_k_diff_pct", "kdj_d_diff_pct",
-                "rsi_6_diff_pct", "rsi_12_diff_pct"]:
+    for col in [
+        "macd_dif_diff_pct",
+        "macd_dea_diff_pct",
+        "kdj_k_diff_pct",
+        "kdj_d_diff_pct",
+        "rsi_6_diff_pct",
+        "rsi_12_diff_pct",
+    ]:
         if col in merged.columns:
             med = merged[col].median()
             summary_lines.append(f"  {col}: median={med:.4f}")

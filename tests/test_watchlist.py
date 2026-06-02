@@ -4,14 +4,18 @@ watchlist.py 自选股观察池测试
 
 import pytest
 from modules.watchlist import (
-    add_watch, remove_watch, list_watch,
-    scan_watchlist, WatchAlert,
+    add_watch,
+    remove_watch,
+    list_watch,
+    scan_watchlist,
+    WatchAlert,
 )
 
 
 class TestWatchlistCRUD:
     def test_add_and_list(self, temp_db, db_conn):
         from tests.conftest import write_stock_basic
+
         write_stock_basic(db_conn, "600519.SH", "贵州茅台")
 
         wid = add_watch("600519.SH", name="贵州茅台", tags="波段")
@@ -24,6 +28,7 @@ class TestWatchlistCRUD:
 
     def test_remove(self, temp_db, db_conn):
         from tests.conftest import write_stock_basic
+
         write_stock_basic(db_conn, "000001.SZ", "平安银行")
 
         add_watch("000001.SZ", name="平安银行")
@@ -34,6 +39,7 @@ class TestWatchlistCRUD:
 
     def test_list_by_tags(self, temp_db, db_conn):
         from tests.conftest import write_stock_basic
+
         write_stock_basic(db_conn, "600519.SH", "贵州茅台")
         write_stock_basic(db_conn, "000001.SZ", "平安银行")
 

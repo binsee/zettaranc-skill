@@ -6,6 +6,7 @@ P1-4 回归测试：data_sync._RateLimiter 模块级限流器
 - TUSHARE_RPM env var 覆盖
 - 替换原 instance-level _rate_limit_lock
 """
+
 import multiprocessing
 import os
 import subprocess
@@ -22,21 +23,25 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # ==================== 模块级 _RateLimiter 存在性 ====================
 
+
 def test_rate_limiter_class_exists():
     """modules.data_sync 必须有 _RateLimiter 类"""
     from modules.data_sync import _RateLimiter
+
     assert _RateLimiter is not None
 
 
 def test_rate_limiter_module_level_singleton_exists():
     """模块级 _GLOBAL_LIMITER 单例必须存在"""
     from modules.data_sync import _GLOBAL_LIMITER
+
     assert _GLOBAL_LIMITER is not None
 
 
 def test_rate_limit_global_function_exists():
     """模块级 _rate_limit_global() 公开函数必须存在"""
     from modules.data_sync import _rate_limit_global
+
     assert callable(_rate_limit_global)
 
 
@@ -44,6 +49,7 @@ def test_data_syncer_uses_global_limiter():
     """DataSyncer._rate_limit() 必须调模块级 _GLOBAL_LIMITER.wait()"""
     import inspect
     from modules.data_sync import DataSyncer
+
     src = inspect.getsource(DataSyncer._rate_limit)
     assert "_rate_limit_global" in src
     assert "_GLOBAL_LIMITER" in src
@@ -51,9 +57,11 @@ def test_data_syncer_uses_global_limiter():
 
 # ==================== _RateLimiter 行为 ====================
 
+
 def test_rate_limiter_init_default_180():
     """_RateLimiter() 默认 max_per_min=180（留 20 缓冲应对 200 上限）"""
     from modules.data_sync import _RateLimiter
+
     rl = _RateLimiter()
     assert rl._max == 180
 
@@ -61,6 +69,7 @@ def test_rate_limiter_init_default_180():
 def test_rate_limiter_init_respects_max_per_min():
     """_RateLimiter(max_per_min=N) 必须接受 N 参数"""
     from modules.data_sync import _RateLimiter
+
     rl = _RateLimiter(max_per_min=50)
     assert rl._max == 50
 
@@ -68,6 +77,7 @@ def test_rate_limiter_init_respects_max_per_min():
 def test_rate_limiter_wait_does_not_block_under_limit():
     """未到上限时 wait() 应该立即返回"""
     from modules.data_sync import _RateLimiter
+
     rl = _RateLimiter(max_per_min=1000)  # 高上限，避免触发限流
     start = time.monotonic()
     for _ in range(10):
@@ -79,6 +89,7 @@ def test_rate_limiter_wait_does_not_block_under_limit():
 def test_rate_limiter_blocks_when_over_limit():
     """超过上限时 wait() 必须阻塞（至少等到下一个 60s 窗口有空位）"""
     from modules.data_sync import _RateLimiter
+
     rl = _RateLimiter(max_per_min=3)  # 低上限
     # 先快速吃满 3 个 token
     for _ in range(3):
@@ -94,6 +105,7 @@ def test_rate_limiter_blocks_when_over_limit():
 def test_rate_limiter_current_count_tracks_window():
     """current_count 必须反映当前 60s 窗口内的请求数"""
     from modules.data_sync import _RateLimiter
+
     rl = _RateLimiter(max_per_min=100)
     assert rl.current_count == 0
     for _ in range(5):
@@ -103,9 +115,11 @@ def test_rate_limiter_current_count_tracks_window():
 
 # ==================== multiprocessing 安全 ====================
 
+
 def _child_wait_n_times(n: int, max_per_min: int) -> int:
     """子进程函数：调 _RateLimiter.wait() n 次，返回最终 current_count"""
     from modules.data_sync import _RateLimiter
+
     rl = _RateLimiter(max_per_min=max_per_min)
     for _ in range(n):
         rl.wait()
@@ -137,17 +151,21 @@ def test_rate_limiter_works_across_multiple_subprocesses():
 
 # ==================== DataSyncer 集成 ====================
 
+
 def test_data_syncer_keeps_legacy_attrs():
     """向后兼容：DataSyncer 实例仍保留 last_request_time / _rate_limit_lock / min_interval"""
     import os
     from unittest.mock import patch
+
     # 跳过 JNB 模式强制检查
     with patch.dict(os.environ, {"DATA_MODE": "websearch"}):
         from modules.data_sync import DataSyncer
+
         syncer = DataSyncer.__new__(DataSyncer)  # 绕过 __init__
         syncer.min_interval = 60 / 120
         syncer.last_request_time = {}
         import threading as _t
+
         syncer._rate_limit_lock = _t.Lock()
         assert syncer.min_interval > 0
         assert isinstance(syncer.last_request_time, dict)
@@ -157,12 +175,14 @@ def test_data_syncer_keeps_legacy_attrs():
 def test_data_syncer_rate_limit_does_not_crash():
     """DataSyncer._rate_limit(api_name) 调一次不应该崩（即使没真发请求）"""
     from modules.data_sync import DataSyncer
+
     # 用 __new__ 绕过 __init__ 的 Tushare token 强制检查（websearch 模式下不影响，
     # 但更稳是手动设 attrs）。设 min_interval/last_request_time/_rate_limit_lock 与 __init__ 一致。
     syncer = DataSyncer.__new__(DataSyncer)
     syncer.min_interval = 60 / 120
     syncer.last_request_time = {}
     import threading as _t
+
     syncer._rate_limit_lock = _t.Lock()
     # 调一次不应抛异常
     syncer._rate_limit("test_api")
@@ -172,12 +192,14 @@ def test_data_syncer_rate_limit_does_not_crash():
 
 # ==================== TUSHARE_RPM env 变量 ====================
 
+
 def test_global_limiter_reads_tushare_rpm_env(monkeypatch):
     """TUSHARE_RPM env var 必须能覆盖默认 180"""
     # 模块级 _GLOBAL_LIMITER 在 import 时已确定 max_per_min
     # 验证模块级代码确实读了 TUSHARE_RPM（静态检查）
     import inspect
     from modules import data_sync
+
     src = inspect.getsource(data_sync)
     assert "TUSHARE_RPM" in src
     assert "os.environ.get" in src

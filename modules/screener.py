@@ -4,7 +4,7 @@
 """
 
 import sqlite3
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any, Optional
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 import os
@@ -19,15 +19,16 @@ _PARALLEL_THRESHOLD = 50
 @dataclass
 class StockScore:
     """股票评分"""
+
     ts_code: str
     name: str = ""
-    score: float = 0           # 综合评分 0-100
-    b1_score: float = 0        # B1买点评分
-    trend_score: float = 0     # 趋势评分
-    volume_score: float = 0     # 量价评分
-    risk_score: float = 0      # 风险评分
-    reasons: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
+    score: float = 0  # 综合评分 0-100
+    b1_score: float = 0  # B1买点评分
+    trend_score: float = 0  # 趋势评分
+    volume_score: float = 0  # 量价评分
+    risk_score: float = 0  # 风险评分
+    reasons: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     @property
     def rating(self) -> str:
@@ -47,11 +48,12 @@ class StockScore:
 @dataclass
 class MarketStatus:
     """大盘状态"""
+
     trade_date: str
-    is_trading: bool = True           # 是否可交易
+    is_trading: bool = True  # 是否可交易
     market_direction: str = "NEUTRAL"  # LONG/NEUTRAL/SHORT
-    market_strength: float = 0        # 0-100
-    reasons: List[str] = field(default_factory=list)
+    market_strength: float = 0  # 0-100
+    reasons: list[str] = field(default_factory=list)
 
 
 def get_db_connection() -> sqlite3.Connection:
@@ -61,7 +63,7 @@ def get_db_connection() -> sqlite3.Connection:
     return conn
 
 
-def get_all_stocks() -> List[Dict]:
+def get_all_stocks() -> list[dict]:
     """获取所有股票基本信息"""
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -76,17 +78,20 @@ def get_all_stocks() -> List[Dict]:
     return stocks
 
 
-def get_recent_klines(ts_code: str, days: int = 60) -> List[Dict]:
+def get_recent_klines(ts_code: str, days: int = 60) -> list[dict]:
     """获取近期K线数据"""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT ts_code, trade_date, open, high, low, close, vol, pct_chg
         FROM daily_kline
         WHERE ts_code = ?
         ORDER BY trade_date DESC
         LIMIT ?
-    """, (ts_code, days))
+    """,
+        (ts_code, days),
+    )
 
     rows = cursor.fetchall()
     conn.close()
@@ -94,73 +99,76 @@ def get_recent_klines(ts_code: str, days: int = 60) -> List[Dict]:
     # 转换为升序
     data_list = []
     for i, row in enumerate(reversed(rows)):
-        prev_close = rows[len(rows)-i-2]['close'] if i < len(rows)-1 else row['close']
-        data_list.append({
-            'ts_code': row['ts_code'],
-            'trade_date': row['trade_date'],
-            'open': row['open'],
-            'high': row['high'],
-            'low': row['low'],
-            'close': row['close'],
-            'vol': row['vol'],
-            'pct_chg': row['pct_chg'],
-            'prev_close': prev_close,
-        })
+        prev_close = rows[len(rows) - i - 2]["close"] if i < len(rows) - 1 else row["close"]
+        data_list.append(
+            {
+                "ts_code": row["ts_code"],
+                "trade_date": row["trade_date"],
+                "open": row["open"],
+                "high": row["high"],
+                "low": row["low"],
+                "close": row["close"],
+                "vol": row["vol"],
+                "pct_chg": row["pct_chg"],
+                "prev_close": prev_close,
+            }
+        )
 
     return data_list
 
 
-def calculate_ma(prices: List[float], period: int) -> float:
+def calculate_ma(prices: list[float], period: int) -> float:
     """计算均线"""
     if len(prices) < period:
         return 0
     return sum(prices[-period:]) / period
 
 
-def calculate_vol_ma(vols: List[float], period: int) -> float:
+def calculate_vol_ma(vols: list[float], period: int) -> float:
     """计算量能均线"""
     if len(vols) < period:
         return 0
     return sum(vols[-period:]) / period
 
 
-def calculate_kdj(klines: List[Dict], period: int = 9) -> Tuple[float, float, float]:
+def calculate_kdj(klines: list[dict], period: int = 9) -> tuple[float, float, float]:
     """计算KDJ"""
     if len(klines) < period:
         return 50, 50, 50
 
     rsv_list = []
     for i in range(period - 1, len(klines)):
-        low_list = [klines[j]['low'] for j in range(i - period + 1, i + 1)]
-        high_list = [klines[j]['high'] for j in range(i - period + 1, i + 1)]
+        low_list = [klines[j]["low"] for j in range(i - period + 1, i + 1)]
+        high_list = [klines[j]["high"] for j in range(i - period + 1, i + 1)]
         low_min = min(low_list)
         high_max = max(high_list)
 
         if high_max == low_min:
             rsv = 50
         else:
-            rsv = (klines[i]['close'] - low_min) / (high_max - low_min) * 100
+            rsv = (klines[i]["close"] - low_min) / (high_max - low_min) * 100
         rsv_list.append(rsv)
 
     k = d = 50.0
     for rsv in rsv_list:
-        k = (2/3) * k + (1/3) * rsv
-        d = (2/3) * d + (1/3) * k
+        k = (2 / 3) * k + (1 / 3) * rsv
+        d = (2 / 3) * d + (1 / 3) * k
 
     j = 3 * k - 2 * d
     return round(k, 2), round(d, 2), round(j, 2)
 
 
-def calculate_bbi(klines: List[Dict]) -> float:
+def calculate_bbi(klines: list[dict]) -> float:
     """计算BBI"""
     if len(klines) < 24:
         return 0
-    closes = [k['close'] for k in klines]
-    return round((calculate_ma(closes, 3) + calculate_ma(closes, 6) +
-                 calculate_ma(closes, 12) + calculate_ma(closes, 24)) / 4, 2)
+    closes = [k["close"] for k in klines]
+    return round(
+        (calculate_ma(closes, 3) + calculate_ma(closes, 6) + calculate_ma(closes, 12) + calculate_ma(closes, 24)) / 4, 2
+    )
 
 
-def is_perfect_pattern(klines: List[Dict]) -> Tuple[bool, List[str]]:
+def is_perfect_pattern(klines: list[dict]) -> tuple[bool, list[str]]:
     """
     判断是否完美图形
 
@@ -175,21 +183,21 @@ def is_perfect_pattern(klines: List[Dict]) -> Tuple[bool, List[str]]:
 
     today = klines[-1]
     bbi = calculate_bbi(klines)
-    closes = [k['close'] for k in klines]
-    vols = [k['vol'] for k in klines]
+    closes = [k["close"] for k in klines]
+    vols = [k["vol"] for k in klines]
 
     reasons = []
     warnings = []
 
     # 1. BBI之上
-    if today['close'] > bbi:
+    if today["close"] > bbi:
         reasons.append("价格在BBI之上")
     else:
         warnings.append("价格在BBI下方")
 
     # 2. 缩量整理
     ma5_vol = calculate_vol_ma(vols, 5)
-    today_vol = today['vol']
+    today_vol = today["vol"]
     if today_vol < ma5_vol * 0.7:
         reasons.append("缩量整理")
     elif today_vol > ma5_vol * 1.5:
@@ -205,10 +213,10 @@ def is_perfect_pattern(klines: List[Dict]) -> Tuple[bool, List[str]]:
         warnings.append("均线空头")
 
     # 4. 非高位（距历史高点跌幅充分）
-    max_high = max(k['high'] for k in klines[-60:])
-    drop_ratio = (max_high - today['close']) / max_high
+    max_high = max(k["high"] for k in klines[-60:])
+    drop_ratio = (max_high - today["close"]) / max_high
     if drop_ratio > 0.3:
-        reasons.append(f"相对高点回调{drop_ratio*100:.0f}%")
+        reasons.append(f"相对高点回调{drop_ratio * 100:.0f}%")
     elif drop_ratio < 0.1:
         warnings.append("接近历史高位")
 
@@ -218,7 +226,7 @@ def is_perfect_pattern(klines: List[Dict]) -> Tuple[bool, List[str]]:
     return is_perfect, reasons
 
 
-def score_b1_opportunity(klines: List[Dict]) -> Tuple[float, List[str]]:
+def score_b1_opportunity(klines: list[dict]) -> tuple[float, list[str]]:
     """
     评估B1买点机会
 
@@ -230,8 +238,8 @@ def score_b1_opportunity(klines: List[Dict]) -> Tuple[float, List[str]]:
     today = klines[-1]
     k, d, j = calculate_kdj(klines)
     bbi = calculate_bbi(klines)
-    closes = [k['close'] for k in klines]
-    vols = [k['vol'] for k in klines]
+    closes = [k["close"] for k in klines]
+    vols = [k["vol"] for k in klines]
 
     score = 0
     reasons = []
@@ -248,32 +256,32 @@ def score_b1_opportunity(klines: List[Dict]) -> Tuple[float, List[str]]:
         reasons.append(f"J值: {j:.2f}")
 
     # 缩量回调加分
-    if today['vol'] < calculate_vol_ma(vols, 5) * 0.6:
+    if today["vol"] < calculate_vol_ma(vols, 5) * 0.6:
         score += 20
         reasons.append("缩量回调")
 
     # BBI下方（低位）
-    if today['close'] < bbi:
+    if today["close"] < bbi:
         score += 15
         reasons.append("BBI下方低位")
 
     # 价格在合理区间
     ma20 = calculate_ma(closes, 20)
     ma60 = calculate_ma(closes, 60)
-    if ma20 < today['close'] < ma60:
+    if ma20 < today["close"] < ma60:
         score += 15
         reasons.append("中期均线区间")
 
     # 风险提示
     if j > 0:
         score -= 10
-    if today['close'] > bbi * 1.05:
+    if today["close"] > bbi * 1.05:
         score -= 15
 
     return max(0, min(100, score)), reasons
 
 
-def score_trend(klines: List[Dict]) -> Tuple[float, str]:
+def score_trend(klines: list[dict]) -> tuple[float, str]:
     """
     评估趋势
 
@@ -282,7 +290,7 @@ def score_trend(klines: List[Dict]) -> Tuple[float, str]:
     if len(klines) < 20:
         return 50, "震荡"
 
-    closes = [k['close'] for k in klines]
+    closes = [k["close"] for k in klines]
     today = klines[-1]
     bbi = calculate_bbi(klines)
 
@@ -291,10 +299,10 @@ def score_trend(klines: List[Dict]) -> Tuple[float, str]:
     ma60 = calculate_ma(closes, 60)
 
     # 趋势判断
-    if ma5 > ma20 > ma60 and today['close'] > bbi:
+    if ma5 > ma20 > ma60 and today["close"] > bbi:
         direction = "上升"
-        score = 80 if today['pct_chg'] > 0 else 70
-    elif ma5 < ma20 < ma60 and today['close'] < bbi:
+        score = 80 if today["pct_chg"] > 0 else 70
+    elif ma5 < ma20 < ma60 and today["close"] < bbi:
         direction = "下降"
         score = 30
     else:
@@ -303,7 +311,7 @@ def score_trend(klines: List[Dict]) -> Tuple[float, str]:
 
     # 短期动能
     if len(klines) >= 5:
-        recent_pct = sum(k['pct_chg'] for k in klines[-5:])
+        recent_pct = sum(k["pct_chg"] for k in klines[-5:])
         if recent_pct > 10:
             score += 10
         elif recent_pct < -10:
@@ -312,7 +320,7 @@ def score_trend(klines: List[Dict]) -> Tuple[float, str]:
     return max(0, min(100, score)), direction
 
 
-def score_volume_pattern(klines: List[Dict]) -> Tuple[float, List[str]]:
+def score_volume_pattern(klines: list[dict]) -> tuple[float, list[str]]:
     """
     评估量价形态
     """
@@ -320,15 +328,15 @@ def score_volume_pattern(klines: List[Dict]) -> Tuple[float, List[str]]:
         return 50, ["数据不足"]
 
     today = klines[-1]
-    vols = [k['vol'] for k in klines]
+    vols = [k["vol"] for k in klines]
     vol_ma5 = calculate_vol_ma(vols, 5)
-    vol_ma10 = calculate_vol_ma(vols, 10)
+    calculate_vol_ma(vols, 10)
 
     score = 50
     reasons = []
 
     # 量比
-    vol_ratio = today['vol'] / vol_ma5
+    vol_ratio = today["vol"] / vol_ma5
     if vol_ratio >= 2:
         score += 20
         reasons.append(f"倍量(量比{vol_ratio:.1f}x)")
@@ -343,17 +351,17 @@ def score_volume_pattern(klines: List[Dict]) -> Tuple[float, List[str]]:
         reasons.append("量能正常")
 
     # 涨跌配合
-    if today['pct_chg'] > 3 and vol_ratio > 1.2:
+    if today["pct_chg"] > 3 and vol_ratio > 1.2:
         score += 15
         reasons.append("价涨量增(攻击形态)")
-    elif today['pct_chg'] < -3 and vol_ratio > 1.2:
+    elif today["pct_chg"] < -3 and vol_ratio > 1.2:
         score -= 15
         reasons.append("价跌量增(出货嫌疑)")
 
     return max(0, min(100, score)), reasons
 
 
-def score_risk(klines: List[Dict]) -> Tuple[float, List[str]]:
+def score_risk(klines: list[dict]) -> tuple[float, list[str]]:
     """
     评估风险
     """
@@ -362,14 +370,14 @@ def score_risk(klines: List[Dict]) -> Tuple[float, List[str]]:
 
     today = klines[-1]
     bbi = calculate_bbi(klines)
-    closes = [k['close'] for k in klines]
+    [k["close"] for k in klines]
 
     score = 100  # 初始100分，越高越安全
     warnings = []
 
     # 高位风险
-    max_high = max(k['high'] for k in klines[-60:])
-    drop_ratio = (max_high - today['close']) / max_high
+    max_high = max(k["high"] for k in klines[-60:])
+    drop_ratio = (max_high - today["close"]) / max_high
     if drop_ratio < 0.1:
         score -= 30
         warnings.append("接近历史高位")
@@ -378,21 +386,21 @@ def score_risk(klines: List[Dict]) -> Tuple[float, List[str]]:
         warnings.append("相对高位")
 
     # 跌破BBI风险
-    if today['close'] < bbi:
+    if today["close"] < bbi:
         score -= 20
         warnings.append("跌破BBI")
 
     # 放量阴线风险
-    for i in range(min(5, len(klines)-1)):
-        k = klines[-(i+1)]
-        prev = klines[-(i+2)] if i < len(klines)-2 else None
-        if prev and k['close'] < prev['close'] and k['vol'] > prev['vol'] * 1.5:
+    for i in range(min(5, len(klines) - 1)):
+        k = klines[-(i + 1)]
+        prev = klines[-(i + 2)] if i < len(klines) - 2 else None
+        if prev and k["close"] < prev["close"] and k["vol"] > prev["vol"] * 1.5:
             score -= 10
             warnings.append("近期有放量阴线")
             break
 
     # 连续下跌
-    recent_3_drop = sum(1 for k in klines[-3:] if k['close'] < k['prev_close'])
+    recent_3_drop = sum(1 for k in klines[-3:] if k["close"] < k["prev_close"])
     if recent_3_drop >= 3:
         score -= 15
         warnings.append("连续3天下跌")
@@ -400,7 +408,7 @@ def score_risk(klines: List[Dict]) -> Tuple[float, List[str]]:
     return max(0, min(100, score)), warnings
 
 
-def analyze_stock(ts_code: str, klines: Optional[List[Dict]] = None) -> StockScore:
+def analyze_stock(ts_code: str, klines: list[dict] | None = None) -> StockScore:
     """
     综合评分单只股票
     """
@@ -410,14 +418,14 @@ def analyze_stock(ts_code: str, klines: Optional[List[Dict]] = None) -> StockSco
     if not klines:
         return StockScore(ts_code=ts_code)
 
-    today = klines[-1]
+    klines[-1]
 
     # 获取股票名称
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT name FROM stock_basic WHERE ts_code = ?", (ts_code,))
     row = cursor.fetchone()
-    name = row['name'] if row else ts_code
+    name = row["name"] if row else ts_code
     conn.close()
 
     # 计算各项评分
@@ -431,41 +439,44 @@ def analyze_stock(ts_code: str, klines: Optional[List[Dict]] = None) -> StockSco
     kirin_stage = "未知"
     try:
         from .indicators import DailyData, detect_three_waves, detect_kirin_stage
+
         daily_klines = []
         for i, k in enumerate(klines):
-            prev_close = klines[i-1]['close'] if i > 0 else k['close']
-            daily_klines.append(DailyData(
-                ts_code=k['ts_code'],
-                trade_date=k['trade_date'],
-                open=k['open'],
-                high=k['high'],
-                low=k['low'],
-                close=k['close'],
-                vol=k['vol'],
-                amount=k.get('amount', k['close'] * k['vol']),
-                pct_chg=k.get('pct_chg', 0),
-                prev_close=prev_close,
-            ))
+            prev_close = klines[i - 1]["close"] if i > 0 else k["close"]
+            daily_klines.append(
+                DailyData(
+                    ts_code=k["ts_code"],
+                    trade_date=k["trade_date"],
+                    open=k["open"],
+                    high=k["high"],
+                    low=k["low"],
+                    close=k["close"],
+                    vol=k["vol"],
+                    amount=k.get("amount", k["close"] * k["vol"]),
+                    pct_chg=k.get("pct_chg", 0),
+                    prev_close=prev_close,
+                )
+            )
         wave = detect_three_waves(daily_klines)
-        wave_stage = wave['wave']
-        if wave_stage == '建仓波' and wave['confidence'] >= 0.5:
+        wave_stage = wave["wave"]
+        if wave_stage == "建仓波" and wave["confidence"] >= 0.5:
             b1_reasons.append(f"三波·建仓波(conf={wave['confidence']})")
-        elif wave_stage == '拉升波':
+        elif wave_stage == "拉升波":
             b1_reasons.append(f"三波·拉升波(conf={wave['confidence']})→等回调")
-        elif wave_stage == '冲刺波':
+        elif wave_stage == "冲刺波":
             risk_warnings.append(f"三波·冲刺波(conf={wave['confidence']})→不看")
             risk_score = max(0, risk_score - 20)
 
         kirin = detect_kirin_stage(daily_klines)
-        kirin_stage = kirin['stage']
-        if kirin_stage == '吸筹' and kirin['confidence'] >= 0.5:
+        kirin_stage = kirin["stage"]
+        if kirin_stage == "吸筹" and kirin["confidence"] >= 0.5:
             b1_reasons.append(f"麒麟会·吸筹({kirin['sub_type']}, conf={kirin['confidence']})")
-        elif kirin_stage == '拉升':
+        elif kirin_stage == "拉升":
             b1_reasons.append(f"麒麟会·拉升({kirin['sub_type']})→不追")
-        elif kirin_stage == '派发':
+        elif kirin_stage == "派发":
             risk_warnings.append(f"麒麟会·派发({kirin['sub_type']})→准备走人")
             risk_score = max(0, risk_score - 30)
-        elif kirin_stage == '回落':
+        elif kirin_stage == "回落":
             risk_warnings.append(f"麒麟会·回落({kirin['sub_type']})→不抄底")
             risk_score = max(0, risk_score - 15)
     except Exception:
@@ -482,11 +493,11 @@ def analyze_stock(ts_code: str, klines: Optional[List[Dict]] = None) -> StockSco
         b1_reasons.extend(perfect_reasons)
 
     # 三波/麒麟会加权调整
-    if wave_stage == '建仓波':
+    if wave_stage == "建仓波":
         total_score = min(100, total_score * 1.05)
-    elif wave_stage == '冲刺波' or kirin_stage == '派发':
+    elif wave_stage == "冲刺波" or kirin_stage == "派发":
         total_score = max(0, total_score * 0.7)
-    elif kirin_stage == '吸筹':
+    elif kirin_stage == "吸筹":
         total_score = min(100, total_score * 1.08)
 
     score = StockScore(
@@ -498,7 +509,7 @@ def analyze_stock(ts_code: str, klines: Optional[List[Dict]] = None) -> StockSco
         volume_score=round(volume_score, 1),
         risk_score=round(risk_score, 1),
         reasons=b1_reasons + volume_reasons,
-        warnings=risk_warnings
+        warnings=risk_warnings,
     )
 
     return score
@@ -506,7 +517,8 @@ def analyze_stock(ts_code: str, klines: Optional[List[Dict]] = None) -> StockSco
 
 # ==================== 并行化 Worker ====================
 
-def _analyze_worker(ts_code: str) -> Optional[Tuple[str, List[Dict], StockScore]]:
+
+def _analyze_worker(ts_code: str) -> tuple[str, list[dict], StockScore] | None:
     """
     并行 worker：评分单只股票
     必须在模块顶层定义，以便 ProcessPoolExecutor 可以 pickle
@@ -519,7 +531,7 @@ def _analyze_worker(ts_code: str) -> Optional[Tuple[str, List[Dict], StockScore]
     return ts_code, klines, score
 
 
-def _filter_stock(result: Tuple[str, List[Dict], StockScore], criteria: str) -> bool:
+def _filter_stock(result: tuple[str, list[dict], StockScore], criteria: str) -> bool:
     """
     判断单只股票是否满足选股条件
     在主进程串行执行（筛选逻辑快，不需要并行）
@@ -539,6 +551,7 @@ def _filter_stock(result: Tuple[str, List[Dict], StockScore], criteria: str) -> 
     # 高级选股策略（基于战法检测）
     elif criteria == "super_b1":
         from .strategies import detect_sb1
+
         for i in range(max(10, len(klines) - 5), len(klines)):
             sig = detect_sb1(klines, i)
             if sig:
@@ -546,13 +559,15 @@ def _filter_stock(result: Tuple[str, List[Dict], StockScore], criteria: str) -> 
                 return True
     elif criteria == "changan":
         from .strategies import detect_changan
+
         for i in range(max(3, len(klines) - 5), len(klines)):
             sig = detect_changan(klines, i)
             if sig:
-                score.reasons.append(f"长安战法 胜率75%")
+                score.reasons.append("长安战法 胜率75%")
                 return True
     elif criteria == "b2_breakout":
         from .strategies import detect_b2
+
         for i in range(max(15, len(klines) - 5), len(klines)):
             sig = detect_b2(klines, i)
             if sig:
@@ -560,42 +575,45 @@ def _filter_stock(result: Tuple[str, List[Dict], StockScore], criteria: str) -> 
                 return True
     elif criteria == "b3_consensus":
         from .strategies import detect_b3
+
         for i in range(max(20, len(klines) - 5), len(klines)):
             sig = detect_b3(klines, i)
             if sig:
-                score.reasons.append(f"B3分歧转一致")
+                score.reasons.append("B3分歧转一致")
                 return True
 
     # P2 指标选股策略
     elif criteria in ("build_wave", "xishou", "safe"):
         from .indicators import DailyData, detect_three_waves, detect_kirin_stage
+
         daily_klines = []
         for i, k in enumerate(klines):
-            prev_close = klines[i-1]['close'] if i > 0 else k['close']
-            daily_klines.append(DailyData(
-                ts_code=k['ts_code'],
-                trade_date=k['trade_date'],
-                open=k['open'],
-                high=k['high'],
-                low=k['low'],
-                close=k['close'],
-                vol=k['vol'],
-                amount=k.get('amount', k['close'] * k['vol']),
-                pct_chg=k.get('pct_chg', 0),
-                prev_close=prev_close,
-            ))
+            prev_close = klines[i - 1]["close"] if i > 0 else k["close"]
+            daily_klines.append(
+                DailyData(
+                    ts_code=k["ts_code"],
+                    trade_date=k["trade_date"],
+                    open=k["open"],
+                    high=k["high"],
+                    low=k["low"],
+                    close=k["close"],
+                    vol=k["vol"],
+                    amount=k.get("amount", k["close"] * k["vol"]),
+                    pct_chg=k.get("pct_chg", 0),
+                    prev_close=prev_close,
+                )
+            )
         wave = detect_three_waves(daily_klines)
         kirin = detect_kirin_stage(daily_klines)
 
-        if criteria == "build_wave" and wave['wave'] == '建仓波' and wave['confidence'] >= 0.5:
+        if criteria == "build_wave" and wave["wave"] == "建仓波" and wave["confidence"] >= 0.5:
             score.reasons.append(f"建仓波(conf={wave['confidence']})")
             return True
-        elif criteria == "xishou" and kirin['stage'] == '吸筹' and kirin['confidence'] >= 0.5:
+        elif criteria == "xishou" and kirin["stage"] == "吸筹" and kirin["confidence"] >= 0.5:
             score.reasons.append(f"吸筹({kirin['sub_type']}, conf={kirin['confidence']})")
             return True
         elif criteria == "safe":
-            is_safe = (wave['wave'] != '冲刺波' and
-                       kirin['stage'] not in ('派发', '回落'))
+            is_safe = wave["wave"] != "冲刺波" and kirin["stage"] not in ("派发", "回落")
             if is_safe:
                 score.reasons.append(f"安全：{wave['wave']}+{kirin['stage']}")
                 return True
@@ -603,8 +621,9 @@ def _filter_stock(result: Tuple[str, List[Dict], StockScore], criteria: str) -> 
     return False
 
 
-def screen_stocks(criteria: str = "b1", max_stocks: int = 0,
-                  max_workers: int = 0, use_parallel: bool = True) -> List[StockScore]:
+def screen_stocks(
+    criteria: str = "b1", max_stocks: int = 0, max_workers: int = 0, use_parallel: bool = True
+) -> list[StockScore]:
     """
     选股筛选（支持多进程并行）
 
@@ -631,13 +650,13 @@ def screen_stocks(criteria: str = "b1", max_stocks: int = 0,
     limit = max_stocks if max_stocks > 0 else 500
     stocks = stocks[:limit]
 
-    results: List[StockScore] = []
+    results: list[StockScore] = []
 
     # 小数据量时禁用并行（启动开销不值得）
     if not use_parallel or len(stocks) < _PARALLEL_THRESHOLD:
         # 串行模式
         for stock in stocks:
-            result = _analyze_worker(stock['ts_code'])
+            result = _analyze_worker(stock["ts_code"])
             if result and _filter_stock(result, criteria):
                 results.append(result[2])
     else:
@@ -645,13 +664,11 @@ def screen_stocks(criteria: str = "b1", max_stocks: int = 0,
         workers = max_workers or os.cpu_count() or 4
         try:
             from concurrent.futures import ProcessPoolExecutor, as_completed
-            ts_codes = [s['ts_code'] for s in stocks]
+
+            ts_codes = [s["ts_code"] for s in stocks]
 
             with ProcessPoolExecutor(max_workers=workers) as executor:
-                future_map = {
-                    executor.submit(_analyze_worker, ts_code): ts_code
-                    for ts_code in ts_codes
-                }
+                future_map = {executor.submit(_analyze_worker, ts_code): ts_code for ts_code in ts_codes}
                 for future in as_completed(future_map):
                     result = future.result()
                     if result and _filter_stock(result, criteria):
@@ -659,7 +676,7 @@ def screen_stocks(criteria: str = "b1", max_stocks: int = 0,
         except Exception:
             # 并行失败回退到串行
             for stock in stocks:
-                result = _analyze_worker(stock['ts_code'])
+                result = _analyze_worker(stock["ts_code"])
                 if result and _filter_stock(result, criteria):
                     results.append(result[2])
 
@@ -683,22 +700,25 @@ def get_market_status() -> MarketStatus:
         WHERE market IN ('主板')
         LIMIT 100
     """)
-    stocks = [row['ts_code'] for row in cursor.fetchall()]
+    stocks = [row["ts_code"] for row in cursor.fetchall()]
 
     rise_count = 0
     total_count = 0
 
     for ts_code in stocks[:20]:
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT pct_chg FROM daily_kline
             WHERE ts_code = ?
             ORDER BY trade_date DESC
             LIMIT 1
-        """, (ts_code,))
+        """,
+            (ts_code,),
+        )
         row = cursor.fetchone()
         if row:
             total_count += 1
-            if row['pct_chg'] > 0:
+            if row["pct_chg"] > 0:
                 rise_count += 1
 
     conn.close()
@@ -724,11 +744,7 @@ def get_market_status() -> MarketStatus:
         reasons = ["多空均衡", "观望为主"]
 
     return MarketStatus(
-        trade_date=today,
-        is_trading=True,
-        market_direction=direction,
-        market_strength=strength,
-        reasons=reasons
+        trade_date=today, is_trading=True, market_direction=direction, market_strength=strength, reasons=reasons
     )
 
 
@@ -736,9 +752,9 @@ def format_stock_score(score: StockScore) -> str:
     """格式化股票评分"""
     return f"""
 {score.ts_code} {score.name}
-{'='*50}
+{"=" * 50}
 综合评分: {score.score:.1f}/100 {score.rating}
-{'='*50}
+{"=" * 50}
 B1买点评分: {score.b1_score:.1f}
 趋势评分: {score.trend_score:.1f}
 量价评分: {score.volume_score:.1f}
@@ -752,15 +768,15 @@ B1买点评分: {score.b1_score:.1f}
 """
 
 
-def daily_workflow() -> Dict[str, Any]:
+def daily_workflow() -> dict[str, Any]:
     """
     每日五步工作流
 
     返回分析结果
     """
-    print("="*60)
+    print("=" * 60)
     print("Z哥 每日五步工作流")
-    print("="*60)
+    print("=" * 60)
 
     # Step 1: 择时（1分钟）
     print("\n[Step 1] 择时判断")
@@ -787,11 +803,11 @@ def daily_workflow() -> Dict[str, Any]:
     b1_stocks = screen_stocks("b1")[:5]
     perfect_stocks = screen_stocks("perfect")[:5]
 
-    print(f"B1买点机会 (TOP 5):")
+    print("B1买点机会 (TOP 5):")
     for i, s in enumerate(b1_stocks[:5], 1):
         print(f"  {i}. {s.ts_code} {s.name} 评分:{s.score:.0f}")
 
-    print(f"\n完美图形 (TOP 5):")
+    print("\n完美图形 (TOP 5):")
     for i, s in enumerate(perfect_stocks[:5], 1):
         print(f"  {i}. {s.ts_code} {s.name} 评分:{s.score:.0f}")
 
@@ -814,25 +830,38 @@ def daily_workflow() -> Dict[str, Any]:
 
 # ==================== 命令行工具 ====================
 
+
 def main():
     """命令行入口"""
     import argparse
 
     parser = argparse.ArgumentParser(description="Z哥 选股系统")
-    parser.add_argument("action", choices=["score", "screen", "workflow"],
-                        help="操作: score=单股评分, screen=选股, workflow=每日工作流")
+    parser.add_argument(
+        "action", choices=["score", "screen", "workflow"], help="操作: score=单股评分, screen=选股, workflow=每日工作流"
+    )
     parser.add_argument("--ts_code", help="股票代码")
-    parser.add_argument("--criteria", default="b1",
-                       choices=["b1", "perfect", "breakout", "oversold",
-                                "super_b1", "changan", "b2_breakout", "b3_consensus",
-                                "build_wave", "xishou", "safe"],
-                       help="选股条件")
+    parser.add_argument(
+        "--criteria",
+        default="b1",
+        choices=[
+            "b1",
+            "perfect",
+            "breakout",
+            "oversold",
+            "super_b1",
+            "changan",
+            "b2_breakout",
+            "b3_consensus",
+            "build_wave",
+            "xishou",
+            "safe",
+        ],
+        help="选股条件",
+    )
     parser.add_argument("--limit", type=int, default=10, help="返回数量")
     parser.add_argument("--max-stocks", type=int, default=0, help="最大扫描数量(0=全量)")
-    parser.add_argument("--workers", type=int, default=0,
-                       help="并行进程数，0=自动（CPU核心数）")
-    parser.add_argument("--no-parallel", action="store_true",
-                       help="禁用多进程并行")
+    parser.add_argument("--workers", type=int, default=0, help="并行进程数，0=自动（CPU核心数）")
+    parser.add_argument("--no-parallel", action="store_true", help="禁用多进程并行")
 
     args = parser.parse_args()
 
@@ -845,19 +874,20 @@ def main():
 
     elif args.action == "screen":
         import time
+
         start = time.time()
         results = screen_stocks(
             criteria=args.criteria,
             max_stocks=args.max_stocks,
             max_workers=args.workers,
-            use_parallel=not args.no_parallel
+            use_parallel=not args.no_parallel,
         )
         elapsed = time.time() - start
         mode = "并行" if not args.no_parallel and len(results) >= _PARALLEL_THRESHOLD else "串行"
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"选股结果 ({args.criteria}) 共{len(results)}只 | {mode}模式 | 耗时{elapsed:.1f}s")
-        print(f"{'='*60}")
-        for i, s in enumerate(results[:args.limit], 1):
+        print(f"{'=' * 60}")
+        for i, s in enumerate(results[: args.limit], 1):
             print(f"{i:2}. {s.ts_code} {s.name:<8} 评分:{s.score:5.1f}  B1:{s.b1_score:5.1f}")
             if s.reasons:
                 print(f"    利好: {', '.join(s.reasons[:2])}")
