@@ -15,7 +15,7 @@
 - **数据层**：Python 模块 + SQLite 数据库 + Tushare API（JNB 模式）
 - **语料基础**：约 467 篇直播/付费课整理文章（~200 万字）+ 13 个 ztalk 视频 transcript（~12.7 万字）+ 9 篇交易心理系列（~3.3 万字）+ 15 篇 2026.4-5 月新增文章
 - **许可证**：MIT
-- **版本**：当前 v2.10.0，采用语义化版本
+- **版本**：当前 v3.0.0，采用语义化版本
 
 ### 双模式架构
 
@@ -29,9 +29,9 @@
 ```
 Python 数据层（modules/）              LLM 角色层（SKILL.md）
 ├─ tushare_client.py     API 封装         ├─ 角色扮演规则
-├─ database.py           SQLite 管理       ├─ Agentic Protocol
-├─ data_sync.py          数据同步          ├─ 6 个核心心智模型
-├─ indicators/           60+ 技术指标      ├─ 30 条决策启发式
+├─ database.py           SQLite 管理       ├─ Agentic Protocol（含编排/分流逻辑）
+├─ data_sync.py          数据同步          ├─ 9 个核心心智模型（新增 3 个）
+├─ indicators/           60+ 技术指标      ├─ 44 条决策启发式（新增 14 条）
 │   ├─ core.py           基础/数学/核心指标 ├─ 表达 DNA
 │   ├─ price_patterns.py 价格形态识别      └─ 诚实边界
 │   ├─ volume_patterns.py 量价信号
@@ -49,6 +49,28 @@ Python 数据层（modules/）              LLM 角色层（SKILL.md）
 ├─ trade_reviewer.py     数据准备层（给 LLM 用）
 ├─ setup_wizard.py       初始化配置向导
 └─ trade_reviewer.py     交割单数据准备层（含 Z 哥话术常量）
+
+knowledge/（知识文件，新增 3 个）
+├─ trading-core.md       短线交易核心
+├─ indicators.md         技术指标
+├─ sell-discipline.md    卖出纪律
+├─ position-management.md 仓位管理
+├─ market-macro.md       宏观判断
+├─ stock-glossary.md     个股黑话
+├─ trend-lines.md        趋势线
+├─ exit-strategies.md    逃顶体系
+├─ key-candles.md        关键K
+├─ advanced-patterns.md  高级战法
+├─ portfolio-management.md 组合配置
+├─ trading-psychology.md 交易心理
+├─ breathing-theory.md   呼吸理论
+├─ three-best-principles.md 三最原则
+├─ iron-butterfly.md     铁蝴蝶识别
+├─ four-rhythms.md       四大节奏
+├─ six-tracks-2026.md    2026 赛道
+├─ life-decision.md      人生决策框架（新增）
+├─ career-development.md 职业发展框架（新增）
+└─ business-judgment.md  创业/商业判断框架（新增）
 ```
 
 **关键设计原则**：Python 层只负责**数据准备**，所有点评、分析话术由 LLM 用 Z哥角色生成，避免"AI味"。

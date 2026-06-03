@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)
-[![v2.10.0](https://img.shields.io/badge/version-2.10.0-green)](docs/CHANGELOG.md)
+[![v3.0.0](https://img.shields.io/badge/version-3.0.0-green)](docs/CHANGELOG.md)
 
 <br>
 
