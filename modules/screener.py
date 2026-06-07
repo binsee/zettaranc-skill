@@ -317,6 +317,21 @@ def score_trend(klines: list[dict]) -> tuple[float, str]:
         elif recent_pct < -10:
             score -= 10
 
+    # 牛绳理论
+    try:
+        from .indicators import detect_bull_rope
+
+        daily_klines = _dict_to_daily(klines)
+        rope = detect_bull_rope(daily_klines)
+        if rope.get("status") == "牵牛":
+            score = min(100, score + 10)
+            direction += " 牵牛"
+        elif rope.get("status") == "牛绳断":
+            score = max(0, score - 20)
+            direction += " 牛绳断"
+    except Exception:
+        pass
+
     return max(0, min(100, score)), direction
 
 
@@ -359,6 +374,30 @@ def score_volume_pattern(klines: list[dict]) -> tuple[float, list[str]]:
         reasons.append("价跌量增(出货嫌疑)")
 
     return max(0, min(100, score)), reasons
+
+
+def _dict_to_daily(klines: list[dict]) -> list:
+    """将 dict 格式 K 线转为 DailyData 列表"""
+    from .indicators import DailyData
+
+    result = []
+    for i, k in enumerate(klines):
+        prev_close = klines[i - 1]["close"] if i > 0 else k["close"]
+        result.append(
+            DailyData(
+                ts_code=k["ts_code"],
+                trade_date=k["trade_date"],
+                open=k["open"],
+                high=k["high"],
+                low=k["low"],
+                close=k["close"],
+                vol=k["vol"],
+                amount=k.get("amount", k["close"] * k["vol"]),
+                pct_chg=k.get("pct_chg", 0),
+                prev_close=prev_close,
+            )
+        )
+    return result
 
 
 def score_risk(klines: list[dict]) -> tuple[float, list[str]]:
@@ -405,6 +444,18 @@ def score_risk(klines: list[dict]) -> tuple[float, list[str]]:
         score -= 15
         warnings.append("连续3天下跌")
 
+    # 蜈蚣图检测（呼吸紊乱 = 高风险）
+    try:
+        from .indicators import detect_centipede_pattern
+
+        daily_klines = _dict_to_daily(klines)
+        centipede = detect_centipede_pattern(daily_klines)
+        if centipede.get("is_centipede"):
+            score -= 30
+            warnings.append(f"蜈蚣图({centipede['score']:.0f}分)")
+    except Exception:
+        pass
+
     return max(0, min(100, score)), warnings
 
 
@@ -438,25 +489,9 @@ def analyze_stock(ts_code: str, klines: list[dict] | None = None) -> StockScore:
     wave_stage = "未知"
     kirin_stage = "未知"
     try:
-        from .indicators import DailyData, detect_three_waves, detect_kirin_stage
+        from .indicators import detect_three_waves, detect_kirin_stage
 
-        daily_klines = []
-        for i, k in enumerate(klines):
-            prev_close = klines[i - 1]["close"] if i > 0 else k["close"]
-            daily_klines.append(
-                DailyData(
-                    ts_code=k["ts_code"],
-                    trade_date=k["trade_date"],
-                    open=k["open"],
-                    high=k["high"],
-                    low=k["low"],
-                    close=k["close"],
-                    vol=k["vol"],
-                    amount=k.get("amount", k["close"] * k["vol"]),
-                    pct_chg=k.get("pct_chg", 0),
-                    prev_close=prev_close,
-                )
-            )
+        daily_klines = _dict_to_daily(klines)
         wave = detect_three_waves(daily_klines)
         wave_stage = wave["wave"]
         if wave_stage == "建仓波" and wave["confidence"] >= 0.5:
@@ -482,6 +517,21 @@ def analyze_stock(ts_code: str, klines: list[dict] | None = None) -> StockScore:
     except Exception:
         pass
 
+    # ========== P3 指标：沙漏评分 ==========
+    sandglass_score = 0
+    sandglass_is_perfect = False
+    try:
+        from .indicators import calculate_sandglass_score
+
+        daily_klines = _dict_to_daily(klines)
+        sg = calculate_sandglass_score(daily_klines)
+        sandglass_score = sg.get("score", 0)
+        sandglass_is_perfect = sg.get("is_perfect", False)
+        if sandglass_is_perfect:
+            b1_reasons.append(f"沙漏完美图形({sandglass_score:.0f}分)")
+    except Exception:
+        pass
+
     # 综合评分（加权平均）
     # B1机会 30% + 趋势 25% + 量价 25% + 风险 20%
     total_score = b1_score * 0.3 + trend_score * 0.25 + volume_score * 0.25 + risk_score * 0.2
@@ -499,6 +549,10 @@ def analyze_stock(ts_code: str, klines: list[dict] | None = None) -> StockScore:
         total_score = max(0, total_score * 0.7)
     elif kirin_stage == "吸筹":
         total_score = min(100, total_score * 1.08)
+
+    # 沙漏完美图形加分
+    if sandglass_is_perfect:
+        total_score = min(100, total_score + 10)
 
     score = StockScore(
         ts_code=ts_code,
@@ -537,6 +591,28 @@ def _filter_stock(result: tuple[str, list[dict], StockScore], criteria: str) -> 
     在主进程串行执行（筛选逻辑快，不需要并行）
     """
     ts_code, klines, score = result
+
+    # 蜈蚣图硬过滤：呼吸紊乱的票直接排除
+    try:
+        from .indicators import detect_centipede_pattern
+
+        daily = _dict_to_daily(klines)
+        cp = detect_centipede_pattern(daily)
+        if cp.get("is_centipede"):
+            return False
+    except Exception:
+        pass
+
+    # 沙漏评分硬过滤：< 50 分的票质量太差（回测验证：沙漏≥69 的票胜率显著更高）
+    try:
+        from .indicators import calculate_sandglass_score
+
+        daily = _dict_to_daily(klines)
+        sg = calculate_sandglass_score(daily)
+        if sg.get("score", 0) < 50:
+            return False
+    except Exception:
+        pass
 
     # 基础选股策略
     if criteria == "b1" and score.b1_score >= 50:
@@ -584,25 +660,9 @@ def _filter_stock(result: tuple[str, list[dict], StockScore], criteria: str) -> 
 
     # P2 指标选股策略
     elif criteria in ("build_wave", "xishou", "safe"):
-        from .indicators import DailyData, detect_three_waves, detect_kirin_stage
+        from .indicators import detect_three_waves, detect_kirin_stage
 
-        daily_klines = []
-        for i, k in enumerate(klines):
-            prev_close = klines[i - 1]["close"] if i > 0 else k["close"]
-            daily_klines.append(
-                DailyData(
-                    ts_code=k["ts_code"],
-                    trade_date=k["trade_date"],
-                    open=k["open"],
-                    high=k["high"],
-                    low=k["low"],
-                    close=k["close"],
-                    vol=k["vol"],
-                    amount=k.get("amount", k["close"] * k["vol"]),
-                    pct_chg=k.get("pct_chg", 0),
-                    prev_close=prev_close,
-                )
-            )
+        daily_klines = _dict_to_daily(klines)
         wave = detect_three_waves(daily_klines)
         kirin = detect_kirin_stage(daily_klines)
 

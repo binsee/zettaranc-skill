@@ -143,7 +143,7 @@ def backtest_shaofu_single(
 
     # 2. 创建引擎并运行
     engine = ShaofuLoopEngine(config)
-    trades = engine.run_stock(ts_code, klines)
+    trades = engine.run_stock(klines, ts_code=ts_code)
 
     if not trades:
         return result

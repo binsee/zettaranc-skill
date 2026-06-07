@@ -65,38 +65,38 @@ def make_klines_seq(prices, base_date="20260101", vol=10000.0):
     return klines
 
 
-# ========== TestBbiBreakStreak ==========
+# ========== TestBbiBreakStreak（通用连续跌破检测） ==========
 
 
 class TestBbiBreakStreak:
-    """BBI 连续跌破检测测试"""
+    """连续跌破检测测试（可用于 BBI 或白线）"""
 
     def test_no_break(self):
-        """5 天 close 全在 BBI 之上 → False"""
-        bbi_values = [100.0, 100.0, 100.0, 100.0, 100.0]
+        """5 天 close 全在参考线之上 → False"""
+        ref_values = [100.0, 100.0, 100.0, 100.0, 100.0]
         closes = [105.0, 106.0, 107.0, 108.0, 109.0]
-        result = detect_bbi_break_streak(closes, bbi_values, days=2)
+        result = detect_bbi_break_streak(closes, ref_values, days=2)
         assert result is False
 
     def test_two_day_break(self):
-        """最后 2 天 close < BBI → True"""
-        bbi_values = [100.0, 100.0, 100.0, 100.0, 100.0]
+        """最后 2 天 close < 参考线 → True"""
+        ref_values = [100.0, 100.0, 100.0, 100.0, 100.0]
         closes = [105.0, 106.0, 107.0, 95.0, 94.0]
-        result = detect_bbi_break_streak(closes, bbi_values, days=2)
+        result = detect_bbi_break_streak(closes, ref_values, days=2)
         assert result is True
 
     def test_one_day_break_not_enough(self):
         """只有 1 天跌破 → False"""
-        bbi_values = [100.0, 100.0, 100.0, 100.0, 100.0]
+        ref_values = [100.0, 100.0, 100.0, 100.0, 100.0]
         closes = [105.0, 106.0, 107.0, 108.0, 95.0]
-        result = detect_bbi_break_streak(closes, bbi_values, days=2)
+        result = detect_bbi_break_streak(closes, ref_values, days=2)
         assert result is False
 
     def test_insufficient_data(self):
         """数据不足 days 天 → False"""
-        bbi_values = [100.0]
+        ref_values = [100.0]
         closes = [95.0]
-        result = detect_bbi_break_streak(closes, bbi_values, days=2)
+        result = detect_bbi_break_streak(closes, ref_values, days=2)
         assert result is False
 
 
@@ -193,52 +193,51 @@ class TestCheckLuZhu:
     """卤煮止盈测试"""
 
     def test_lu_zhu_triggered(self):
-        """在 BBI 之上 + 连续 2 根阳线 → 卤煮触发"""
+        """在白线之上 + 连续 2 根阳线 → 卤煮触发"""
         engine = ShaofuLoopEngine()
-        bbi = 100.0
-        # 两根阳线，收盘价递增
+        white_line = 100.0
         candle1 = make_kline(price=102.0, prev_close=100.0)
         candle2 = make_kline(price=104.0, prev_close=102.0)
         recent_klines = [candle1, candle2]
-        assert engine.check_lu_zhu(recent_klines, bbi) is True
+        assert engine.check_lu_zhu(recent_klines, white_line) is True
 
     def test_lu_zhu_not_triggered(self):
-        """在 BBI 之上但只有 1 根阳线 → 未触发"""
+        """在白线之上但只有 1 根阳线 → 未触发"""
         engine = ShaofuLoopEngine()
-        bbi = 100.0
+        white_line = 100.0
         candle1 = make_kline(price=102.0, prev_close=100.0)
         recent_klines = [candle1]
-        assert engine.check_lu_zhu(recent_klines, bbi) is False
+        assert engine.check_lu_zhu(recent_klines, white_line) is False
 
-    def test_lu_zhu_below_bbi(self):
-        """价格在 BBI 之下 → 未触发"""
+    def test_lu_zhu_below_white_line(self):
+        """价格在白线之下 → 未触发"""
         engine = ShaofuLoopEngine()
-        bbi = 110.0
+        white_line = 110.0
         candle1 = make_kline(price=102.0, prev_close=100.0)
         candle2 = make_kline(price=104.0, prev_close=102.0)
         recent_klines = [candle1, candle2]
-        assert engine.check_lu_zhu(recent_klines, bbi) is False
+        assert engine.check_lu_zhu(recent_klines, white_line) is False
 
 
-# ========== TestCheckBbiExit ==========
+# ========== TestCheckWhiteLineExit ==========
 
 
-class TestCheckBbiExit:
-    """BBI 出场检测测试"""
+class TestCheckWhiteLineExit:
+    """白线出场检测测试"""
 
-    def test_bbi_exit_triggered(self):
-        """连续 2 天收盘低于 BBI → 触发出场"""
+    def test_white_line_exit_triggered(self):
+        """连续 2 天收盘低于白线 → 触发出场"""
         engine = ShaofuLoopEngine()
-        bbi_values = [100.0, 100.0]
+        white_values = [100.0, 100.0]
         closes = [95.0, 94.0]
-        assert engine.check_bbi_exit(closes, bbi_values) is True
+        assert engine.check_white_line_exit(closes, white_values) is True
 
-    def test_bbi_exit_not_triggered(self):
-        """只有 1 天低于 BBI → 未触发"""
+    def test_white_line_exit_not_triggered(self):
+        """只有 1 天低于白线 → 未触发"""
         engine = ShaofuLoopEngine()
-        bbi_values = [100.0, 100.0]
+        white_values = [100.0, 100.0]
         closes = [95.0, 101.0]
-        assert engine.check_bbi_exit(closes, bbi_values) is False
+        assert engine.check_white_line_exit(closes, white_values) is False
 
 
 # ========== TestRunStock ==========
@@ -258,7 +257,7 @@ class TestRunStock:
         assert len(trades) == 0
 
     def test_full_cycle(self):
-        """B1 入场 → 持仓 → BBI 跌破出场 → 验证交易记录"""
+        """B1 入场 → 持仓 → 白线跌破出场 → 验证交易记录"""
         engine = ShaofuLoopEngine()
         # 前 60 天震荡上行
         prices = [100 + i * 0.2 for i in range(60)]
@@ -271,7 +270,7 @@ class TestRunStock:
         for i in range(10):
             last_price *= 1.02
             prices.append(last_price)
-        # 10 天跌破 BBI
+        # 10 天跌破白线
         for i in range(10):
             last_price *= 0.97
             prices.append(last_price)
@@ -314,7 +313,7 @@ class TestRunStock:
             assert t.exit_price < t.entry_price
 
     def test_lu_zhu_cycle(self):
-        """入场 → 价格上涨 → 卤煮触发（部分减仓）→ BBI 跌破 → 全部出场"""
+        """入场 → 价格上涨 → 卤煮触发（部分减仓）→ 白线跌破 → 全部出场"""
         engine = ShaofuLoopEngine()
         # 先涨 60 天
         prices = [100 + i * 0.3 for i in range(60)]
@@ -323,11 +322,11 @@ class TestRunStock:
         for i in range(20):
             last_price *= 0.96
             prices.append(last_price)
-        # 强反弹 15 天（卤煮条件：BBI 之上 + 连续阳线）
+        # 强反弹 15 天（卤煮条件：白线之上 + 连续阳线）
         for i in range(15):
             last_price *= 1.03
             prices.append(last_price)
-        # 跌破 BBI
+        # 跌破白线
         for i in range(10):
             last_price *= 0.96
             prices.append(last_price)
@@ -337,4 +336,4 @@ class TestRunStock:
         for t in trades:
             assert isinstance(t, LoopTrade)
             assert t.entry_date <= t.exit_date
-            assert t.exit_reason in ("止损", "卤煮止盈", "BBI跌破", "止盈", "未知")
+            assert t.exit_reason in ("止损", "卤煮止盈", "白线跌破", "白线死叉黄线", "数据末尾", "未知")

@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)
-[![v3.0.0](https://img.shields.io/badge/version-3.0.0-green)](docs/CHANGELOG.md)
+[![v3.1.0](https://img.shields.io/badge/version-3.1.0-green)](docs/CHANGELOG.md)
 
 <br>
 
@@ -19,9 +19,9 @@
 
 ---
 
-## v2.10.0 能做什么
+## v3.1.0 能做什么
 
-> **不只是炒股工具，是多场景智能决策系统。**
+> **不只是炒股工具，是多场景智能决策系统。宿主（Claude Code / Cursor）可直接调用 CLI 工具获取真实数据。**
 
 ### 数据规模
 
@@ -34,15 +34,16 @@
 | financial_data | 2,733 | 财报数据（含 PE/PB/PS） |
 | tushare_indicator_cache | 12,554 | Tushare 官方指标（diff 验证用） |
 
-### 五大核心能力
+### 六大核心能力
 
 | 能力 | 说明 | 示例 |
 |------|------|------|
 | **🎯 意图识别** | 自动识别 stock/career/life/chat 四种意图，路由到对应角色框架 | `python -m modules.intent_chat "B1 买点怎么判断"` |
-| **📊 股票分析** | 60+ 技术指标实时计算，战法自动识别 | `python -m modules.cli analyze 600487.SH` |
-| **📈 策略回测** | 单策略 / 多策略组合回测，资金曲线 + 夏普比率 | `from modules.backtest import backtest_multi_strategy` |
-| **🔍 智能选股** | 曼城评分体系全市场扫描，B1/B2/B3 信号自动筛选 | `python -m modules.cli screen --strategy B1 --limit 20` |
-| **👁️ 观察池管理** | 自选股批量监控，每日信号扫描 + 报告生成 | `python -m modules.cli watchlist scan` |
+| **📊 股票分析** | 60+ 技术指标实时计算，战法自动识别，支持 `--json` 输出 | `zt analyze 600487.SH --json` |
+| **📈 策略回测** | 少妇战法六步闭环 / 多策略融合 / 组合回测 | `zt backtest shaofu 600487.SH` |
+| **🔍 智能选股** | 曼城评分 + 蜈蚣图过滤 + 沙漏评分 + 牛绳判断 | `zt screen --strategy B1 --limit 20` |
+| **👁️ 观察池管理** | 自选股批量监控，每日信号扫描 + 报告生成 | `zt watchlist scan --json` |
+| **🤖 宿主集成** | 所有 CLI 命令支持 `--json`，宿主可直接调用获取结构化数据 | `zt daily --json` |
 
 ### 完整功能清单
 
@@ -71,6 +72,12 @@
 - ✅ KDJ / MACD / BBI / RSI / WR / 布林带 / DMI
 - ✅ 双线战法（白线+黄线）/ 单针下 20 / 砖形图
 - ✅ 量比 / 资金流向 / 筹码分布
+
+**P3 新指标（v3.1.0）**
+- ✅ 蜈蚣图识别：5 因子评分（长上影/长下影/十字星/量能无规律/价格无趋势），≥60 分判定为呼吸紊乱
+- ✅ 牛绳理论量化：牵牛/牛绳断/金叉/死叉 + 缺口百分比 + 白线趋势
+- ✅ 量比战法引擎：6 种场景判定（攻击日/出货日/单向拉升/正常震荡/弱势日/超级攻击）
+- ✅ 沙漏评分 V9：5 因子评分（缩量收敛/枢轴邻近/量能斜率/均线结构/事件风险），≥80 分为完美图形
 
 **战法识别（30+）**
 - ✅ B1 / B2 / B3 / SB1 / 超级 B1
@@ -149,7 +156,7 @@ python -m modules.data_sync sync --ts_code 600487.SH --days 120
 ### 4. 验证
 
 ```bash
-# 运行测试（367 passed, 10 skipped）
+# 运行测试（543 passed, 10 skipped）
 python -m pytest tests/ -v
 
 # 分析一只股票
@@ -157,6 +164,9 @@ python -m modules.cli analyze 600487.SH
 
 # 选股扫描
 python -m modules.cli screen --strategy B1 --limit 20
+
+# 少妇战法回测
+python -m modules.cli backtest shaofu 600487.SH --days 250
 ```
 
 ---
@@ -221,6 +231,51 @@ python -m modules.cli diagnose 600487.SH
 
 # 指定诊断天数
 python -m modules.cli diagnose 600487.SH --days 100
+
+# JSON 输出（宿主可直接解析）
+python -m modules.cli diagnose 600487.SH --json
+```
+
+### 策略回测
+
+```bash
+# 少妇战法六步闭环回测
+python -m modules.cli backtest shaofu 600487.SH --days 250
+
+# 多策略融合回测
+python -m modules.cli backtest multi 600487.SH --strategy b1,b2
+
+# 多股票组合回测
+python -m modules.cli backtest portfolio 600487.SH,601318.SH
+
+# JSON 输出
+python -m modules.cli backtest shaofu 600487.SH --json
+```
+
+### 交易记录
+
+```bash
+# 记录交易（口语化输入）
+python -m modules.cli trade add "4月25号买了100股茅台，1800块"
+
+# 查看交易记录
+python -m modules.cli trade list
+
+# 复盘
+python -m modules.cli trade review
+
+# 统计
+python -m modules.cli trade stats
+```
+
+### 每日工作流
+
+```bash
+# 执行五步工作流（扫描观察池 + 选股 + 持仓检查 + 信号汇总 + 报告）
+python -m modules.cli daily
+
+# JSON 输出
+python -m modules.cli daily --json
 ```
 
 ### 数据同步
@@ -285,6 +340,20 @@ portfolio_result = backtest_portfolio(
     days=120,
     max_weight=0.4  # 单股上限40%
 )
+```
+
+### 少妇战法六步回测
+
+```python
+from modules.backtest_six_step import backtest_shaofu_single, backtest_shaofu_portfolio
+
+# 单股票回测（择时→选股→等B1→止损→卤煮止盈→BBI离场）
+result = backtest_shaofu_single("600487.SH", days=250)
+print(f"交易: {result.total_trades}笔  胜率: {result.win_rate:.1%}")
+print(f"收益: {result.total_return:+.1f}%  夏普: {result.sharpe_ratio:.2f}")
+
+# 组合回测
+portfolio = backtest_shaofu_portfolio(["600519.SH", "601318.SH", "000858.SZ"])
 ```
 
 ### 选股
@@ -358,11 +427,14 @@ zettaranc-skill/
 │   │   ├── kirin_detector.py   # 麒麟会四阶段（吸筹/拉升/派发/回落）
 │   │   └── data_layer.py       # 数据接入 + 缓存层 + 可视化
 │   ├── strategies/             # 30+ 战法识别引擎（6 子模块）
-│   ├── screener.py             # 选股评分体系
+│   ├── screener.py             # 选股评分体系（含蜈蚣图/沙漏/牛绳过滤）
 │   ├── backtest.py             # 策略组合回测框架
-│   ├── portfolio_diagnosis.py  # 持股检查端到端
+│   ├── backtest_six_step.py    # 少妇战法六步闭环回测
+│   ├── loop_engine.py          # 六步闭环状态机（择时→选股→B1→止损→卤煮→BBI离场）
+│   ├── portfolio_diagnosis.py  # 持股检查端到端（含蜈蚣图/牛绳/沙漏诊断）
 │   ├── watchlist.py            # 自选股观察池
-│   ├── cli.py                  # 命令行工具入口
+│   ├── cli.py                  # 命令行工具入口（analyze/screen/backtest/trade/daily）
+│   ├── cli_commands.py         # 扩展命令（backtest/trade/daily）
 │   ├── intent_router.py        # 意图识别与路由（v2.8.0 新增）
 │   ├── knowledge_retriever.py  # 向量知识库检索适配器（v2.8.0 新增）
 │   ├── intent_chat.py          # 意图聊天界面（v2.8.0 新增）
@@ -373,7 +445,7 @@ zettaranc-skill/
 │   ├── setup_wizard.py         # 初始化配置向导
 │   └── trade_reviewer.py       # 交割单数据准备层（含 Z 哥话术常量）
 ├── knowledge/                  # 知识文档（14篇交易体系）
-├── tests/                      # 单元测试（pytest，367 用例，21 个测试文件）
+├── tests/                      # 单元测试（pytest，543 用例，24 个测试文件）
 ├── scripts/                    # 工具脚本（薄壳，业务逻辑在 modules/）
 │   ├── _common.py              # 共享工具（load_watchlist 等）
 │   ├── sync_watchlist.py       # 同步缺失的自选股 K 线
@@ -400,24 +472,56 @@ zettaranc-skill/
 | `trade_records` | 交易记录 | action, price, quantity, reason, zg_review |
 | `watchlist` | 自选股观察池 | ts_code, name, tags, add_date |
 
+### 回测数据（v3.1.0 真实数据验证）
+
+**测试环境**：20 只 A 股（000001.SZ ~ 000032.SZ），484 天 K 线，回测 250 天。
+
+**少妇战法六步闭环**（J≤12 + 缩量 + N型上移 + 最少持仓3天 + BBI跌破1%阈值）：
+
+| 指标 | 数值 |
+|------|------|
+| 总交易 | 120 笔 |
+| 胜率 | 35.0%（42/120） |
+| 总收益 | +81.4%（20 只股票合计） |
+| 平均持仓 | 5 天 |
+| 有交易股票 | 20/20 |
+
+**多策略融合回测**（B1+B2+B3，10 只头部股票）：
+
+| 指标 | 数值 |
+|------|------|
+| 平均胜率 | 52.1% |
+| 平均累计收益 | +2.5% |
+| 平均夏普比率 | 0.31 |
+| 平均最大回撤 | 4.7% |
+| 最高收益 | 深中华A +12.0% |
+| 最高夏普 | 深粮控股 1.32 |
+
+**关键发现**：
+- 沙漏评分是最有效的选股过滤器：≥69 分的 7 只股票中 5 只赚钱（万科 +16.9%、沙河 +21.5%、深中华 +17.5%、深科技 +19.4%、深圳能源 +13.5%）
+- 蜈蚣图≥60 分的票表现两极化，不能单独作为硬过滤
+- BBI 离场需要最少持仓天数保护，否则次日就被震出
+
 ### 关键设计原则
 
-**Python 层只做数据准备，所有点评由 LLM 用 Z哥角色生成。**
+**Python 层只做数据准备，所有点评由 LLM 用 Z哥角色生成。宿主通过 CLI `--json` 获取结构化数据。**
 
 ```
-用户输入 → 意图识别 → 规则匹配 → 角色框架（SKILL.md / career / life）
-                                ↓
-                    知识库检索（可选，Qdrant RAG）
-                                ↓
-                    系统提示组装
-                                ↓
-                    LLM 生成（可选，MiniMax / OpenAI 兼容）
-                                ↓
-                              回复
+用户输入 → 宿主(Claude Code/Cursor) → 调用 CLI 工具(zt analyze/screen/backtest --json)
+                                            ↓
+                                    Python 层执行真实计算
+                                            ↓
+                                    JSON 结构化数据返回宿主
+                                            ↓
+                                    宿主用 Z哥口吻包装回复
 
 Tushare API → data_sync → SQLite → indicators/ → strategies/ → backtest/
-                                                        ↓
-                                              SKILL.md (LLM 角色层)
+                                              ↓
+                                    screener（蜈蚣图/沙漏/牛绳过滤）
+                                              ↓
+                                    loop_engine（少妇六步闭环）
+                                              ↓
+                                    SKILL.md (LLM 角色层 + 工具描述)
 ```
 
 ---
@@ -427,7 +531,7 @@ Tushare API → data_sync → SQLite → indicators/ → strategies/ → backtes
 ### 问：帮我分析一下亨通光电
 
 ```
-用户 > python -m modules.cli analyze 600487.SH
+用户 > zt analyze 600487.SH
 
 zettaranc ❯ 亨通光电，22.81，跌了1.76%。
 
@@ -439,6 +543,10 @@ zettaranc ❯ 亨通光电，22.81，跌了1.76%。
 
          如果你还拿着，现在不是加仓的时候，是先防守。
          等站稳再说。
+
+         综合评分：72.5 ★★★★☆ 推荐
+         牛绳理论：牵牛（缺口+4.1%，白线上升）
+         沙漏评分：72/100
 ```
 
 ### 问：B1买点现在还能买吗？
@@ -471,6 +579,24 @@ zettaranc ❯ 辞职全职炒股？兄弟，我劝你慎重。
          选择大于努力。但选择之前，先把基本功练扎实。
 ```
 
+### 问：回测一下万科A
+
+```
+用户 > zt backtest shaofu 000002.SZ --days 250
+
+zettaranc ❯ 万科A，跑了250天的回测：
+
+         8笔交易，6笔赚钱，胜率75%。
+         累计收益+16.9%，平均持仓7天。
+
+         赚钱的关键是什么？沙漏评分72分，图形质量不错。
+         B1信号出现时，牛绳虽然断了，但缩量回调到位，
+         N型结构也形成了，所以入场时机抓得准。
+
+         止损只触发了2次，说明入场点选得好，
+         不是靠扛，是靠等。
+```
+
 ---
 
 ## 语料基础
@@ -492,6 +618,8 @@ zettaranc ❯ 辞职全职炒股？兄弟，我劝你慎重。
 
 | 版本 | 核心变化 |
 |------|---------|
+| **v3.1.0** | P3 指标补完（蜈蚣图/牛绳/量比战法/沙漏V9）、少妇六步闭环引擎、CLI --json 输出 + backtest/trade/daily 新命令、screener 集成新指标、真实数据回测验证 |
+| **v3.0.0** | 编排模式 + 人生/创业蒸馏 + 双维度扩展 + 14 条决策启发式 |
 | **v2.10.0** | CLI 3 bug 修复 + zt 统一入口、6 脚本薄壳化（-94%）、5 CI job + pre-commit 护栏、501 测试、代码审查、废弃模块清理 |
 | **v2.9.0** | 60x 指标计算提速（Pandas 向量化）、10x-50x 写入提速（executemany）、多线程并发拉取、模块解耦 |
 | **v2.7.0** | 数据层充实（真实财报/PE/PB/PS/资金流全量入库）、SAT/UAT 测试体系、策略 DB 路径修复、使用手册 |
