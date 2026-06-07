@@ -1159,6 +1159,114 @@ def detect_nana_chart(klines: list[DailyData]) -> dict:
     return result
 
 
+def detect_bull_rope(klines: list[DailyData]) -> dict:
+    """
+    牛绳理论量化检测
+
+    核心逻辑（源自 Z 哥语料 trend-lines.md）：
+    - 白线在黄线上 = 主力牵着牛绳，任何下跌都是洗盘
+    - 白线在黄线下 = 牛绳断了，任何上涨都是反弹
+
+    状态判定：
+    - 牵牛：白线 > 黄线 且 白线在上升（white[-1] > white[-3]）
+    - 牛绳断：白线 < 黄线
+    - 金叉：白线从下方刚上穿黄线（今日白>黄，昨日白<=黄）
+    - 死叉：白线从上方刚下穿黄线（今日白<黄，昨日白>=黄）
+
+    Args:
+        klines: K线数据（至少120根）
+
+    Returns:
+        {
+            'status': '牵牛' | '牛绳断' | '金叉' | '死叉',
+            'white': 当前白线值,
+            'yellow': 当前黄线值,
+            'gap_pct': 白黄差距百分比（正=多头缺口）,
+            'white_trend': '上升' | '下降' | '横盘',
+            'is_bullish': bool,
+            'is_bearish': bool,
+        }
+    """
+    result: dict[str, Any] = {
+        "status": "牛绳断",
+        "white": 0.0,
+        "yellow": 0.0,
+        "gap_pct": 0.0,
+        "white_trend": "横盘",
+        "is_bullish": False,
+        "is_bearish": True,
+    }
+
+    if len(klines) < 120:
+        return result
+
+    # 计算最近几天的白线和黄线历史值（需要至少3天来判断交叉和趋势）
+    white_values: list[float] = []
+    yellow_values: list[float] = []
+
+    for i in range(114, len(klines) + 1):
+        sub = klines[:i]
+        w = calculate_zg_white(sub)
+        y = calculate_dg_yellow(sub)
+        if w > 0 and y > 0:
+            white_values.append(w)
+            yellow_values.append(y)
+
+    if len(white_values) < 3:
+        return result
+
+    w_now = white_values[-1]
+    w_prev = white_values[-2]
+    w_prev2 = white_values[-3]
+    y_now = yellow_values[-1]
+    y_prev = yellow_values[-2]
+
+    result["white"] = round(w_now, 2)
+    result["yellow"] = round(y_now, 2)
+
+    # 白黄差距百分比
+    if y_now > 0:
+        result["gap_pct"] = round((w_now - y_now) / y_now * 100, 2)
+
+    # 状态判定（优先级：金叉/死叉 > 牵牛/牛绳断）
+    is_golden_cross = w_now > y_now and w_prev <= y_prev
+    is_death_cross = w_now < y_now and w_prev >= y_prev
+
+    if is_golden_cross:
+        result["status"] = "金叉"
+    elif is_death_cross:
+        result["status"] = "死叉"
+    elif w_now > y_now:
+        # 白线在黄线上，进一步判断是否上升
+        if w_now > w_prev2:
+            result["status"] = "牵牛"
+        else:
+            # 白线在黄线上但走弱，仍算牵牛（牛绳未断）
+            result["status"] = "牵牛"
+    else:
+        result["status"] = "牛绳断"
+
+    # 白线趋势：用最近5天的斜率
+    if len(white_values) >= 5:
+        slope = calculate_slope(white_values, 5)
+        if slope > 0.01:
+            result["white_trend"] = "上升"
+        elif slope < -0.01:
+            result["white_trend"] = "下降"
+        else:
+            result["white_trend"] = "横盘"
+    elif w_now > w_prev2:
+        result["white_trend"] = "上升"
+    elif w_now < w_prev2:
+        result["white_trend"] = "下降"
+
+    # 多空判断
+    result["is_bullish"] = result["status"] in ("牵牛", "金叉")
+    result["is_bearish"] = result["status"] in ("牛绳断", "死叉")
+
+    return result
+
+
 def detect_golden_bowl(klines: list[DailyData]) -> dict:
     """
     黄金碗检测：价格在白线( zg_white )和黄线( dg_yellow )之间
@@ -1515,6 +1623,350 @@ def detect_yueyueyushi(klines: list[DailyData]) -> dict:
         }
 
     return {"is_ready": False}
+
+
+def detect_centipede_pattern(klines: list[DailyData]) -> dict:
+    """
+    蜈蚣图识别 —— 堆量不涨、影线交替、无呼吸节奏的烂股形态
+
+    来源：trading-core.md 3.0b / breathing-theory.md
+    定义：图表形似蜈蚣 —— 堆量不涨、长上下影线交替、十字星频繁、无主力控盘迹象。
+    本质：散户互搏、资金无序进出，不具备交易价值。
+
+    五大因子（各0-20分，总分0-100）：
+    1. 长上影线比例：(high-close) > 2*(close-open) 的天数占比
+    2. 长下影线比例：(close-low) > 2*(close-open) 的天数占比
+    3. 十字星比例：|close-open|/open < 0.01 的天数占比
+    4. 量能无规律：成交量变异系数(CV = std/mean)
+    5. 价格无趋势：20日涨跌幅 < 5% 但日波动率 > 2%
+
+    阈值：总分 >= 60 判定为蜈蚣图
+
+    Args:
+        klines: K线数据（至少20根）
+
+    Returns:
+        {'is_centipede': bool, 'score': int, 'factors': dict}
+    """
+    result: dict[str, Any] = {
+        "is_centipede": False,
+        "score": 0,
+        "factors": {},
+    }
+
+    if len(klines) < 20:
+        return result
+
+    recent = klines[-20:]
+    factor_scores: dict[str, int] = {}
+
+    # --- 因子1：长上影线比例 ---
+    upper_shadow_days = 0
+    for k in recent:
+        body = abs(k.close - k.open)
+        upper_shadow = k.high - k.close
+        if body > 0 and upper_shadow > 2 * body:
+            upper_shadow_days += 1
+    upper_ratio = upper_shadow_days / 20
+    if upper_ratio > 0.4:
+        factor_scores["长上影线"] = 20
+    elif upper_ratio > 0.25:
+        factor_scores["长上影线"] = 10
+    else:
+        factor_scores["长上影线"] = 0
+
+    # --- 因子2：长下影线比例 ---
+    lower_shadow_days = 0
+    for k in recent:
+        body = abs(k.close - k.open)
+        lower_shadow = k.close - k.low
+        if body > 0 and lower_shadow > 2 * body:
+            lower_shadow_days += 1
+    lower_ratio = lower_shadow_days / 20
+    if lower_ratio > 0.4:
+        factor_scores["长下影线"] = 20
+    elif lower_ratio > 0.25:
+        factor_scores["长下影线"] = 10
+    else:
+        factor_scores["长下影线"] = 0
+
+    # --- 因子3：十字星比例 ---
+    doji_days = 0
+    for k in recent:
+        if k.open > 0:
+            body_pct = abs(k.close - k.open) / k.open
+            if body_pct < 0.01:
+                doji_days += 1
+    doji_ratio = doji_days / 20
+    if doji_ratio > 0.3:
+        factor_scores["十字星"] = 20
+    elif doji_ratio > 0.15:
+        factor_scores["十字星"] = 10
+    else:
+        factor_scores["十字星"] = 0
+
+    # --- 因子4：量能无规律（变异系数） ---
+    volumes = [k.vol for k in recent]
+    vol_mean = sum(volumes) / len(volumes)
+    if vol_mean > 0:
+        vol_std = (sum((v - vol_mean) ** 2 for v in volumes) / len(volumes)) ** 0.5
+        vol_cv = vol_std / vol_mean
+    else:
+        vol_cv = 0
+    if vol_cv > 0.8:
+        factor_scores["量能无规律"] = 20
+    elif vol_cv > 0.5:
+        factor_scores["量能无规律"] = 10
+    else:
+        factor_scores["量能无规律"] = 0
+
+    # --- 因子5：价格无趋势（窄幅震荡 + 高波动） ---
+    total_change = (recent[-1].close - recent[0].open) / recent[0].open if recent[0].open > 0 else 0
+    daily_pcts = [k.pct_chg for k in recent]
+    pct_mean = sum(daily_pcts) / len(daily_pcts)
+    pct_std = (sum((p - pct_mean) ** 2 for p in daily_pcts) / len(daily_pcts)) ** 0.5
+    is_range_bound = abs(total_change) < 0.05
+    is_volatile = pct_std > 2.0
+    if is_range_bound and is_volatile:
+        factor_scores["价格无趋势"] = 20
+    elif is_range_bound or is_volatile:
+        factor_scores["价格无趋势"] = 10
+    else:
+        factor_scores["价格无趋势"] = 0
+
+    # --- 汇总 ---
+    total_score = sum(factor_scores.values())
+    result["score"] = total_score
+    result["factors"] = factor_scores
+    result["is_centipede"] = total_score >= 60
+
+    return result
+
+
+def calculate_sandglass_score(klines: list[DailyData]) -> dict:
+    """
+    沙漏评分 V9 —— 基于图形审美的选股评分系统
+
+    来源：indicators.md / knowledge
+    核心思想：好的股票图形应具备缩量收敛、低位枢轴、量能可控、均线有序、无突发风险。
+    V9 回测审美与主包基本一致，能识别 wxsw/娜娜等完美图形。
+
+    五因子模型（各 0-20 分，总分 0-100）：
+    1. 缩量/收敛（Volume Contraction）：近期量能收缩、量幅收窄
+    2. 枢轴邻近（Pivot Proximity）：当前价格接近近期支撑位
+    3. 量能斜率（Volume Slope）：成交量趋势温和下降（可控抛压）
+    4. 均线结构（MA Structure）：MA5 > MA10 > MA20 多头排列 + 均线收敛
+    5. 事件风险（Event Risk）：从 20 分起扣，检查跳空/连跌/异常放量/近高点
+
+    Args:
+        klines: K 线数据（至少 20 根）
+
+    Returns:
+        {
+            'score': int,           # 总分 0-100
+            'rating': str,          # 评级: 极佳/良好/一般/较差/极差
+            'factors': dict,        # 五因子明细
+            'is_perfect': bool,     # score >= 80
+        }
+    """
+    result: dict[str, Any] = {
+        "score": 0,
+        "rating": "极差",
+        "factors": {},
+        "is_perfect": False,
+    }
+
+    if len(klines) < 20:
+        return result
+
+    n = len(klines)
+    closes = [k.close for k in klines]
+    volumes = [k.vol for k in klines]
+    highs = [k.high for k in klines]
+    lows = [k.low for k in klines]
+
+    # ========== 因子 1：缩量/收敛 (0-20) ==========
+    vol_ma10 = sum(volumes[-10:]) / 10
+    vol_ma20 = sum(volumes[-20:]) / 20
+
+    # 子因子 A：10 日均量 vs 20 日均量（收缩程度）
+    if vol_ma20 > 0:
+        vol_ratio = vol_ma10 / vol_ma20
+    else:
+        vol_ratio = 1.0
+
+    if vol_ratio < 0.6:
+        score_contraction_a = 12
+    elif vol_ratio < 0.8:
+        score_contraction_a = 8
+    elif vol_ratio < 1.0:
+        score_contraction_a = 4
+    else:
+        score_contraction_a = 0
+
+    # 子因子 B：量幅收窄（近 5 天量幅 vs 前 5 天量幅）
+    recent_5_vol = volumes[-5:]
+    prev_5_vol = volumes[-10:-5]
+    vol_range_recent = max(recent_5_vol) - min(recent_5_vol)
+    vol_range_prev = max(prev_5_vol) - min(prev_5_vol) if prev_5_vol else vol_range_recent
+
+    if vol_range_prev > 0:
+        vol_range_ratio = vol_range_recent / vol_range_prev
+    else:
+        vol_range_ratio = 1.0
+
+    if vol_range_ratio < 0.5:
+        score_contraction_b = 8
+    elif vol_range_ratio < 0.8:
+        score_contraction_b = 5
+    elif vol_range_ratio < 1.0:
+        score_contraction_b = 3
+    else:
+        score_contraction_b = 0
+
+    score_contraction = min(20, score_contraction_a + score_contraction_b)
+
+    # ========== 因子 2：枢轴邻近 (0-20) ==========
+    # 近 20 天最低价作为支撑位
+    support = min(lows[-20:])
+    current_price = closes[-1]
+
+    if support > 0:
+        distance_pct = (current_price - support) / support
+    else:
+        distance_pct = 1.0
+
+    if distance_pct <= 0.03:
+        score_pivot = 20
+    elif distance_pct <= 0.05:
+        score_pivot = 16
+    elif distance_pct <= 0.08:
+        score_pivot = 12
+    elif distance_pct <= 0.10:
+        score_pivot = 8
+    elif distance_pct <= 0.15:
+        score_pivot = 4
+    else:
+        score_pivot = 0
+
+    # ========== 因子 3：量能斜率 (0-20) ==========
+    # 计算最近 10 天成交量的线性回归斜率
+    vol_slope = calculate_slope(volumes[-10:], 10) if len(volumes) >= 10 else 0
+
+    # 归一化：斜率相对均值的比值
+    if vol_ma10 > 0:
+        slope_normalized = vol_slope / vol_ma10
+    else:
+        slope_normalized = 0
+
+    # 理想：温和下降（-0.05 ~ -0.01）
+    if -0.05 <= slope_normalized <= -0.01:
+        score_vol_slope = 20
+    elif -0.10 <= slope_normalized < -0.05:
+        score_vol_slope = 15
+    elif -0.01 < slope_normalized <= 0.02:
+        score_vol_slope = 12
+    elif -0.15 <= slope_normalized < -0.10:
+        score_vol_slope = 8
+    elif slope_normalized > 0.05:
+        # 急剧放量 = 分发风险
+        score_vol_slope = 2
+    else:
+        score_vol_slope = 5
+
+    # ========== 因子 4：均线结构 (0-20) ==========
+    ma5 = calculate_ma(closes, 5)
+    ma10 = calculate_ma(closes, 10)
+    ma20 = calculate_ma(closes, 20)
+
+    score_ma = 0
+
+    # 子因子 A：多头排列 MA5 > MA10 > MA20
+    if ma5 > ma10 > ma20:
+        score_ma += 10
+    elif ma5 > ma10 or ma10 > ma20:
+        score_ma += 5
+
+    # 子因子 B：价格在 MA20 上方
+    if ma20 > 0 and current_price > ma20:
+        score_ma += 4
+
+    # 子因子 C：均线收敛（MA5 与 MA20 差距缩小 = 潜在突破）
+    if ma20 > 0:
+        ma_gap = abs(ma5 - ma20) / ma20
+        if ma_gap < 0.02:
+            score_ma += 6  # 极度收敛
+        elif ma_gap < 0.05:
+            score_ma += 4
+        elif ma_gap < 0.08:
+            score_ma += 2
+
+    score_ma = min(20, score_ma)
+
+    # ========== 因子 5：事件风险 (0-20，从 20 分起扣) ==========
+    score_risk = 20
+
+    # 检查 1：近 5 天大幅跳空下跌
+    for i in range(max(0, n - 5), n):
+        if i > 0:
+            gap_down = (klines[i].open - klines[i - 1].close) / klines[i - 1].close
+            if gap_down < -0.03:
+                score_risk -= 10
+                break
+
+    # 检查 2：连续 3 天以上下跌
+    down_count = 0
+    for i in range(max(0, n - 5), n):
+        if klines[i].pct_chg < 0:
+            down_count += 1
+        else:
+            down_count = 0
+    if down_count >= 3:
+        score_risk -= 5
+
+    # 检查 3：放量不涨（量增价滞）
+    if n >= 5:
+        recent_vol_spike = volumes[-1] > vol_ma10 * 1.8
+        price_no_rise = closes[-1] <= closes[-2] if n >= 2 else False
+        if recent_vol_spike and price_no_rise:
+            score_risk -= 5
+
+    # 检查 4：近 52 周高点（距 240 天最高价 < 5%）
+    lookback_52w = min(240, n)
+    high_52w = max(highs[-lookback_52w:])
+    if high_52w > 0 and (high_52w - current_price) / high_52w < 0.05:
+        score_risk -= 5
+
+    score_risk = max(0, score_risk)
+
+    # ========== 汇总 ==========
+    total_score = score_contraction + score_pivot + score_vol_slope + score_ma + score_risk
+    total_score = max(0, min(100, total_score))
+
+    # 评级
+    if total_score >= 80:
+        rating = "极佳"
+    elif total_score >= 65:
+        rating = "良好"
+    elif total_score >= 45:
+        rating = "一般"
+    elif total_score >= 25:
+        rating = "较差"
+    else:
+        rating = "极差"
+
+    result["score"] = total_score
+    result["rating"] = rating
+    result["factors"] = {
+        "缩量收敛": score_contraction,
+        "枢轴邻近": score_pivot,
+        "量能斜率": score_vol_slope,
+        "均线结构": score_ma,
+        "事件风险": score_risk,
+    }
+    result["is_perfect"] = total_score >= 80
+
+    return result
 
 
 def detect_key_candle(klines: list[DailyData]) -> dict:

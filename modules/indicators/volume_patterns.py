@@ -11,6 +11,7 @@ from .core import (
     calculate_bbi,
     calculate_kdj,
     calculate_macd,
+    calculate_vol_ratio,
 )
 from .price_patterns import detect_volume_pattern, detect_macd_signals
 
@@ -359,3 +360,148 @@ def detect_chuhuo_wushi(klines: list[DailyData]) -> dict:
     total_score = min(total_score, 1.0)
 
     return {"total_score": round(total_score, 2), "patterns": patterns, "is_selling": total_score >= 0.80}
+
+
+def detect_volume_ratio_strategy(klines: list[DailyData]) -> dict:
+    """
+    量比战法引擎（B1+1日量比决策）
+
+    来源：trading-core.md 3.6 量比战法
+    核心：B1信号次日的量比决定操作策略。
+
+    量比决策矩阵：
+    | 量比      | 开盘情况       | 操作            |
+    |-----------|---------------|-----------------|
+    | < 10      | 正常/震荡日    | 慢买，逢低吸纳   |
+    | < 10      | 急跌           | 跳过，不看       |
+    | > 20      | 涨             | 立即买          |
+    | > 20      | 暴跌           | 观望            |
+    | 10-20     | 量价齐升       | 买              |
+    | 10-20     | 低开-2%以下    | 观望            |
+    | > 40      | 涨             | 瞬间买入(超级攻击)|
+
+    注意：因无分钟级数据，量比使用日级别量比（当日量/5日均量）。
+
+    Args:
+        klines: K线数据（至少6天，用于计算5日均量）
+
+    Returns:
+        {
+            "vol_ratio": float,          # 量比值
+            "scenario": str,             # 场景: 攻击日/出货日/单向拉升/弱势日/正常震荡/超级攻击
+            "action": str,               # 操作: 立即买/观望/慢买逢低吸纳/跳过不看
+            "confidence": float,         # 置信度 0-1
+            "note": str,                 # 解释说明
+        }
+    """
+    # 默认返回
+    default = {
+        "vol_ratio": 0.0,
+        "scenario": "正常震荡",
+        "action": "观望",
+        "confidence": 0.0,
+        "note": "数据不足，无法判断",
+    }
+    if len(klines) < 6:
+        return default
+
+    # 复用核心层 calculate_vol_ratio
+    vol_ratio = calculate_vol_ratio(klines)
+    today = klines[-1]
+    pct_chg = today.pct_chg
+
+    # 低开幅度（相对于昨收）
+    low_open_pct = 0.0
+    if today.prev_close > 0:
+        low_open_pct = (today.open - today.prev_close) / today.prev_close * 100
+
+    # ===== 判断场景 =====
+
+    # 超级攻击：量比 > 40 且涨
+    if vol_ratio > 40 and pct_chg > 1:
+        return {
+            "vol_ratio": round(vol_ratio, 2),
+            "scenario": "超级攻击",
+            "action": "立即买",
+            "confidence": 0.95,
+            "note": f"量比{vol_ratio:.1f}极度放大，涨幅{pct_chg:.2f}%，盘中垂直拉升信号，瞬间买入",
+        }
+
+    # 攻击日：量比 > 20 且涨
+    if vol_ratio > 20 and pct_chg > 1:
+        return {
+            "vol_ratio": round(vol_ratio, 2),
+            "scenario": "攻击日",
+            "action": "立即买",
+            "confidence": 0.85,
+            "note": f"量比{vol_ratio:.1f}大幅放量，涨幅{pct_chg:.2f}%，攻击日确认，立即买入",
+        }
+
+    # 出货日：量比 > 20 且暴跌
+    if vol_ratio > 20 and pct_chg < -3:
+        return {
+            "vol_ratio": round(vol_ratio, 2),
+            "scenario": "出货日",
+            "action": "观望",
+            "confidence": 0.80,
+            "note": f"量比{vol_ratio:.1f}放天量，但跌幅{pct_chg:.2f}%，疑似主力出货，观望为主（除非盘中突破日内高点）",
+        }
+
+    # 单向拉升：量比 10-20 且量价齐升
+    if 10 <= vol_ratio <= 20 and pct_chg > 0:
+        return {
+            "vol_ratio": round(vol_ratio, 2),
+            "scenario": "单向拉升",
+            "action": "慢买逢低吸纳",
+            "confidence": 0.70,
+            "note": f"量比{vol_ratio:.1f}温和放量，涨幅{pct_chg:.2f}%，量价齐升，单向拉升概率大",
+        }
+
+    # 弱势（10-20区间但低开）：量比 10-20 且低开 -2% 以下
+    if 10 <= vol_ratio <= 20 and low_open_pct < -2:
+        return {
+            "vol_ratio": round(vol_ratio, 2),
+            "scenario": "弱势日",
+            "action": "观望",
+            "confidence": 0.70,
+            "note": f"量比{vol_ratio:.1f}放量但低开{low_open_pct:.2f}%，弱势信号，观望",
+        }
+
+    # 弱势日（量比 < 10 且急跌）
+    if vol_ratio < 10 and pct_chg < -2:
+        return {
+            "vol_ratio": round(vol_ratio, 2),
+            "scenario": "弱势日",
+            "action": "跳过不看",
+            "confidence": 0.75,
+            "note": f"量比{vol_ratio:.1f}缩量，跌幅{pct_chg:.2f}%，弱势日，跳过不看",
+        }
+
+    # 正常震荡日：量比 < 10
+    if vol_ratio < 10:
+        return {
+            "vol_ratio": round(vol_ratio, 2),
+            "scenario": "正常震荡",
+            "action": "慢买逢低吸纳",
+            "confidence": 0.60,
+            "note": f"量比{vol_ratio:.1f}正常水平，涨幅{pct_chg:.2f}%，震荡日逢低吸纳",
+        }
+
+    # 量比 > 20 但涨幅在 -3% ~ 1% 之间（中性放量）
+    if vol_ratio > 20:
+        return {
+            "vol_ratio": round(vol_ratio, 2),
+            "scenario": "出货日",
+            "action": "观望",
+            "confidence": 0.60,
+            "note": f"量比{vol_ratio:.1f}大幅放量，但涨幅{pct_chg:.2f}%不明确，观望为主",
+        }
+
+    # 量比 10-20 但 pct_chg <= 0 且未低开（中性）
+    return {
+        "vol_ratio": round(vol_ratio, 2),
+        "scenario": "正常震荡",
+        "action": "观望",
+        "confidence": 0.50,
+        "note": f"量比{vol_ratio:.1f}，涨幅{pct_chg:.2f}%，信号不明确，建议观望",
+    }

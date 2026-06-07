@@ -1,132 +1,102 @@
 # TODO
 
 > Zettaranc Skill 待办清单
-> 更新日期：2026-05-30（意图识别编排层落地）
-> 当前版本：v2.8.0
+> 更新日期：2026-06-07
+> 当前版本：v3.0.0
 > 状态：✅ 已完成 / ⏳ 进行中 / 📋 待规划
+
+---
+
+## ✅ 已完成（v3.0.0 编排模式）
+
+### 编排模式与角色扩展
+- [x] 用户问题自动路由到对应模块（股票/投资、人生/职业决策、创业/商业判断）
+- [x] 核心心智模型扩展 +3（人生四圈框架、职业发展四层模型、时代主线判断）
+- [x] 知识文件扩展 +3（life-decision.md、career-development.md、business-judgment.md）
+- [x] 决策启发式扩展 +14 条（人生/职业决策 +10、创业/商业判断 +4）
+- [x] 蒸馏流程执行：采集 499 个语料文件，提取 9 个核心模型，三重验证通过
+- [x] 路由逻辑测试用例 +15 个
+
+---
+
+## ✅ 已完成（v2.10.0 工程质量）
+
+### CLI 修复与统一入口
+- [x] 修 3 个必修 CLI bug（cmd_screen 字段错位 / cmd_watchlist scan key 不匹配 / 11 种 strategy 中文别名映射）
+- [x] 6 业务脚本薄壳化（3623 → 203 行，-94%）
+- [x] 5 个独立 main() 合并到 zt 统一入口（7 个顶层命令 + 9 个子动作）
+- [x] 6 语料脚本迁 `corpus/`
+
+### CI 与质量护栏
+- [x] 5 个 CI job（test / lint / quality-gate / e2e-realdata / pre-commit）
+- [x] SKILL.md 质量门接 CI（`corpus/quality_check.py --json --strict`）
+- [x] pre-commit 钩子（ruff + mypy + 质量门 + 标准文件检查）
+- [x] 真实数据回归（600519.SH × MACD/KDJ/RSI vs stk_factor）
+- [x] 限流升级 multiprocessing 安全（token bucket + 滑动窗口）
+
+### 测试覆盖
+- [x] 测试从 264 → 367 passed, 10 skipped
+- [x] 新增 5 个测试文件（cli_screen / cli_subparser / data_sync_extensions / rate_limiter / indicators_realdata / quality_check）
+- [x] trade_parser（53）、tushare_client（27）、report（54）三模块从零覆盖
+
+### 代码审查
+- [x] 源码 bug 修复（`_fmt_opt` 缺 `sign` 参数 + `render_assessment` f-string 语法错误）
+- [x] 移除 `zettaranc_voice.py`（-492 行），常量迁移至 `trade_reviewer.py`
+- [x] 死代码清零 + NameError 修复 + 硬编码路径清零
+
+---
+
+## ✅ 已完成（v2.9.0 性能与架构优化）
+
+### 性能极限优化
+- [x] 指标计算向量化（60x 提速）：Pandas 原生重写 MACD/KDJ/BBI，与通达信精度一致
+- [x] SQLite 写入加速（10x-50x）：`executemany` 批量插入替换 `iterrows` 单行插入
+- [x] 多线程并发拉取：`ThreadPoolExecutor`（5 并发）+ 线程安全限流锁
+- [x] SQLite WAL 模式：解决并发 `Database is locked` 问题
+
+### 策略智能升级（MDC 2.0）
+- [x] 多维验证体系：资金流 + 布林带 + DMI 动能加分/权重机制
+- [x] 麒麟阶段背景校验：B1/B2 根据吸筹/拉升/派发阶段动态调整置信度
+- [x] 资金流深度对齐：S1/长安战法校验主力大单净流入/流出比例
+- [x] DMI 趋势过滤：ADX 高位动能竭尽 + DI 趋势金叉验证
+
+### 架构解耦
+- [x] `strategies.py`（1700 行）→ `strategies/` 包（6 子模块：core/base/compound/kirin/sell/vectorized）
+- [x] 向后兼容：`__init__.py` 保留 API，264 用例 100% 通过
 
 ---
 
 ## ✅ 已完成（v2.8.0 意图识别编排层）
 
-### 意图识别系统
 - [x] 意图识别规则引擎（rules/intent_rules.yaml）
 - [x] 四意图路由：stock / career / life / chat
-- [x] 规则匹配 15/15 测试通过
-- [x] 向量知识库适配器（modules/knowledge_retriever.py）
-- [x] 按意图注入分类过滤（01_战法系列 / 06_行业宏观 / 05_交易心理等）
-- [x] 统一入口 IntentRouter（modules/intent_router.py）
-- [x] 交互式聊天界面（modules/intent_chat.py）
-- [x] 技术设计文档 v2（docs/intent-router-design.md）
-
-### LLM 生成层
-- [x] MiniMax LLM 提供商（modules/llm_providers.py）
-- [x] LLM_API_KEY 可选配置（未配置时跳过生成）
-- [x] 通用 LLM 环境变量（LLM_API_KEY / LLM_BASE_URL / LLM_MODEL）
-
-### 配置优化
-- [x] Tushare 配置条件化（仅 DATA_MODE=jnb 时强制检查）
-- [x] 知识库默认关闭（KB_ENABLED=false）
-- [x] 配置指南文档（docs/CONFIG_GUIDE.md）
-- [x] .env.example 完整示例
-
-### 角色框架
+- [x] 向量知识库适配器（modules/knowledge_retriever.py，Qdrant RAG，默认关闭）
+- [x] LLM 生成层（MiniMax / OpenAI 兼容，可选）
 - [x] Z哥职业决策框架（rules/career_prompt.md）
 - [x] Z哥人生决策框架（rules/life_prompt.md）
-- [x] 跨领域通用心法迁移（选择大于努力 / 周期思维 / 安全边际）
+- [x] 交互式聊天界面（modules/intent_chat.py）
+- [x] 配置指南文档（docs/CONFIG_GUIDE.md）
 
 ---
 
-## ✅ 已完成（v2.7.0 数据层充实）
+## ✅ 已完成（v3.1.0 P3 指标补完）
 
-### 数据层充实
-- [x] 真实财务数据入库（2,733 条，53 只股票）
-- [x] 多接口组合：fina_indicator + income + balancesheet + daily_basic
-- [x] PE/PB/PS 覆盖率 >88%
-- [x] 资金流向全量入库（207,361 条，60 天）
-- [x] 指标缓存打通（6,360 条）
-- [x] Tushare 官方指标（12,554 条）
+- [x] **蜈蚣图识别** — `detect_centipede_pattern()` in `modules/indicators/price_patterns.py`
+  - 5 因子评分（长上影/长下影/十字星/量能无规律/价格无趋势），≥60 分判定为蜈蚣图
+- [x] **牛绳理论量化** — `detect_bull_rope()` in `modules/indicators/price_patterns.py`
+  - 基于白线/黄线关系判定：牵牛/牛绳断/金叉/死叉 + 缺口百分比 + 白线趋势
+- [x] **量比战法引擎** — `detect_volume_ratio_strategy()` in `modules/indicators/volume_patterns.py`
+  - 6 种场景判定（攻击日/出货日/单向拉升/正常震荡/弱势日/超级攻击）
+- [x] **沙漏评分 V9** — `calculate_sandglass_score()` in `modules/indicators/price_patterns.py`
+  - 5 因子评分（缩量收敛/枢轴邻近/量能斜率/均线结构/事件风险），≥80 分为完美图形
 
-### Bug 修复
-- [x] strategies.py DB 路径不一致（导致战法识别报错）
-- [x] 财务数据表结构不匹配（字段名映射修复）
-
-### 测试体系
-- [x] SAT/UAT 两阶段真实数据测试
-- [x] run_sat_uat.py 可复用测试脚本
-- [x] 264 测试通过
-
-### 文档
-- [x] docs/USER_GUIDE.md（3 万字，20 章）
-- [x] CHANGELOG.md 全面更新
-- [x] AGENTS.md 全面更新（v2.8.0/新模块/文件树对齐）
+> 测试：523 passed, 10 skipped（新增 ~156 用例）
 
 ---
 
-## ✅ 已完成（v2.4.0 - v2.6.0）
+## 📋 待实现
 
-### 基础指标（60+）
-- [x] KDJ / MACD / BBI / RSI / WR / 布林带 / DMI
-- [x] 双线战法 / 单针下 20 / 砖形图
-- [x] 量比 / 资金流向 / 筹码分布
-
-### 买入战法（10+）
-- [x] B1 / B2 / B3 / SB1 / 超级 B1
-- [x] 长安战法 / 平行重炮 / 坑里起好货 / 对称 VA
-- [x] 四分之三阴量 / 娜娜图形 / 异动地量
-
-### 卖出/逃顶（6 种）
-- [x] S1 / S2 / S3 逃顶体系
-- [x] 滴滴战法 / MACD 金叉空·死叉多 / 祖冲之法
-- [x] 主力出货五式 / 灾后重建 / 跃跃欲试 / 关键 K 识别
-
-### P2 核心模块
-- [x] 三波理论（建仓波/拉升波/冲刺波）
-- [x] 麒麟会四阶段（吸筹/拉升/派发/回落）
-
-### 分析工具
-- [x] 持股诊断（防卖飞评分 + 出货信号扫描）
-- [x] 选股评分（趋势/量价/风险三维度）
-- [x] 自选股观察池（增删改查 + 批量扫描）
-- [x] 策略组合回测（多策略融合 + 资金曲线）
-
-### CLI 工具
-- [x] analyze / screen / watchlist / diagnose / backtest
-- [x] pyproject.toml 打包 + zt 命令
-
----
-
-## 📋 待实现（量化指标缺口清单）
-
-### P3 — 中价值 / 概念性
-
-- [ ] **蜈蚣图识别**
-  - 来源：`knowledge/trading-core.md` 3.0b
-  - 定义：堆量不涨 + 长上下影十字星交替 + 无呼吸节奏
-  - 价值：直接排除垃圾票
-  - 难点：「呼吸节奏」量化定义较模糊
-  - 文件建议：`modules/screener.py`（作为过滤条件）
-
-- [ ] **牛绳理论量化**
-  - 来源：`knowledge/trend-lines.md`
-  - 定义：白线在黄线上 = 主力牵牛，跌破 = 牛绳断
-  - 现状：双线战法已有基础，但「牛绳」概念未单独封装
-  - 难度：低（在现有双线基础上加一层抽象）
-  - 文件建议：`modules/indicators/price_patterns.py`
-
-- [ ] **量比战法引擎**
-  - 来源：`knowledge/trading-core.md` 3.6
-  - 定义：集合竞价量比计算 + 攻击日/出货日判定
-  - 价值：开盘精细择时
-  - 难点：需要分钟级/竞价数据，Tushare 免费版可能不支持
-  - 文件建议：新增 `modules/market_timing.py`
-
-- [ ] **沙漏评分 V9**
-  - 来源：TANGOO 09 / 复盘专用z 10
-  - 定义：S_shape + Delta 评分引擎，通达信已有指标
-  - 价值：Z 哥说的「完美图形」量化标准
-  - 难点：需要了解通达信沙漏指标的具体算法
-  - 文件建议：新增 `modules/sandglass.py`
+（暂无）
 
 ---
 
@@ -145,5 +115,18 @@
 | **v2.6.0** | P2 核心模块（三波理论/麒麟会） | ✅ 已完成 |
 | **v2.7.0** | 数据层充实 + SAT/UAT 测试 + 使用手册 | ✅ 已完成 |
 | **v2.8.0** | 意图识别编排层 + RAG + 可选 LLM | ✅ 已完成 |
-| **v2.9.0** | 沙漏 V9 + 蜈蚣图 + 牛绳理论 | 📋 待定 |
-| **v3.0.0** | 少妇模拟器完整版（自动化择时+选股+买入+卖出闭环） | 🎯 长期目标 |
+| **v2.9.0** | 性能极限优化（60x/多线程/WAL）+ MDC 2.0 + 架构解耦 | ✅ 已完成 |
+| **v2.10.0** | CLI 修复 + 脚本薄壳化 + 5 CI job + 501 测试 + 代码审查 | ✅ 已完成 |
+| **v3.0.0** | 编排模式 + 人生/创业蒸馏 + 双维度扩展 | ✅ 已完成 |
+| **v3.1.0** | P3 指标补完（蜈蚣图/牛绳理论/量比战法/沙漏 V9） | ✅ 已完成 |
+| **v4.0.0** | 少妇模拟器完整版（自动择时+选股+买入+卖出闭环回测） | 🎯 长期目标 |
+
+---
+
+## 下一迭代候选（v3.2.0 候选）
+
+- CI 观察期 4 个 job 改为 required（lint / quality-gate / e2e-realdata / pre-commit）
+- 真实数据 diff 阈值收紧到 2%
+- SKILL.md 拆分（32K 字 → 6 心智模型独立文件 + 30 启发式索引）
+- 活跃市值 +4%/-2.3% 量化层（需指南针数据源）
+- P3 指标集成到 screener（蜈蚣图作为风险扣分项、沙漏评分作为选股加分项）

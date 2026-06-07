@@ -15,7 +15,16 @@ from dataclasses import dataclass, field
 
 # dotenv 加载已移至 modules/__init__.py（包级别一次性加载）
 
-from .indicators import analyze_stock, get_kline_data, calculate_sell_score, IndicatorResult, DailyData
+from .indicators import (
+    analyze_stock,
+    get_kline_data,
+    calculate_sell_score,
+    IndicatorResult,
+    DailyData,
+    detect_centipede_pattern,
+    detect_bull_rope,
+    calculate_sandglass_score,
+)
 from .strategies import detect_all_strategies, analyze_kirin_phase, StrategyType
 
 
@@ -55,6 +64,19 @@ class DiagnosisReport:
     # 主力阶段
     kirin_phase: str = "UNKNOWN"
     kirin_confidence: float = 0
+
+    # 蜈蚣图检测
+    is_centipede: bool = False
+    centipede_score: float = 0
+
+    # 牛绳理论
+    bull_rope_status: str = ""  # "牵牛" | "牛绳断" | "金叉" | "死叉"
+    bull_rope_gap_pct: float = 0
+    bull_rope_white_trend: str = ""
+
+    # 沙漏评分
+    sandglass_score: float = 0
+    sandglass_is_perfect: bool = False
 
     # 止损/止盈建议
     stop_loss: float | None = None
@@ -113,6 +135,11 @@ def diagnose_stock(ts_code: str, days: int = 100) -> DiagnosisReport:
     # 麒麟会阶段
     kirin = analyze_kirin_phase(klines_dict)
 
+    # 蜈蚣图 / 牛绳 / 沙漏
+    centipede = detect_centipede_pattern(klines_daily)
+    bull_rope = detect_bull_rope(klines_daily)
+    sandglass = calculate_sandglass_score(klines_daily)
+
     # 价格位置判断
     price_position = _judge_price_position(indicators, price=klines_daily[-1].close if klines_daily else 0)
     trend_status = _judge_trend(indicators)
@@ -121,7 +148,9 @@ def diagnose_stock(ts_code: str, days: int = 100) -> DiagnosisReport:
     stop_loss, target = _calc_stop_target(indicators, buy_signals, exit_signals)
 
     # 综合建议
-    recommendation, risk_level = _make_recommendation(indicators, sell_score, exit_signals, buy_signals, kirin)
+    recommendation, risk_level = _make_recommendation(
+        indicators, sell_score, exit_signals, buy_signals, kirin, centipede, bull_rope, sandglass
+    )
 
     return DiagnosisReport(
         ts_code=ts_code,
@@ -144,6 +173,13 @@ def diagnose_stock(ts_code: str, days: int = 100) -> DiagnosisReport:
         buy_signals=buy_signals[:5],
         kirin_phase=kirin.get("phase", "UNKNOWN"),
         kirin_confidence=kirin.get("confidence", 0),
+        is_centipede=centipede.get("is_centipede", False),
+        centipede_score=centipede.get("score", 0),
+        bull_rope_status=bull_rope.get("status", ""),
+        bull_rope_gap_pct=bull_rope.get("gap_pct", 0),
+        bull_rope_white_trend=bull_rope.get("white_trend", ""),
+        sandglass_score=sandglass.get("score", 0),
+        sandglass_is_perfect=sandglass.get("is_perfect", False),
         stop_loss=stop_loss,
         target_price=target,
         recommendation=recommendation,
@@ -253,9 +289,20 @@ def _calc_stop_target(ind: IndicatorResult, buy_signals: list[dict], exit_signal
 
 
 def _make_recommendation(
-    ind: IndicatorResult, sell_score: int, exit_signals: list[dict], buy_signals: list[dict], kirin: dict[str, Any]
+    ind: IndicatorResult,
+    sell_score: int,
+    exit_signals: list[dict],
+    buy_signals: list[dict],
+    kirin: dict[str, Any],
+    centipede: dict[str, Any] | None = None,
+    bull_rope: dict[str, Any] | None = None,
+    sandglass: dict[str, Any] | None = None,
 ) -> tuple:
     """生成综合建议和风险等级"""
+    # 蜈蚣图：直接排除
+    if centipede and centipede.get("is_centipede"):
+        return f"蜈蚣图（{centipede['score']:.0f}分），呼吸紊乱，直接排除不碰", "CRITICAL"
+
     # 最高优先级：S1/S2/S3 出货信号
     if exit_signals:
         first_exit = exit_signals[0]
@@ -274,8 +321,15 @@ def _make_recommendation(
     if ind.is_dead_cross:
         return "白线死叉黄线，趋势走坏，建议减仓", "HIGH"
 
+    # 牛绳理论：牛绳断了
+    if bull_rope and bull_rope.get("status") == "牛绳断":
+        return "牛绳断了（白线跌破黄线），任何上涨都是反弹，建议减仓", "HIGH"
+
     # 防卖飞评分
     if sell_score >= 4:
+        # 沙漏高分：额外确认
+        if sandglass and sandglass.get("is_perfect"):
+            return f"防卖飞评分{sell_score}/5 + 沙漏完美图形（{sandglass['score']:.0f}分），持股让利润飞", "LOW"
         return f"防卖飞评分{sell_score}/5，持股让利润飞", "LOW"
     elif sell_score >= 2:
         return f"防卖飞评分{sell_score}/5，关注破位信号", "MEDIUM"
@@ -300,6 +354,11 @@ def format_report(report: DiagnosisReport) -> str:
     lines.append(f"防卖飞评分: {report.sell_score}/5 — {report.sell_score_desc}")
     lines.append("")
     lines.append(f"麒麟会阶段: {report.kirin_phase} (置信度{report.kirin_confidence * 100:.0f}%)")
+    lines.append("")
+    lines.append(f"牛绳理论: {report.bull_rope_status} (缺口{report.bull_rope_gap_pct:+.1f}%, 白线{report.bull_rope_white_trend})")
+    lines.append(f"沙漏评分: {report.sandglass_score:.0f}/100 {'✨ 完美图形' if report.sandglass_is_perfect else ''}")
+    if report.is_centipede:
+        lines.append(f"⚠️ 蜈蚣图: {report.centipede_score:.0f}分 — 呼吸紊乱，直接排除不碰")
     lines.append("")
 
     if report.exit_signals:

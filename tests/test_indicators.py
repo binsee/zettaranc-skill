@@ -47,6 +47,10 @@ from modules.indicators import (
     detect_zaihou_chongjian,
     detect_yueyueyushi,
     detect_key_candle,
+    detect_centipede_pattern,
+    detect_volume_ratio_strategy,
+    detect_bull_rope,
+    calculate_sandglass_score,
 )
 
 
@@ -854,3 +858,336 @@ class TestKeyCandle:
         result = detect_key_candle(klines)
         assert result["is_key"] is True
         assert result["direction"] == "向上突破"
+
+
+# ========== detect_centipede_pattern (蜈蚣图识别) ==========
+
+
+class TestCentipedePattern:
+    def test_normal_uptrend_not_centipede(self):
+        """正常上涨趋势不应被判为蜈蚣图"""
+        klines = make_klines(n=25, base_price=100.0, base_vol=10000.0, daily_pct=1.0)
+        result = detect_centipede_pattern(klines)
+        assert result["is_centipede"] is False
+        assert result["score"] < 60
+
+    def test_chaotic_centipede(self):
+        """蜈蚣图特征：长影线交替 + 十字星 + 量能无规律 + 价格无趋势"""
+        klines = make_klines(n=25, base_price=100.0, base_vol=10000.0, daily_pct=0.0)
+        # 最近20天改造为蜈蚣形态
+        for i in range(5, 25):
+            k = klines[i]
+            # 交替长上影线和长下影线
+            if i % 2 == 0:
+                # 长上影线：上影 > 2倍实体
+                k.open = 100.0
+                k.close = 100.5
+                k.high = 103.0
+                k.low = 99.5
+            else:
+                # 长下影线：下影 > 2倍实体
+                k.open = 100.0
+                k.close = 99.8
+                k.high = 100.5
+                k.low = 97.0
+            # 量能忽大忽小
+            k.vol = 20000.0 if i % 3 == 0 else 5000.0
+            k.pct_chg = 0.0
+        result = detect_centipede_pattern(klines)
+        assert result["is_centipede"] is True
+        assert result["score"] >= 60
+        assert "长上影线" in result["factors"]
+        assert "长下影线" in result["factors"]
+
+
+# ========== detect_bull_rope (牛绳理论) ==========
+
+
+class TestBullRope:
+    def test_insufficient_data(self):
+        """数据不足时返回默认牛绳断"""
+        klines = make_klines(n=50)
+        result = detect_bull_rope(klines)
+        assert result["status"] == "牛绳断"
+        assert result["is_bearish"] is True
+
+    def test_uptrend_qianniu(self):
+        """上升趋势：白线在黄线上且上升 -> 牵牛"""
+        klines = make_klines(n=150, base_price=100.0, daily_pct=0.3)
+        result = detect_bull_rope(klines)
+        # 持续上升趋势中，白线应在黄线上
+        assert result["white"] > 0
+        assert result["yellow"] > 0
+        if result["white"] > result["yellow"]:
+            assert result["status"] == "牵牛"
+            assert result["is_bullish"] is True
+            assert result["is_bearish"] is False
+            assert result["white_trend"] == "上升"
+
+    def test_downtrend_niushengduan(self):
+        """下降趋势：白线在黄线下 -> 牛绳断"""
+        klines = make_klines(n=150, base_price=200.0, daily_pct=-0.5)
+        result = detect_bull_rope(klines)
+        assert result["white"] > 0
+        assert result["yellow"] > 0
+        if result["white"] < result["yellow"]:
+            assert result["status"] == "牛绳断"
+            assert result["is_bearish"] is True
+            assert result["is_bullish"] is False
+
+    def test_golden_cross(self):
+        """金叉场景：先下降让白线低于黄线，再大幅拉升制造上穿"""
+        klines = make_klines(n=150, base_price=200.0, daily_pct=-0.8)
+        # 最后20天大幅拉升（每天+5%），让白线快速追赶黄线
+        for i in range(130, 150):
+            klines[i].close = klines[i - 1].close * 1.05
+            klines[i].high = klines[i].close * 1.01
+            klines[i].low = klines[i].close * 0.99
+            klines[i].open = klines[i - 1].close
+            klines[i].pct_chg = 5.0
+        result = detect_bull_rope(klines)
+        # 大幅拉升后应为多头信号（金叉或牵牛）
+        assert result["is_bullish"] is True or result["status"] in ("金叉", "牵牛")
+        assert result["gap_pct"] != 0
+
+    def test_death_cross(self):
+        """死叉场景：先上升让白线高于黄线，再大幅下跌制造下穿"""
+        klines = make_klines(n=150, base_price=100.0, daily_pct=0.8)
+        # 最后20天大幅下跌（每天-5%），让白线快速跌破黄线
+        for i in range(130, 150):
+            klines[i].close = klines[i - 1].close * 0.95
+            klines[i].high = klines[i].close * 1.01
+            klines[i].low = klines[i].close * 0.99
+            klines[i].open = klines[i - 1].close
+            klines[i].pct_chg = -5.0
+        result = detect_bull_rope(klines)
+        # 大幅下跌后应为空头信号（死叉或牛绳断）
+        assert result["is_bearish"] is True or result["status"] in ("死叉", "牛绳断")
+        assert result["gap_pct"] != 0
+
+    def test_return_dict_keys(self):
+        """返回字典包含所有必要字段"""
+        klines = make_klines(n=150, base_price=100.0, daily_pct=0.3)
+        result = detect_bull_rope(klines)
+        assert "status" in result
+        assert "white" in result
+        assert "yellow" in result
+        assert "gap_pct" in result
+        assert "white_trend" in result
+        assert "is_bullish" in result
+        assert "is_bearish" in result
+        assert result["status"] in ("牵牛", "牛绳断", "金叉", "死叉")
+        assert result["white_trend"] in ("上升", "下降", "横盘")
+        assert isinstance(result["is_bullish"], bool)
+        assert isinstance(result["is_bearish"], bool)
+
+    def test_insufficient_data(self):
+        """数据不足20根应返回默认值"""
+        klines = make_klines(n=10, base_price=100.0, daily_pct=0.5)
+        result = detect_centipede_pattern(klines)
+        assert result["is_centipede"] is False
+        assert result["score"] == 0
+
+    def test_doji_heavy_centipede(self):
+        """大量十字星应贡献分数"""
+        klines = make_klines(n=25, base_price=100.0, base_vol=10000.0, daily_pct=0.0)
+        # 最近20天大部分是十字星
+        for i in range(5, 25):
+            k = klines[i]
+            k.open = 100.0
+            k.close = 100.005  # 几乎平盘，十字星
+            k.high = 102.0
+            k.low = 98.0
+            k.vol = 30000.0 if i % 2 == 0 else 3000.0  # 量能无规律，CV > 0.8
+            k.pct_chg = 0.0
+        result = detect_centipede_pattern(klines)
+        # 十字星 + 量能无规律 + 价格无趋势 应有较高分
+        assert result["factors"]["十字星"] == 20
+        assert result["factors"]["量能无规律"] == 20
+
+
+# ========== detect_volume_ratio_strategy (量比战法引擎) ==========
+
+
+class TestVolumeRatioStrategy:
+    def _make_klines_with_vol_ratio(self, vol_ratio: float, pct_chg: float, n: int = 10) -> list[DailyData]:
+        """构造指定量比和涨幅的K线序列
+
+        calculate_vol_ratio = klines[-1].vol / avg(klines[-6:-1].vol)
+        所以设 klines[-6:-1].vol = 10000, klines[-1].vol = vol_ratio * 10000
+        """
+        klines = make_klines(n=n, base_price=100.0, base_vol=10000.0, daily_pct=0.0)
+        for k in klines[-6:-1]:
+            k.vol = 10000.0
+        klines[-1].vol = vol_ratio * 10000.0
+        klines[-1].pct_chg = pct_chg
+        klines[-1].prev_close = klines[-2].close
+        return klines
+
+    def test_attack_day(self):
+        """vol_ratio=25, pct_chg=3% → 攻击日, 立即买"""
+        klines = self._make_klines_with_vol_ratio(25, 3.0)
+        result = detect_volume_ratio_strategy(klines)
+        assert result["vol_ratio"] == 25.0
+        assert result["scenario"] == "攻击日"
+        assert result["action"] == "立即买"
+        assert result["confidence"] >= 0.8
+
+    def test_shipping_day(self):
+        """vol_ratio=25, pct_chg=-4% → 出货日, 观望"""
+        klines = self._make_klines_with_vol_ratio(25, -4.0)
+        result = detect_volume_ratio_strategy(klines)
+        assert result["vol_ratio"] == 25.0
+        assert result["scenario"] == "出货日"
+        assert result["action"] == "观望"
+        assert result["confidence"] >= 0.7
+
+    def test_unilateral_rally(self):
+        """vol_ratio=15, pct_chg=2% → 单向拉升, 慢买逢低吸纳"""
+        klines = self._make_klines_with_vol_ratio(15, 2.0)
+        result = detect_volume_ratio_strategy(klines)
+        assert result["vol_ratio"] == 15.0
+        assert result["scenario"] == "单向拉升"
+        assert result["action"] == "慢买逢低吸纳"
+        assert result["confidence"] >= 0.6
+
+    def test_normal_oscillation(self):
+        """vol_ratio=8, pct_chg=1% → 正常震荡, 慢买逢低吸纳"""
+        klines = self._make_klines_with_vol_ratio(8, 1.0)
+        result = detect_volume_ratio_strategy(klines)
+        assert result["vol_ratio"] == 8.0
+        assert result["scenario"] == "正常震荡"
+        assert result["action"] == "慢买逢低吸纳"
+        assert result["confidence"] >= 0.5
+
+    def test_super_attack(self):
+        """vol_ratio=50, pct_chg=5% → 超级攻击, 立即买"""
+        klines = self._make_klines_with_vol_ratio(50, 5.0)
+        result = detect_volume_ratio_strategy(klines)
+        assert result["vol_ratio"] == 50.0
+        assert result["scenario"] == "超级攻击"
+        assert result["action"] == "立即买"
+        assert result["confidence"] >= 0.9
+
+    def test_weak_day_skip(self):
+        """vol_ratio=5, pct_chg=-3% → 弱势日, 跳过不看"""
+        klines = self._make_klines_with_vol_ratio(5, -3.0)
+        result = detect_volume_ratio_strategy(klines)
+        assert result["vol_ratio"] == 5.0
+        assert result["scenario"] == "弱势日"
+        assert result["action"] == "跳过不看"
+
+    def test_insufficient_data(self):
+        """数据不足应返回默认值"""
+        klines = make_klines(n=3, base_price=100.0)
+        result = detect_volume_ratio_strategy(klines)
+        assert result["scenario"] == "正常震荡"
+        assert result["confidence"] == 0.0
+
+    def test_mid_range_low_open(self):
+        """vol_ratio=12, 低开-4% → 弱势日, 观望"""
+        klines = self._make_klines_with_vol_ratio(12, -1.0)
+        klines[-1].prev_close = klines[-2].close
+        klines[-1].open = klines[-1].prev_close * 0.96
+        result = detect_volume_ratio_strategy(klines)
+        assert result["vol_ratio"] == 12.0
+        assert result["scenario"] == "弱势日"
+        assert result["action"] == "观望"
+
+
+# ========== calculate_sandglass_score (沙漏评分 V9) ==========
+
+
+class TestSandglassScore:
+    def test_insufficient_data(self):
+        """数据不足 20 根应返回默认值"""
+        klines = make_klines(n=10, base_price=100.0)
+        result = calculate_sandglass_score(klines)
+        assert result["score"] == 0
+        assert result["rating"] == "极差"
+        assert result["is_perfect"] is False
+
+    def test_ideal_setup_high_score(self):
+        """理想形态：缩量、低位、多头均线 → 高分"""
+        klines = make_klines(n=25, base_price=100.0, base_vol=10000.0, daily_pct=0.2)
+
+        # 最后 10 天缩量
+        for i in range(15, 25):
+            klines[i].vol = 4000.0
+
+        # 量幅收窄：近 5 天量几乎一致
+        for i in range(20, 25):
+            klines[i].vol = 4000.0
+
+        # 前 5 天量幅大
+        for i in range(15, 20):
+            klines[i].vol = 3000.0 + (i - 15) * 2000.0
+
+        # 价格在支撑位附近
+        min_low = min(k.low for k in klines[-20:])
+        klines[-1].close = min_low * 1.02
+
+        result = calculate_sandglass_score(klines)
+        assert result["score"] >= 40
+        assert result["rating"] in ("极佳", "良好", "一般")
+        for key in ("缩量收敛", "枢轴邻近", "量能斜率", "均线结构", "事件风险"):
+            assert key in result["factors"]
+
+    def test_poor_setup_low_score(self):
+        """恶劣形态：放量、远离支撑、空头均线 → 低分"""
+        klines = make_klines(n=25, base_price=100.0, base_vol=10000.0, daily_pct=-2.0)
+
+        # 最后 10 天急剧放量
+        for i in range(15, 25):
+            klines[i].vol = 30000.0 + i * 5000.0
+
+        # 最后 5 天连续下跌
+        for i in range(20, 25):
+            klines[i].pct_chg = -3.0
+
+        result = calculate_sandglass_score(klines)
+        assert result["score"] <= 40
+        assert result["rating"] in ("较差", "极差", "一般")
+        assert result["is_perfect"] is False
+
+    def test_perfect_graph_scenario(self):
+        """完美图形 → is_perfect 标记"""
+        klines = make_klines(n=25, base_price=10.0, base_vol=20000.0, daily_pct=0.3)
+
+        # 前 15 天量大，后 10 天缩量
+        for i in range(0, 15):
+            klines[i].vol = 20000.0
+        for i in range(15, 25):
+            klines[i].vol = 5000.0
+
+        # 量幅收窄
+        for i in range(20, 25):
+            klines[i].vol = 5000.0
+        for i in range(15, 20):
+            klines[i].vol = 3000.0 + (i - 15) * 3000.0
+
+        # 价格接近支撑位
+        min_low = min(k.low for k in klines[-20:])
+        klines[-1].close = min_low * 1.01
+        klines[-1].low = min_low
+
+        result = calculate_sandglass_score(klines)
+        assert 0 <= result["score"] <= 100
+        assert isinstance(result["is_perfect"], bool)
+        assert isinstance(result["rating"], str)
+        assert len(result["factors"]) == 5
+
+    def test_return_structure(self):
+        """验证返回结构完整性"""
+        klines = make_klines(n=30, base_price=100.0, daily_pct=0.1)
+        result = calculate_sandglass_score(klines)
+        assert "score" in result
+        assert "rating" in result
+        assert "factors" in result
+        assert "is_perfect" in result
+        assert isinstance(result["score"], int)
+        assert isinstance(result["is_perfect"], bool)
+        assert result["rating"] in ("极佳", "良好", "一般", "较差", "极差")
+        for key in ("缩量收敛", "枢轴邻近", "量能斜率", "均线结构", "事件风险"):
+            assert key in result["factors"]
+            assert 0 <= result["factors"][key] <= 20
