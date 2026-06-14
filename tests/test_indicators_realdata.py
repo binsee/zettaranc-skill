@@ -10,17 +10,20 @@ P2-1 真实数据回归测试：自研指标 vs Tushare 官方 stk_factor
 """
 
 import os
+from dotenv import load_dotenv
+load_dotenv()
 from datetime import datetime, timedelta
 
 import pandas as pd
 import pytest
 
-# 整文件 skipif：无 Tushare Token 就跳过
+# 整文件 skipif：无 Tushare Token 或未设置 RUN_REALDATA=true 时就跳过
 _TUSHARE_TOKEN = os.environ.get("TUSHARE_TOKEN", "")
 _TUSHARE_API_URL = os.environ.get("TUSHARE_API_URL", "")
+_RUN_REALDATA = os.environ.get("RUN_REALDATA", "").lower() == "true"
 pytestmark = pytest.mark.skipif(
-    not (_TUSHARE_TOKEN and _TUSHARE_API_URL),
-    reason="P2-1 需配置 TUSHARE_TOKEN + TUSHARE_API_URL 才能跑真实数据回归",
+    not (_TUSHARE_TOKEN and _TUSHARE_API_URL and _RUN_REALDATA),
+    reason="需配置 TUSHARE_TOKEN + TUSHARE_API_URL 并设置 RUN_REALDATA=true 才能跑真实数据回归",
 )
 
 # 测试范围
@@ -78,10 +81,15 @@ def stk_factor_df(tushare_client, trade_dates) -> pd.DataFrame:
 @pytest.fixture(scope="module")
 def merged(kline_df, stk_factor_df) -> pd.DataFrame:
     """内连接 K 线 + stk_factor（按 trade_date 对齐）"""
+    # 仅从 stk_factor_df 中提取需要的指标字段以避免列名冲突
+    factor_cols = [
+        "trade_date", "macd_dif", "macd_dea", "macd", "kdj_k", "kdj_d", "kdj_j",
+        "rsi_6", "rsi_12", "rsi_24", "boll_upper", "boll_mid", "boll_lower", "cci"
+    ]
+    cols_to_use = [c for c in factor_cols if c in stk_factor_df.columns]
     return kline_df.merge(
-        stk_factor_df,
+        stk_factor_df[cols_to_use],
         on="trade_date",
-        suffixes=("_ours", "_tushare"),
     )
 
 
