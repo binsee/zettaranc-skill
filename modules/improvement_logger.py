@@ -5,16 +5,13 @@
 记录所有自我改进的操作和结果
 """
 
-import os
-import sys
 import json
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Any
 
-# 添加项目根目录到 Python 路径
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+# 项目根目录（用于解析默认 logs/ 路径）
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 class ImprovementLogger:
@@ -30,7 +27,7 @@ class ImprovementLogger:
         if log_dir:
             self.log_dir = Path(log_dir)
         else:
-            self.log_dir = project_root / "logs"
+            self.log_dir = PROJECT_ROOT / "logs"
 
         # 创建日志目录
         self.log_dir.mkdir(parents=True, exist_ok=True)

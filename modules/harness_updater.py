@@ -11,12 +11,8 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional, Any
 
-# 添加项目根目录到 Python 路径
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
-
-from modules.database import get_connection  # noqa: E402
-from modules.improvement_logger import ImprovementLogger  # noqa: E402
+from modules.database import get_connection
+from modules.improvement_logger import ImprovementLogger
 
 
 class HarnessUpdater:

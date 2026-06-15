@@ -5,21 +5,13 @@
 同步跟踪股票的K线、指标、信号数据
 """
 
-import os
-import sys
-from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional, Any
 import pandas as pd
 
-# 添加项目根目录到 Python 路径
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
-
-from modules.database import get_connection  # noqa: E402
-from modules.improvement_logger import ImprovementLogger  # noqa: E402
-from modules.tushare_client import TushareClient  # noqa: E402
-from modules.indicators.data_layer import analyze_stock  # noqa: E402
+from modules.database import get_connection
+from modules.improvement_logger import ImprovementLogger
+from modules.indicators.data_layer import analyze_stock
 
 
 class TrackingSyncer:
@@ -27,7 +19,6 @@ class TrackingSyncer:
 
     def __init__(self):
         """初始化同步器"""
-        self.client = TushareClient()
         self.logger = ImprovementLogger()
 
     def sync_daily(self, ts_code: str, days: int = 365) -> dict[str, Any]:
