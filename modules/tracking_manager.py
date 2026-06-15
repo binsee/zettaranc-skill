@@ -5,9 +5,6 @@
 管理跟踪股票的添加、移除、查询、状态更新
 """
 
-import os
-import sys
-from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional, Any
 
