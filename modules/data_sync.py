@@ -130,6 +130,20 @@ class DataSyncer:
         # 保留旧字段更新，便于外部观察（不影响实际限流）
         self.last_request_time[api_name] = time.time()
 
+    def _call_api_with_retry(self, api_name: str, func, *args, **kwargs):
+        """带退避算法和限流控制的 API 调用封装"""
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                self._rate_limit(api_name)
+                return func(*args, **kwargs)
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise e
+                sleep_time = 2 ** attempt
+                logger.warning(f"[{api_name}] API 调用异常: {e}, 等待 {sleep_time} 秒后重试 ({attempt+1}/{max_retries})")
+                time.sleep(sleep_time)
+
     def _log_sync(self, data_type: str, ts_code: str | None, last_date: str, status: str, message: str = ""):
         """记录同步日志"""
         with get_connection() as conn:
@@ -176,8 +190,9 @@ class DataSyncer:
         """
         logger.info("开始同步股票基本信息...")
         try:
-            self._rate_limit("stock_basic")
-            df = self.pro.stock_basic(
+            df = self._call_api_with_retry(
+                "stock_basic",
+                self.pro.stock_basic,
                 exchange="", list_status="L", fields="ts_code,name,area,industry,market,list_date,is_hs"
             )
 
@@ -228,8 +243,9 @@ class DataSyncer:
             end_date = datetime.now().strftime("%Y%m%d")
 
         try:
-            self._rate_limit("daily_kline")
-            df = ts.pro_bar(
+            df = self._call_api_with_retry(
+                "daily_kline",
+                ts.pro_bar,
                 ts_code=ts_code,
                 start_date=start_date,
                 end_date=end_date,
@@ -706,8 +722,11 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
             if end_date is None:
                 end_date = datetime.now().strftime("%Y%m%d")
 
-            self._rate_limit("stk_factor")
-            df = self.pro.stk_factor(ts_code=ts_code, start_date=start_date, end_date=end_date)
+            df = self._call_api_with_retry(
+                "stk_factor",
+                self.pro.stk_factor,
+                ts_code=ts_code, start_date=start_date, end_date=end_date
+            )
 
             if df is None or len(df) == 0:
                 return 0

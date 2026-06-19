@@ -74,109 +74,97 @@ class TushareClient:
         self.min_request_interval = 0.55
         self.last_request_time = 0
 
-    def _rate_limit(self):
+    def _rate_limit(self, api_name: str = ""):
         elapsed = time.time() - self.last_request_time
         if elapsed < self.min_request_interval:
             time.sleep(self.min_request_interval - elapsed)
         self.last_request_time = time.time()
 
+    def _call_api_with_retry(self, api_name: str, func, *args, **kwargs):
+        """带退避算法和限流控制的 API 调用封装"""
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                self._rate_limit(api_name)
+                return func(*args, **kwargs)
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    logger.error(f"[{api_name}] 最终调用失败: {e}")
+                    return None
+                sleep_time = 2 ** attempt
+                logger.warning(f"[{api_name}] API 调用异常: {e}, 等待 {sleep_time} 秒后重试 ({attempt+1}/{max_retries})")
+                time.sleep(sleep_time)
+
     def get_daily(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
         """获取日线行情（个股，前复权）"""
-        self._rate_limit()
-        try:
-            return ts.pro_bar(
-                ts_code=ts_code,
-                start_date=start_date,
-                end_date=end_date,
-                adj="qfq",
-                api=self._pro,
-            )
-        except Exception as e:
-            logger.error(f"get_daily 失败: {e}")
-            return None
+        return self._call_api_with_retry(
+            "get_daily",
+            ts.pro_bar,
+            ts_code=ts_code,
+            start_date=start_date,
+            end_date=end_date,
+            adj="qfq",
+            api=self._pro,
+        )
 
     def get_index_daily(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
         """获取指数日线（如沪深300）"""
-        self._rate_limit()
-        try:
-            return self._pro.index_daily(ts_code=ts_code, start_date=start_date, end_date=end_date)
-        except Exception as e:
-            logger.error(f"get_index_daily 失败: {e}")
-            return None
+        return self._call_api_with_retry(
+            "get_index_daily",
+            self._pro.index_daily,
+            ts_code=ts_code, start_date=start_date, end_date=end_date
+        )
 
     def get_realtime_quote(self, ts_codes: list[str]) -> pd.DataFrame | None:
         """获取 A 股实时行情"""
-        self._rate_limit()
-        try:
-            ts_code_str = ",".join(ts_codes)
-            return ts.realtime_quote(ts_code=ts_code_str)
-        except Exception as e:
-            logger.error(f"get_realtime_quote 失败: {e}")
-            return None
+        ts_code_str = ",".join(ts_codes)
+        return self._call_api_with_retry(
+            "get_realtime_quote",
+            ts.realtime_quote,
+            ts_code=ts_code_str
+        )
 
     def get_moneyflow(self, ts_code: str, trade_date: str) -> pd.DataFrame | None:
         """获取个股资金流向"""
-        self._rate_limit()
-        try:
-            return self._pro.moneyflow(ts_code=ts_code, trade_date=trade_date)
-        except Exception as e:
-            logger.error(f"get_moneyflow 失败: {e}")
-            return None
+        return self._call_api_with_retry(
+            "get_moneyflow",
+            self._pro.moneyflow,
+            ts_code=ts_code, trade_date=trade_date
+        )
 
     def get_stock_basic(self, ts_code: str | None = None, name: str | None = None) -> pd.DataFrame | None:
         """获取股票基本信息"""
-        self._rate_limit()
-        try:
-            params = {"list_status": "L"}
-            if ts_code:
-                params["ts_code"] = ts_code
-            if name:
-                params["name"] = name
-            return self._pro.stock_basic(**params)
-        except Exception as e:
-            logger.error(f"get_stock_basic 失败: {e}")
-            return None
+        params = {"list_status": "L"}
+        if ts_code:
+            params["ts_code"] = ts_code
+        if name:
+            params["name"] = name
+        return self._call_api_with_retry("get_stock_basic", self._pro.stock_basic, **params)
 
     def get_limit_list(self, trade_date: str) -> pd.DataFrame | None:
         """获取涨跌停列表"""
-        self._rate_limit()
-        try:
-            return self._pro.limit_list_d(trade_date=trade_date)
-        except Exception as e:
-            logger.error(f"get_limit_list 失败: {e}")
-            return None
+        return self._call_api_with_retry("get_limit_list", self._pro.limit_list_d, trade_date=trade_date)
 
     def get_top_list(self, trade_date: str) -> pd.DataFrame | None:
         """获取龙虎榜数据"""
-        self._rate_limit()
-        try:
-            return self._pro.top_list(trade_date=trade_date)
-        except Exception as e:
-            logger.error(f"get_top_list 失败: {e}")
-            return None
+        return self._call_api_with_retry("get_top_list", self._pro.top_list, trade_date=trade_date)
 
     def get_financial_data(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
         """获取财务指标"""
-        self._rate_limit()
-        try:
-            return self._pro.fina_indicator(ts_code=ts_code, start_date=start_date, end_date=end_date)
-        except Exception as e:
-            logger.error(f"get_financial_data 失败: {e}")
-            return None
+        return self._call_api_with_retry(
+            "get_financial_data",
+            self._pro.fina_indicator,
+            ts_code=ts_code, start_date=start_date, end_date=end_date
+        )
 
     def get_trade_cal(self, exchange: str = "SSE", start_date: str = "", end_date: str = "") -> pd.DataFrame | None:
         """获取交易日历"""
-        self._rate_limit()
-        try:
-            params = {"exchange": exchange}
-            if start_date:
-                params["start_date"] = start_date
-            if end_date:
-                params["end_date"] = end_date
-            return self._pro.trade_cal(**params)
-        except Exception as e:
-            logger.error(f"get_trade_cal 失败: {e}")
-            return None
+        params = {"exchange": exchange}
+        if start_date:
+            params["start_date"] = start_date
+        if end_date:
+            params["end_date"] = end_date
+        return self._call_api_with_retry("get_trade_cal", self._pro.trade_cal, **params)
 
     def check_connection(self) -> bool:
         """检查 API 连通性"""

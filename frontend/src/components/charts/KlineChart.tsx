@@ -1,3 +1,4 @@
+import React from 'react';
 import ReactECharts from 'echarts-for-react';
 import type { KlineChart as KlineDataType } from '../../api/types';
 import { SIGNAL_COLORS } from '../../lib/constants';
@@ -9,7 +10,22 @@ interface Props {
 }
 
 export default function KlineChart({ data, height = 820 }: Props) {
-  const { dates, ohlc, volumes, pct_chgs, overlays, signal_markers, kdj, macd, brick } = data;
+  const {
+    dates,
+    ohlc,
+    volumes,
+    pct_chgs,
+    overlays,
+    signal_markers,
+    kdj,
+    macd,
+    brick,
+    waves_sequence,
+    kirin_sequence,
+    breathing_wave,
+  } = data;
+
+  const [bgMode, setBgMode] = React.useState<'none' | 'kirin' | 'waves'>('kirin');
 
   const upColor = '#ef4444';
   const downColor = '#22c55e';
@@ -46,6 +62,67 @@ export default function KlineChart({ data, height = 820 }: Props) {
       itemStyle: { color: SIGNAL_COLORS[m.type] || SIGNAL_COLORS.SELL },
     }));
 
+  // ── 背景色块区间压缩逻辑 ──
+  const kirinColors: Record<string, string> = {
+    '吸筹': 'rgba(59, 130, 246, 0.15)',  // 淡蓝
+    '拉升': 'rgba(239, 68, 68, 0.15)',  // 淡红
+    '派发': 'rgba(245, 158, 11, 0.15)',  // 淡黄
+    '回落': 'rgba(34, 197, 94, 0.12)',  // 淡绿
+  };
+
+  const waveColors: Record<string, string> = {
+    '建仓波': 'rgba(139, 92, 246, 0.15)', // 紫色
+    '拉升波': 'rgba(239, 68, 68, 0.15)', // 红色
+    '冲刺波': 'rgba(244, 63, 94, 0.20)', // 粉红
+  };
+
+  const generateMarkArea = (sequence: string[] | undefined, colors: Record<string, string>) => {
+    const areas: any[] = [];
+    if (!sequence || sequence.length === 0) return undefined;
+
+    let startIdx = 0;
+    let currentVal: string | null = sequence[0];
+
+    for (let i = 1; i <= sequence.length; i++) {
+      const val = i < sequence.length ? sequence[i] : null;
+      if (val !== currentVal) {
+        if (currentVal && currentVal !== '未知' && colors[currentVal]) {
+          areas.push([
+            {
+              name: currentVal,
+              xAxis: dates[startIdx],
+              itemStyle: {
+                color: colors[currentVal],
+              },
+              label: {
+                show: true,
+                position: 'insideTop',
+                color: '#94a3b8',
+                fontSize: 8,
+                opacity: 0.5,
+                fontWeight: 'bold',
+                offset: [0, 8],
+              },
+            },
+            {
+              xAxis: dates[Math.min(i - 1, dates.length - 1)],
+            },
+          ]);
+        }
+        startIdx = i;
+        currentVal = val;
+      }
+    }
+    return areas.length > 0 ? { data: areas } : undefined;
+  };
+
+  const markAreaConfig =
+    bgMode === 'kirin'
+      ? generateMarkArea(kirin_sequence, kirinColors)
+      : bgMode === 'waves'
+      ? generateMarkArea(waves_sequence, waveColors)
+      : undefined;
+
   const option = {
     backgroundColor: 'transparent',
     animation: false,
@@ -57,18 +134,19 @@ export default function KlineChart({ data, height = 820 }: Props) {
       textStyle: { color: '#e2e8f0', fontSize: 11 },
     },
     legend: {
-      data: ['K线', '白线', '黄线', 'BBI', '布林上', '布林中', '布林下'],
+      data: ['K线', '白线', '黄线', 'BBI', '布林上', '布林中', '布林下', '主力呼气', '主力吸气'],
       top: 0,
       textStyle: { color: '#94a3b8', fontSize: 11 },
       itemWidth: 14,
       itemHeight: 2,
     },
     grid: [
-      { left: 60, right: 70, top: 30, height: '34%' },
-      { left: 60, right: 20, top: '38%', height: '11%' },
-      { left: 60, right: 20, top: '53%', height: '13%' },
-      { left: 60, right: 20, top: '69%', height: '13%' },
-      { left: 60, right: 20, top: '85%', height: '12%' },
+      { left: 60, right: 70, top: 30, height: '30%' },
+      { left: 60, right: 20, top: '35%', height: '9%' },
+      { left: 60, right: 20, top: '47%', height: '11%' },
+      { left: 60, right: 20, top: '60%', height: '11%' },
+      { left: 60, right: 20, top: '73%', height: '11%' },
+      { left: 60, right: 20, top: '86%', height: '9%' },
     ],
     xAxis: [
       {
@@ -111,6 +189,14 @@ export default function KlineChart({ data, height = 820 }: Props) {
         axisLabel: { show: false },
         splitLine: { show: false },
       },
+      {
+        type: 'category',
+        data: dates,
+        gridIndex: 5,
+        axisLine: { lineStyle: { color: '#2a3a52' } },
+        axisLabel: { show: false },
+        splitLine: { show: false },
+      },
     ],
     yAxis: [
       {
@@ -121,7 +207,6 @@ export default function KlineChart({ data, height = 820 }: Props) {
         axisLine: { lineStyle: { color: '#2a3a52' } },
       },
       {
-        // 成交量 Y 轴 — 万 / 亿 缩写
         scale: true,
         gridIndex: 1,
         splitLine: { show: false },
@@ -153,10 +238,17 @@ export default function KlineChart({ data, height = 820 }: Props) {
         axisLabel: { color: '#64748b', fontSize: 10 },
         axisLine: { lineStyle: { color: '#2a3a52' } },
       },
+      {
+        scale: true,
+        gridIndex: 5,
+        splitLine: { lineStyle: { color: '#1e293b' } },
+        axisLabel: { color: '#64748b', fontSize: 10 },
+        axisLine: { lineStyle: { color: '#2a3a52' } },
+      },
     ],
     dataZoom: [
-      { type: 'inside', xAxisIndex: [0, 1, 2, 3, 4], start: 60, end: 100 },
-      { type: 'slider', xAxisIndex: [0, 1, 2, 3, 4], bottom: 5, height: 15, borderColor: '#2a3a52', fillerColor: 'rgba(245,158,11,0.1)', textStyle: { color: '#64748b' } },
+      { type: 'inside', xAxisIndex: [0, 1, 2, 3, 4, 5], start: 60, end: 100 },
+      { type: 'slider', xAxisIndex: [0, 1, 2, 3, 4, 5], bottom: 5, height: 15, borderColor: '#2a3a52', fillerColor: 'rgba(245,158,11,0.1)', textStyle: { color: '#64748b' } },
     ],
     series: [
       {
@@ -171,6 +263,7 @@ export default function KlineChart({ data, height = 820 }: Props) {
           borderColor: upColor,
           borderColor0: downColor,
         },
+        markArea: markAreaConfig,
         markPoint: {
           symbol: 'triangle',
           symbolSize: 10,
@@ -391,8 +484,81 @@ export default function KlineChart({ data, height = 820 }: Props) {
         lineStyle: { width: 2, color: '#f59e0b' },
         symbol: 'none',
       },
+      // 呼气波（主力放量上攻，正分值部分）
+      {
+        name: '主力呼气',
+        type: 'line',
+        data: (breathing_wave || []).map((v) => (v > 0 ? v : 0)),
+        xAxisIndex: 5,
+        yAxisIndex: 5,
+        smooth: true,
+        symbol: 'none',
+        lineStyle: { width: 1.5, color: '#ef4444' },
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: 'rgba(239, 68, 68, 0.35)' },
+              { offset: 1, color: 'rgba(239, 68, 68, 0.02)' },
+            ],
+          },
+        },
+      },
+      // 吸气波（主力缩量调整，负分值部分）
+      {
+        name: '主力吸气',
+        type: 'line',
+        data: (breathing_wave || []).map((v) => (v < 0 ? v : 0)),
+        xAxisIndex: 5,
+        yAxisIndex: 5,
+        smooth: true,
+        symbol: 'none',
+        lineStyle: { width: 1.5, color: '#22c55e' },
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: 'rgba(34, 197, 94, 0.02)' },
+              { offset: 1, color: 'rgba(34, 197, 94, 0.35)' },
+            ],
+          },
+        },
+      },
     ],
   };
 
-  return <ReactECharts option={option} style={{ height }} notMerge />;
+  return (
+    <div className="space-y-4">
+      {/* 选项控件 */}
+      <div className="flex items-center justify-between pb-2 border-b border-border/20">
+        <div className="text-xs text-text-muted font-semibold tracking-wider">主力大势背景渲染</div>
+        <div className="flex items-center gap-1.5 bg-bg-secondary p-1 rounded-lg border border-border/30">
+          {(
+            [
+              { key: 'none', label: '无背景' },
+              { key: 'kirin', label: '麒麟四阶段' },
+              { key: 'waves', label: '主力三波理论' },
+            ] as const
+          ).map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setBgMode(t.key)}
+              className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${
+                bgMode === t.key
+                  ? 'bg-accent-gold text-bg-primary shadow-sm shadow-accent-gold/20'
+                  : 'text-text-muted hover:text-text-primary hover:bg-bg-hover'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <ReactECharts option={option} style={{ height }} notMerge />
+    </div>
+  );
 }
+

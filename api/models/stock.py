@@ -208,6 +208,10 @@ class KlineChartResponse(BaseModel):
     kdj: KdjSeries = KdjSeries()
     macd: MacdSeries = MacdSeries()
     brick: BrickSeries = BrickSeries()
+    waves_sequence: list[str] = []
+    kirin_sequence: list[str] = []
+    breathing_wave: list[float] = []
+
 
 
 # ── 全量指标（供前端 IndicatorPanel 展示）──

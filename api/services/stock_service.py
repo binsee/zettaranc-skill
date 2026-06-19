@@ -265,6 +265,74 @@ def get_kline_chart_data(ts_code: str, days: int = 120) -> dict[str, Any]:
     except Exception:
         logger.warning("信号标注获取失败: %s", ts_code, exc_info=True)
 
+    # ── 计算主力阶段序列与多空呼吸波 ──
+    waves_sequence = []
+    kirin_sequence = []
+    raw_breathing = []
+
+    try:
+        from modules.indicators.wave_theory import detect_three_waves
+        from modules.indicators.kirin_detector import detect_kirin_stage
+
+        for i in range(days):
+            idx = len(all_klines) - days + i
+            sub_klines = all_klines[:idx+1]
+
+            # 1. 三波理论阶段
+            try:
+                w_res = detect_three_waves(sub_klines)
+                waves_sequence.append(w_res.get("wave", "未知"))
+            except Exception:
+                waves_sequence.append("未知")
+
+            # 2. 麒麟会阶段
+            try:
+                k_res = detect_kirin_stage(sub_klines)
+                kirin_sequence.append(k_res.get("stage", "未知"))
+            except Exception:
+                kirin_sequence.append("未知")
+
+            # 3. 呼吸波原始分值
+            if len(sub_klines) < 2:
+                raw_breathing.append(0.0)
+                continue
+
+            today_bar = sub_klines[-1]
+            prev_bar = sub_klines[-2]
+
+            if prev_bar.vol <= 0:
+                raw_breathing.append(0.0)
+                continue
+
+            vol_ratio = today_bar.vol / prev_bar.vol
+            pct = today_bar.pct_chg if today_bar.pct_chg is not None else 0.0
+
+            if pct > 0 and vol_ratio > 1:
+                # 放量涨：呼气
+                raw_breathing.append(min(vol_ratio - 1.0, 3.0))
+            elif pct < 0 and vol_ratio < 1:
+                # 缩量跌：吸气
+                raw_breathing.append(-min((1.0 / vol_ratio) - 1.0, 3.0))
+            elif pct < 0 and vol_ratio >= 1:
+                # 放量跌：派发/恐慌
+                raw_breathing.append(-0.5 * min(vol_ratio, 2.0))
+            else:
+                # 缩量涨（量价背离）
+                raw_breathing.append(0.1)
+    except Exception:
+        logger.exception("计算主力阶段序列与多空呼吸波失败: %s", ts_code)
+        waves_sequence = ["未知"] * days
+        kirin_sequence = ["未知"] * days
+        raw_breathing = [0.0] * days
+
+    # 4. 对呼吸原始分值做 5 日平滑
+    breathing_wave = []
+    for i in range(len(raw_breathing)):
+        start = max(0, i - 4)
+        window = raw_breathing[start:i+1]
+        avg = sum(window) / len(window)
+        breathing_wave.append(round(avg, 2))
+
     return {
         "ts_code": ts_code,
         "name": name,
@@ -277,7 +345,11 @@ def get_kline_chart_data(ts_code: str, days: int = 120) -> dict[str, Any]:
         "kdj": {"k": kdj_k, "d": kdj_d, "j": kdj_j},
         "macd": {"dif": macd_dif, "dea": macd_dea, "hist": macd_hist},
         "brick": {"values": brick_values, "colors": brick_colors},
+        "waves_sequence": waves_sequence,
+        "kirin_sequence": kirin_sequence,
+        "breathing_wave": breathing_wave,
     }
+
 
 
 def get_signals(ts_code: str, days: int = 120) -> list[dict]:

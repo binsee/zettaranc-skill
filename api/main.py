@@ -70,6 +70,17 @@ app.include_router(system_router, prefix=f"{prefix}/system", tags=["system"])
 app.include_router(commentary_router, prefix=f"{prefix}", tags=["commentary"])
 
 
+def start_web():
+    """启动 API 服务，供 zt-web 快捷指令调用"""
+    import uvicorn
+    print("=" * 60)
+    print("  Z哥量化 PC 看板后端 API 服务已启动")
+    print(f"  地址: http://127.0.0.1:{settings.api_port}")
+    print("  请打开 React 前端项目 (npm run dev) 进行数据可视化浏览")
+    print("=" * 60)
+    uvicorn.run("api.main:app", host="0.0.0.0", port=settings.api_port, reload=False)
+
+
 if __name__ == "__main__":
     import uvicorn
 

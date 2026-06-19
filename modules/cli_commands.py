@@ -651,6 +651,25 @@ def cmd_daily(args) -> None:
         print(f"\n{'=' * 60}")
 
 
+def cmd_monitor(args):
+    """自选股监控扫描命令行处理入口"""
+    from modules.monitor import run_watchlist_monitor
+
+    use_json = getattr(args, "json", False)
+    enable_push = not getattr(args, "no_push", False)
+    days = getattr(args, "days", 30)
+
+    # 运行监控扫描
+    res = run_watchlist_monitor(sync_days=days, enable_push=enable_push)
+
+    if use_json:
+        _json_output(res)
+    else:
+        # 非 JSON 输出时已经在 run_watchlist_monitor 内部写入了 Markdown 报告，打印简易提示
+        print(f"自选股主动扫描监控完成。状态: {res['status']}, 警报总数: {res.get('alerts_count', 0)}")
+        print("详细警报分析已输出至 data/reports/monitor_alert.md")
+
+
 # ==================== 主入口（独立运行示例） ====================
 
 if __name__ == "__main__":

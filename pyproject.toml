@@ -42,6 +42,8 @@ dev = [
 
 [project.scripts]
 zt = "modules.cli:main"
+zt-web = "api.main:start_web"
+zt-monitor = "modules.monitor:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

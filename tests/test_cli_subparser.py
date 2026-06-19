@@ -30,7 +30,7 @@ def run_zt(*args: str, timeout: int = 15) -> subprocess.CompletedProcess:
 
 # ==================== 顶层 subcommand ====================
 
-EXPECTED_TOP_COMMANDS = ["analyze", "screen", "score", "workflow", "diagnose", "watchlist", "sync"]
+EXPECTED_TOP_COMMANDS = ["analyze", "screen", "score", "workflow", "diagnose", "watchlist", "sync", "monitor"]
 
 
 def test_top_level_help_lists_all_seven_commands():

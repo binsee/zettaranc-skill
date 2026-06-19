@@ -774,10 +774,16 @@ def main():
     p_daily = subparsers.add_parser("daily", help="每日五步工作流")
     p_daily.add_argument("--json", action="store_true", help="JSON输出")
 
+    # ── monitor ──
+    p_monitor = subparsers.add_parser("monitor", help="自选股主动预警与扫描推送")
+    p_monitor.add_argument("--days", type=int, default=30, help="同步 K 线回溯天数")
+    p_monitor.add_argument("--no-push", action="store_true", help="关闭推送通知")
+    p_monitor.add_argument("--json", action="store_true", help="JSON输出")
+
     args = parser.parse_args()
 
     # 调度表
-    from modules.cli_commands import cmd_backtest, cmd_trade, cmd_daily
+    from modules.cli_commands import cmd_backtest, cmd_trade, cmd_daily, cmd_monitor
 
     handlers = {
         "analyze": cmd_analyze,
@@ -792,6 +798,7 @@ def main():
         "daily": cmd_daily,
         "track": cmd_track,
         "self-optimize": cmd_self_optimize,
+        "monitor": cmd_monitor,
     }
     handlers[args.command](args)
 

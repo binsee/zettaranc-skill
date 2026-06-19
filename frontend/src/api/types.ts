@@ -104,6 +104,9 @@ export interface KlineChart {
   kdj: { k: (number | null)[]; d: (number | null)[]; j: (number | null)[] };
   macd: { dif: (number | null)[]; dea: (number | null)[]; hist: (number | null)[] };
   brick: { values: (number | null)[]; colors: (number | null)[] };
+  waves_sequence?: string[];
+  kirin_sequence?: string[];
+  breathing_wave?: number[];
 }
 
 export interface ChartOverlays {
