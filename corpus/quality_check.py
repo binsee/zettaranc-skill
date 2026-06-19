@@ -190,6 +190,71 @@ def check_model_completeness(content: str) -> tuple[bool, str]:
     return passed, f"{models_with_content}/{len(model_headers)}个模型有核心内容 {'✅' if passed else '❌'}"
 
 
+def check_v2_routing_surface(content: str) -> tuple[bool, str]:
+    """检查 V2 路由声明：是否有明确的 Load when / 不加载条件"""
+    has_routing_header = bool(re.search(r"##\s+.*路由声明|##\s+.*Routing Surface", content, re.IGNORECASE))
+    has_load_when = bool(re.search(r"何时加载|Load when|触发条件|应该加载", content, re.IGNORECASE))
+    has_not_load = bool(re.search(r"何时不加载|Do NOT|不加载|不触发|禁区", content, re.IGNORECASE))
+    has_priority = bool(re.search(r"优先级|priority|优先加载|fallback", content, re.IGNORECASE))
+
+    passed = has_routing_header and has_load_when and has_not_load
+    details = []
+    details.append(f"路由声明section: {'✅' if has_routing_header else '❌'}")
+    details.append(f"加载条件: {'✅' if has_load_when else '❌'}")
+    details.append(f"不加载条件: {'✅' if has_not_load else '❌'}")
+    if has_priority:
+        details.append(f"优先级规则: ✅")
+    return passed, " | ".join(details)
+
+
+def check_v2_contract_surface(content: str) -> tuple[bool, str]:
+    """检查 V2 契约：输入契约、输出契约、边界与限制"""
+    has_contract_header = bool(re.search(r"##\s+.*契约|##\s+.*Contract Surface", content, re.IGNORECASE))
+    has_input = bool(re.search(r"输入契约|输入类型|input|Input", content, re.IGNORECASE))
+    has_output = bool(re.search(r"输出契约|输出要求|output|Output", content, re.IGNORECASE))
+    has_boundary = bool(re.search(r"边界与限制|边界|Limitation|限制", content, re.IGNORECASE))
+
+    passed = has_contract_header and has_input and has_output
+    details = []
+    details.append(f"契约section: {'✅' if has_contract_header else '❌'}")
+    details.append(f"输入契约: {'✅' if has_input else '❌'}")
+    details.append(f"输出契约: {'✅' if has_output else '❌'}")
+    details.append(f"边界限制: {'✅' if has_boundary else '❌'}")
+    return passed, " | ".join(details)
+
+
+def check_v2_runtime_boundary(content: str) -> tuple[bool, str]:
+    """检查 V2 运行时边界：资源加载时机、工具链、失败退路"""
+    has_runtime_header = bool(re.search(r"##\s+.*运行时资源|##\s+.*Runtime Boundary", content, re.IGNORECASE))
+    has_knowledge_index = bool(re.search(r"知识文件|知识资源|加载时机|docs|references", content, re.IGNORECASE))
+    has_toolchain = bool(re.search(r"工具链|工具调用|调用条件|tools|scripts", content, re.IGNORECASE))
+    has_fallback = bool(re.search(r"失败退路|失败处理|fallback|降级|回退", content, re.IGNORECASE))
+
+    passed = has_runtime_header and has_knowledge_index and has_toolchain
+    details = []
+    details.append(f"运行时section: {'✅' if has_runtime_header else '❌'}")
+    details.append(f"知识文件索引: {'✅' if has_knowledge_index else '❌'}")
+    details.append(f"工具链定义: {'✅' if has_toolchain else '❌'}")
+    details.append(f"失败退路: {'✅' if has_fallback else '❌'}")
+    return passed, " | ".join(details)
+
+
+def check_v2_safety_surface(content: str) -> tuple[bool, str]:
+    """检查 V2 安全边界：高风险动作、人类确认点、禁区"""
+    has_safety_header = bool(re.search(r"##\s+.*安全边界|##\s+.*Safety Surface", content, re.IGNORECASE))
+    has_high_risk = bool(re.search(r"高风险|风险等级|risk level|Risk Level", content, re.IGNORECASE))
+    has_human_confirm = bool(re.search(r"人类确认|确认点|human confirm|确认规则|必须停下来", content, re.IGNORECASE))
+    has_prohibited = bool(re.search(r"禁区|禁止|绝对不做|prohibited|禁区", content, re.IGNORECASE))
+
+    passed = has_safety_header and has_high_risk and has_prohibited
+    details = []
+    details.append(f"安全边界section: {'✅' if has_safety_header else '❌'}")
+    details.append(f"高风险动作: {'✅' if has_high_risk else '❌'}")
+    details.append(f"人类确认点: {'✅' if has_human_confirm else '❌'}")
+    details.append(f"禁区声明: {'✅' if has_prohibited else '❌'}")
+    return passed, " | ".join(details)
+
+
 def main():
     # 解析参数：支持 --json / --strict
     args = sys.argv[1:]
@@ -219,6 +284,10 @@ def main():
     content = skill_path.read_text(encoding="utf-8")
 
     checks = [
+        ("V2-路由声明", check_v2_routing_surface),
+        ("V2-契约", check_v2_contract_surface),
+        ("V2-运行时边界", check_v2_runtime_boundary),
+        ("V2-安全边界", check_v2_safety_surface),
         ("心智模型数量", check_mental_models),
         ("模型局限性", check_limitations),
         ("表达DNA辨识度", check_expression_dna),

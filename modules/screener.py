@@ -11,6 +11,7 @@ import os
 
 from .database import get_connection, get_db_path, get_db_connection
 from .indicators import DailyData, calculate_ma
+from .bridge_client import get_all_stocks_bridge_first, get_daily_klines
 
 # 并行化阈值：小于此数量不启用多进程（启动开销不值得）
 _PARALLEL_THRESHOLD = 50
@@ -229,7 +230,17 @@ class MarketStatus:
 
 
 def get_all_stocks() -> list[dict]:
-    """获取所有股票基本信息"""
+    """
+    获取所有股票基本信息
+
+    优先从 bridge 获取，bridge 不可用时回退到本地 SQLite
+    """
+    stocks = get_all_stocks_bridge_first()
+    if stocks:
+        # bridge 返回的数据可能没有 market 字段，需要过滤主板/创业板/科创板
+        return [s for s in stocks if s.get("market") in ("主板", "创业板", "科创板", None)]
+
+    # 回退到本地
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -244,27 +255,19 @@ def get_all_stocks() -> list[dict]:
 
 
 def get_recent_klines(ts_code: str, days: int = 60) -> list[DailyData]:
-    """获取近期K线数据"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        """
-        SELECT ts_code, trade_date, open, high, low, close, vol, pct_chg
-        FROM daily_kline
-        WHERE ts_code = ?
-        ORDER BY trade_date DESC
-        LIMIT ?
-    """,
-        (ts_code, days),
-    )
+    """
+    获取近期 K 线数据
 
-    rows = cursor.fetchall()
-    conn.close()
+    优先从 bridge 获取，bridge 不可用时回退到本地 SQLite
+    """
+    rows = get_daily_klines(ts_code, days=days)
+    if not rows:
+        return []
 
-    # 转换为升序
+    # 转换为 DailyData（升序）
     data_list = []
-    for i, row in enumerate(reversed(rows)):
-        prev_close = rows[len(rows) - i - 2]["close"] if i < len(rows) - 1 else row["close"]
+    for i, row in enumerate(rows):
+        prev_close = rows[i - 1]["close"] if i > 0 else row["close"]
         data_list.append(
             DailyData(
                 ts_code=row["ts_code"],
@@ -274,8 +277,8 @@ def get_recent_klines(ts_code: str, days: int = 60) -> list[DailyData]:
                 low=row["low"],
                 close=row["close"],
                 vol=row["vol"],
-                amount=row["close"] * row["vol"],
-                pct_chg=row["pct_chg"],
+                amount=row.get("amount", row["close"] * row["vol"]),
+                pct_chg=row.get("pct_chg", 0.0),
                 prev_close=prev_close,
             )
         )

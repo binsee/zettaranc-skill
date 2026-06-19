@@ -1,13 +1,28 @@
 # TODO
 
 > Zettaranc Skill 待办清单
-> 更新日期：2026-06-07
-> 当前版本：v3.1.0
+> 更新日期：2026-06-20
+> 当前版本：v3.3.0
 > 状态：✅ 已完成 / ⏳ 进行中 / 📋 待规划
 
 ---
 
-## ✅ 已完成（v3.0.0 编排模式）
+## ✅ 已完成（v3.3.0 Skill-Schema-V2 合规改造）
+
+### Schema 对齐（V2 三表面 + 安全边界）
+- [x] YAML frontmatter description 改为路由触发器格式（Load when / Do NOT load / Risk level）
+- [x] 新增 路由声明（Routing Surface）：触发条件表格 + 不加载场景 + 优先级规则
+- [x] 新增 契约（Contract Surface）：输入契约（5 类输入）、输出契约（5 类任务验收标准）、边界与限制
+- [x] 新增 运行时资源索引（Runtime Boundary）：12 知识文件加载时机 + 6 工具链调用条件 + 5 失败退路
+- [x] 新增 安全边界（Safety Surface）：高风险动作规则 + 人类确认点（3 个必须停下来的场景）+ 禁区（6 条绝对红线）+ 版本追踪
+- [x] 质量门升级：新增 4 项 V2 表面检查（路由/契约/运行时/安全），12/12 全通过
+
+### 知识文件补完
+- [x] 23 个 knowledge/*.md 添加 Skill-Runtime 元数据头部（加载时机 + 用途 + 大小）
+
+---
+
+## ✅ 已完成（v3.2.0 P3 指标接入 screener + 数据层整合）
 
 ### 编排模式与角色扩展
 - [x] 用户问题自动路由到对应模块（股票/投资、人生/职业决策、创业/商业判断）
@@ -94,6 +109,25 @@
 
 ---
 
+## ✅ 已完成（v3.2.0 P3 指标接入 screener + 数据层整合）
+
+### P3 指标深度接入评分体系
+- [x] **量比战法融入 `score_volume_pattern`**：6 场景判定（超级攻击+30/攻击日+25/单向拉升+18/出货日-25/弱势日-15/震荡吸筹+5），降级回简单量比计算
+- [x] **沙漏评分融入 `score_b1_opportunity`**：3 因子增强（缩量收敛+10/+5、枢轴邻近+8/+4、完美图形+15/良好+5）
+- [x] **CLI choices 补全**：`bull_rope` / `sandglass_perfect` / `volume_ratio_super` 正式可用
+- [x] 新增 `tests/test_screener_p3.py`：14 个用例（量比 6 场景 + 沙漏 B1 + 注册表验证）
+- [x] 测试：36 passed（原有 22 + 新增 14），0 破坏
+
+### 数据层整合（skill ↔ tushare-data-bridge）
+- [x] **新增 `modules/bridge_client.py`**：封装 bridge HTTP API（5 个端点）
+  - 3 种运行模式：`auto` / `always` / `never`（`TUSHARE_BRIDGE_ENABLED` 控制）
+  - 降级网关：bridge 不通时自动回退到本地 SQLite
+- [x] **改造 `modules/screener.py` 数据接入层**：`get_all_stocks()` / `get_recent_klines()` 优先 bridge，失败回退本地
+- [x] 新增 `tests/test_bridge_client.py`：20 个用例（配置/健康检查/GET/POST/降级网关）
+- [x] 测试：56 passed（screener 36 + bridge 20），0 破坏
+
+---
+
 ## 📋 待实现
 
 （暂无）
@@ -102,7 +136,10 @@
 
 ## ⏳ 进行中
 
-（暂无）
+### Phase 3: SKILL.md 拆分（数据字典外迁 → 心智模型拆分）
+- [ ] 数据字典外迁至 `knowledge/data_dictionary.md` + `knowledge/signal_dictionary.md`
+- [ ] 心智模型独立文件（6 个）+ 启发式索引
+- [ ] 主文件保留"角色扮演规则 + 表达 DNA + 诚实边界"核心
 
 ---
 
