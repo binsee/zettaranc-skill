@@ -27,11 +27,11 @@ repos:
           - pandas-stubs
           - types-requests
 
-  # === SKILL.md 质量门（每次 commit 跑 8 项检查，~5s）===
+  # === SKILL.md 质量门（每次 commit 跑 12 项检查，~5s）===
   - repo: local
     hooks:
       - id: skill-quality-check
-        name: SKILL.md 质量门（8 项）
+        name: SKILL.md 质量门（12 项）
         entry: python3 corpus/quality_check.py SKILL.md
         language: system
         pass_filenames: false

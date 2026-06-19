@@ -45,9 +45,9 @@ def test_top_level_help_lists_all_seven_commands():
 def test_each_top_command_has_help(cmd):
     """每个顶层 subcommand 必须支持 --help"""
     result = run_zt(cmd, "--help")
-    assert result.returncode == 0, (
-        f"{cmd} --help exit {result.returncode}\nstdout: {result.stdout}\nstderr: {result.stderr}"
-    )
+    assert (
+        result.returncode == 0
+    ), f"{cmd} --help exit {result.returncode}\nstdout: {result.stdout}\nstderr: {result.stderr}"
 
 
 def test_missing_command_exits_nonzero():
@@ -206,21 +206,21 @@ def test_backtest_shaofu_dispatches_to_handler():
     """
     result = run_zt("backtest", "shaofu", "600487.SH", timeout=20)
     # 真正成功需要数据库 + 数据；只要不是"请指定回测子命令"就说明 dest 修对了
-    assert "请指定回测子命令" not in (result.stdout + result.stderr), (
-        f"backtest shaofu 仍卡在 dest 错误:\nstdout: {result.stdout}\nstderr: {result.stderr}"
-    )
+    assert "请指定回测子命令" not in (
+        result.stdout + result.stderr
+    ), f"backtest shaofu 仍卡在 dest 错误:\nstdout: {result.stdout}\nstderr: {result.stderr}"
 
 
 def test_backtest_portfolio_dispatches_to_handler():
     """回归：cli.py portfolio 子命令的位参数字段名必须为 codes（与 cmd_backtest 对齐）"""
     result = run_zt("backtest", "portfolio", "600487.SH,601318.SH", timeout=20)
-    assert "请指定回测子命令" not in (result.stdout + result.stderr), (
-        f"backtest portfolio dest 不匹配:\nstdout: {result.stdout}\nstderr: {result.stderr}"
-    )
+    assert "请指定回测子命令" not in (
+        result.stdout + result.stderr
+    ), f"backtest portfolio dest 不匹配:\nstdout: {result.stdout}\nstderr: {result.stderr}"
     # 且不应报"股票代码列表为空"（说明 codes 字段被 argparse 正确填充）
-    assert "股票代码列表为空" not in (result.stdout + result.stderr), (
-        f"backtest portfolio codes 字段没传过去:\nstdout: {result.stdout}\nstderr: {result.stderr}"
-    )
+    assert "股票代码列表为空" not in (
+        result.stdout + result.stderr
+    ), f"backtest portfolio codes 字段没传过去:\nstdout: {result.stdout}\nstderr: {result.stderr}"
 
 
 TRADE_ACTIONS = ["add", "list", "review", "stats"]
@@ -237,6 +237,6 @@ def test_trade_help_lists_all_four_actions(action):
 def test_trade_list_dispatches_to_handler():
     """回归：trade 从位参数改为 subparser 后,list 不应再卡在 dest 错误"""
     result = run_zt("trade", "list", timeout=15)
-    assert "请指定交易子命令" not in (result.stdout + result.stderr), (
-        f"trade list dest 仍不匹配:\nstdout: {result.stdout}\nstderr: {result.stderr}"
-    )
+    assert "请指定交易子命令" not in (
+        result.stdout + result.stderr
+    ), f"trade list dest 仍不匹配:\nstdout: {result.stdout}\nstderr: {result.stderr}"

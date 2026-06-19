@@ -152,9 +152,9 @@ def test_strategy_step_changes_by_exact_step(mutator, default_params):
         )
         if spec:
             delta = round(abs(rec.new_value - rec.old_value), 6)
-            assert delta == pytest.approx(spec.step) or delta == 0, (
-                f"{rec.strategy}.{rec.param_name}: delta={delta} != step={spec.step}"
-            )
+            assert (
+                delta == pytest.approx(spec.step) or delta == 0
+            ), f"{rec.strategy}.{rec.param_name}: delta={delta} != step={spec.step}"
 
 
 def test_strategy_random_does_not_equal_old_often(mutator, default_params):

@@ -101,9 +101,9 @@ def test_param_ranges_are_valid():
     for group in get_registry().values():
         for pspec in group.params.values():
             assert pspec.min < pspec.max, f"{group.strategy_name}.{pspec.name} min >= max"
-            assert pspec.min <= pspec.default <= pspec.max, (
-                f"{group.strategy_name}.{pspec.name} default={pspec.default} 不在 [{pspec.min}, {pspec.max}]"
-            )
+            assert (
+                pspec.min <= pspec.default <= pspec.max
+            ), f"{group.strategy_name}.{pspec.name} default={pspec.default} 不在 [{pspec.min}, {pspec.max}]"
 
 
 def test_defaults_consistency():
@@ -111,9 +111,9 @@ def test_defaults_consistency():
     defaults = get_defaults()
     for sname, group in get_registry().items():
         for pname, pspec in group.params.items():
-            assert defaults[sname][pname] == pspec.default, (
-                f"{sname}.{pname}: defaults={defaults[sname][pname]} != spec={pspec.default}"
-            )
+            assert (
+                defaults[sname][pname] == pspec.default
+            ), f"{sname}.{pname}: defaults={defaults[sname][pname]} != spec={pspec.default}"
 
 
 def test_registry_is_immutable():
