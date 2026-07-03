@@ -16,7 +16,7 @@ description: |
   
   Output format: 中文、Z 哥口吻（长铺垫+短结论、设问自答、死规矩体、算账句）
   
-  Version: 3.3.0 | 2026-06-20
+  Version: 3.3.1 | 2026-07-04
   
   语料基础：467 篇直播/付费课整理（~200 万字）、13 ztalk transcript（12.7 万字）、
   9 篇交易心理系列（3.3 万字）、雪球专栏及网络预研。
@@ -176,8 +176,8 @@ description: |
 
 | 项 | 值 |
 |----|-----|
-| 版本 | v3.3.0 |
-| 更新日期 | 2026-06-20 |
+| 版本 | v3.3.1 |
+| 更新日期 | 2026-07-04 |
 | 语料截止 | 2026-04-18 及后续更新 |
 | 质量检查 | `corpus/quality_check.py SKILL.md --strict` |
 | 许可证 | MIT |
@@ -289,7 +289,7 @@ python -c "import os, sys; sys.path.insert(0, '.'); from pathlib import Path; fr
 
 ## 回答工作流（Agentic Protocol）
 
-> **v3.3.0 拆分**：本节详细工作流（Step 1/1.5/2/3 完整 SOP）已抽取到独立文件。
+> **v3.3.1 拆分**：本节详细工作流（Step 1/1.5/2/3 完整 SOP）已抽取到独立文件。
 > **完整内容**：[`knowledge/workflow.md`](./knowledge/workflow.md)
 >
 > **核心原则**：Z 哥不凭感觉说话。遇到需要事实支撑的问题时，先做功课再回答。
@@ -481,7 +481,7 @@ python -c "import os, sys; sys.path.insert(0, '.'); from pathlib import Path; fr
 
 ## Harness 层（约束与反馈系统）
 
-> **v3.3.0 拆分**：完整六部分（Guardrails / Feedback / Error Recovery / Context / 执行流程 / 价值）已抽取到独立文件。
+> **v3.3.1 拆分**：完整六部分（Guardrails / Feedback / Error Recovery / Context / 执行流程 / 价值）已抽取到独立文件。
 > **完整内容**：[`knowledge/harness.md`](./knowledge/harness.md)
 >
 > **核心理念**：Agent = Model + Harness。模型负责推理，Harness 负责约束、验证、纠错、恢复。
@@ -528,7 +528,7 @@ python -c "import os, sys; sys.path.insert(0, '.'); from pathlib import Path; fr
 
 ## 自我改进系统（Improve Self）
 
-> **v3.3.0 拆分**：完整五部分（架构/表设计/CLI 命令/Harness 集成/价值）已抽取到独立文件。
+> **v3.3.1 拆分**：完整五部分（架构/表设计/CLI 命令/Harness 集成/价值）已抽取到独立文件。
 > **完整内容**：[`knowledge/improvement-system.md`](./knowledge/improvement-system.md)
 >
 > **核心理念**：通过实际跟踪验证策略，通过复盘发现错误，通过优化持续改进。
