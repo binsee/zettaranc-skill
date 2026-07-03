@@ -8,7 +8,7 @@ from typing import Protocol, runtime_checkable
 
 import pandas as pd
 
-from .bridge_client import BridgeConfig, get_all_stocks_bridge_first, get_daily_klines, is_bridge_available
+from .bridge_client import BridgeConfig, get_all_stocks_bridge_first, get_daily_klines, is_bridge_available, set_bridge_config
 from .database import get_connection
 from .tushare_client import TushareClient
 
@@ -126,6 +126,13 @@ class BridgeDataSource:
 
     def __init__(self, config: BridgeConfig | None = None):
         self._config = config
+        if config is not None:
+            set_bridge_config(
+                host=config.host,
+                port=config.port,
+                timeout=config.timeout,
+                enabled=config.enabled,
+            )
 
     @property
     def name(self) -> str:
@@ -318,7 +325,7 @@ class CompositeDataSource:
     def get_stock_list(self, exchange: str | None = None) -> list[dict]:
         sources: list[DataSource] = []
         if self._preferred == "auto":
-            sources = [self._bridge, self._sqlite, self._tushare]
+            sources = [self._bridge, self._sqlite]
         elif self._preferred == "bridge":
             sources = [self._bridge]
         elif self._preferred == "sqlite":
@@ -344,7 +351,7 @@ class CompositeDataSource:
     ) -> list[dict]:
         sources: list[DataSource] = []
         if self._preferred == "auto":
-            sources = [self._bridge, self._sqlite, self._tushare]
+            sources = [self._bridge, self._sqlite]
         elif self._preferred == "bridge":
             sources = [self._bridge]
         elif self._preferred == "sqlite":

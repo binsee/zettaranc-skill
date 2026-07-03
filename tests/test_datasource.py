@@ -4,7 +4,7 @@ DataSource 协议与实现测试
 
 import pytest
 
-from modules.bridge_client import is_bridge_available
+from modules.bridge_client import BridgeConfig, get_bridge_config, is_bridge_available
 from modules.datasource import (
     BridgeDataSource,
     CompositeDataSource,
@@ -128,3 +128,58 @@ def test_get_datasource_factory():
     ds = get_datasource("sqlite")
     assert isinstance(ds, SqliteDataSource)
     assert ds.name == "sqlite"
+
+
+def test_bridge_datasource_with_custom_config(monkeypatch):
+    """传入自定义 BridgeConfig 后应更新全局 bridge 配置。"""
+    # 重置全局配置到已知状态
+    from modules.bridge_client import set_bridge_config
+
+    set_bridge_config(host="127.0.0.1", port=8765, timeout=10, enabled="auto")
+    custom = BridgeConfig(host="10.0.0.1", port=9999, timeout=3, enabled="never")
+    ds = BridgeDataSource(config=custom)
+    assert ds._config == custom
+    cfg = get_bridge_config()
+    assert cfg.host == "10.0.0.1"
+    assert cfg.port == 9999
+    assert cfg.timeout == 3
+    assert cfg.enabled == "never"
+
+
+def test_composite_auto_does_not_use_tushare(monkeypatch, temp_db, db_conn):
+    """auto 策略在 bridge 不可用时回退到 SQLite，不应调用 TushareDataSource。"""
+    from tests.conftest import write_klines_to_db, write_stock_basic
+
+    # bridge 不可用
+    monkeypatch.setattr("modules.datasource.is_bridge_available", lambda: False)
+    # 标记 TushareDataSource.get_kline_dicts 被调用即失败
+    original_get_kline_dicts = TushareDataSource.get_kline_dicts
+
+    def failing_tushare_klines(self, ts_code, days=60, start_date=None, end_date=None):
+        pytest.fail("TushareDataSource.get_kline_dicts should not be called in auto fallback")
+
+    monkeypatch.setattr(TushareDataSource, "get_kline_dicts", failing_tushare_klines)
+
+    write_stock_basic(db_conn, ts_code="600519.SH", name="贵州茅台", industry="白酒", market="主板")
+    rows = [
+        {
+            "ts_code": "600519.SH",
+            "trade_date": "20260101",
+            "open": 1500.0,
+            "high": 1520.0,
+            "low": 1490.0,
+            "close": 1510.0,
+            "vol": 10000.0,
+            "amount": 15100000.0,
+            "pct_chg": 0.5,
+        },
+    ]
+    write_klines_to_db(db_conn, rows)
+
+    ds = CompositeDataSource(preferred="auto")
+    data = ds.get_kline_dicts("600519.SH", days=60)
+    assert len(data) == 1
+    assert data[0]["trade_date"] == "20260101"
+
+    # 恢复原始方法（monkeypatch 会自动恢复，但显式恢复更安全）
+    monkeypatch.setattr(TushareDataSource, "get_kline_dicts", original_get_kline_dicts)
