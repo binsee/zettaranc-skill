@@ -781,10 +781,21 @@ def main():
     p_monitor.add_argument("--no-push", action="store_true", help="关闭推送通知")
     p_monitor.add_argument("--json", action="store_true", help="JSON输出")
 
+    # ── simulate（少女/少妇模拟器 v0.1）──
+    p_sim = subparsers.add_parser("simulate", help="端到端交易模拟回测（择时+选股+仓位+卖出）")
+    p_sim.add_argument("codes", nargs="?", help="股票代码，逗号分隔；省略则使用前 500 只")
+    p_sim.add_argument("--days", type=int, default=250, help="回测天数")
+    p_sim.add_argument("--capital", type=float, default=1_000_000, help="初始资金")
+    p_sim.add_argument("--max-positions", type=int, default=5, help="最大同时持仓")
+    p_sim.add_argument("--risk", type=float, default=0.02, help="单笔风险占净值比例")
+    p_sim.add_argument("--score", type=float, default=70.0, help="入选信号最低综合评分")
+    p_sim.add_argument("--signals", type=int, default=2, help="最小共振标签数")
+    p_sim.add_argument("--json", action="store_true", help="JSON输出")
+
     args = parser.parse_args()
 
     # 调度表
-    from modules.cli_commands import cmd_backtest, cmd_trade, cmd_daily, cmd_monitor
+    from modules.cli_commands import cmd_backtest, cmd_trade, cmd_daily, cmd_monitor, cmd_simulate
 
     handlers = {
         "analyze": cmd_analyze,
@@ -800,6 +811,7 @@ def main():
         "track": cmd_track,
         "self-optimize": cmd_self_optimize,
         "monitor": cmd_monitor,
+        "simulate": cmd_simulate,
     }
     handlers[args.command](args)
 

@@ -7,6 +7,22 @@
 
 ---
 
+## ⏳ 进行中（少女/少妇模拟器 v0.1）
+
+- [ ] **新增 `modules/simulator/` 端到端模拟器**：
+  - `market_context.py`：大盘趋势/广度/资金三维度环境判断
+  - `signal_filter.py`：基于 screener 评分的多策略共振过滤
+  - `position_sizer.py`：单笔风险固定仓位管理
+  - `execution_engine.py`：开盘价买入 + 收盘价卖出 + 滑点/手续费
+  - `exit_manager.py`：止损/卤煮减半/移动止盈
+  - `simulator.py`：组合级逐日 orchestrator，输出资金曲线与统计指标
+- [ ] **新增 CLI `zt simulate`**：支持 `--days/--capital/--max-positions/--risk/--score/--signals/--json`
+- [ ] **新增 `tests/test_simulator.py`**：19 个单元测试覆盖仓位/成交/退出/市场环境/信号过滤/编排器
+- [ ] **更新 `docs/TODO.md` / `docs/CHANGELOG.md`**：记录 v0.1 模拟器里程碑
+- [ ] **推送并验证 CI 全绿**
+
+---
+
 ## ✅ 已完成（v3.3.2 DataSource 协议补完）
 
 - [x] **修复 `BridgeDataSource` 全局配置污染**：

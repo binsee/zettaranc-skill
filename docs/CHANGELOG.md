@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+### 交易模拟器（少女/少妇模拟器 v0.1）
+
+- **新增 `modules/simulator/` 端到端模拟器包**：
+  - `market_context.py`：基于大盘指数白线/黄线、涨跌广度、量价关系判断市场环境（强势/震荡/弱势）。
+  - `signal_filter.py`：对 `screener` 评分结果二次过滤，要求 B1 + 沙漏/量比/牛绳等多标签共振。
+  - `position_sizer.py`：按单笔风险（默认 2% 净值）和止损幅度动态计算买入股数。
+  - `execution_engine.py`：开盘价买入 + 收盘价卖出，支持滑点和双向手续费。
+  - `exit_manager.py`：止损（跌破入场前低点）、卤煮减半（2R 止盈）、移动止盈（跌破 20MA 或白线死叉黄线）。
+  - `simulator.py`：组合级逐日编排，输出资金曲线、回撤、夏普、胜率、盈亏比、平均持仓天数。
+- **新增 CLI 命令**：`zt simulate [codes] --days N --capital N --max-positions N --risk R --score S --signals N --json`。
+- **新增测试**：`tests/test_simulator.py`，19 个用例覆盖仓位、成交、退出、市场环境、信号过滤和编排器。
+
 ### 文档与工程化
 
 - **SKILL.md 新增「能力边界与 API 依赖声明」章节**：明确 JNB / Bridge / SQLite / Websearch 四级数据路径、能力边界、强制免责声明。

@@ -670,6 +670,68 @@ def cmd_monitor(args):
         print("详细警报分析已输出至 data/reports/monitor_alert.md")
 
 
+def cmd_simulate(args) -> None:
+    """
+    少女/少妇模拟器 CLI 入口。
+
+    示例：
+        zt simulate 600487.SH,601318.SH --days 250 --capital 1000000 --json
+        zt simulate --days 120 --max-positions 3 --score 75
+    """
+    from .simulator.simulator import run_simulation, summary_text
+    from .simulator import SimulationConfig
+
+    use_json = getattr(args, "json", False)
+    days = getattr(args, "days", 250)
+    codes_str = getattr(args, "codes", None)
+
+    config = SimulationConfig(
+        initial_capital=getattr(args, "capital", 1_000_000.0),
+        max_positions=getattr(args, "max_positions", 5),
+        risk_per_trade=getattr(args, "risk", 0.02),
+        position_score_threshold=getattr(args, "score", 70.0),
+        signal_min_count=getattr(args, "signals", 2),
+    )
+
+    ts_codes = None
+    if codes_str:
+        ts_codes = [c.strip() for c in codes_str.split(",") if c.strip()]
+
+    result = run_simulation(ts_codes=ts_codes, days=days, config=config)
+
+    if use_json:
+        _json_output(
+            {
+                "initial_capital": result.initial_capital,
+                "final_value": result.final_value,
+                "total_return": round(result.total_return * 100, 2),
+                "max_drawdown": round(result.max_drawdown * 100, 2),
+                "sharpe_ratio": round(result.sharpe_ratio, 2),
+                "total_trades": result.total_trades,
+                "win_rate": round(result.win_rate, 3),
+                "profit_factor": round(result.profit_factor, 2),
+                "avg_holding_days": round(result.avg_holding_days, 1),
+                "open_positions": len(result.positions),
+                "trades": [
+                    {
+                        "ts_code": t.ts_code,
+                        "action": t.action,
+                        "date": t.date,
+                        "price": t.price,
+                        "shares": t.shares,
+                        "pnl": t.pnl,
+                        "pnl_pct": round(t.pnl_pct * 100, 2),
+                        "reason": t.reason,
+                    }
+                    for t in result.trades
+                ],
+                "equity_curve_sample": result.equity_curve[:: max(1, len(result.equity_curve) // 30)],
+            }
+        )
+    else:
+        print(summary_text(result))
+
+
 # ==================== 主入口（独立运行示例） ====================
 
 if __name__ == "__main__":
@@ -688,6 +750,7 @@ if __name__ == "__main__":
   python -m modules.cli_commands trade review --json
   python -m modules.cli_commands trade stats --json
   python -m modules.cli_commands daily --json
+  python -m modules.cli_commands simulate 600487.SH --days 250 --json
         """,
     )
     subparsers = parser.add_subparsers(dest="command", help="子命令", required=True)
@@ -712,6 +775,17 @@ if __name__ == "__main__":
     p_dy = subparsers.add_parser("daily", help="每日工作流")
     p_dy.add_argument("--json", action="store_true", help="JSON 输出")
 
+    # ── simulate ──
+    p_sim = subparsers.add_parser("simulate", help="端到端交易模拟回测（择时+选股+仓位+卖出）")
+    p_sim.add_argument("codes", nargs="?", help="股票代码，逗号分隔；省略则使用前 500 只")
+    p_sim.add_argument("--days", type=int, default=250, help="回测天数")
+    p_sim.add_argument("--capital", type=float, default=1_000_000, help="初始资金")
+    p_sim.add_argument("--max-positions", type=int, default=5, help="最大同时持仓")
+    p_sim.add_argument("--risk", type=float, default=0.02, help="单笔风险占净值比例")
+    p_sim.add_argument("--score", type=float, default=70.0, help="入选信号最低综合评分")
+    p_sim.add_argument("--signals", type=int, default=2, help="最小共振标签数")
+    p_sim.add_argument("--json", action="store_true", help="JSON 输出")
+
     args = parser.parse_args()
 
     # 调度
@@ -719,5 +793,6 @@ if __name__ == "__main__":
         "backtest": cmd_backtest,
         "trade": cmd_trade,
         "daily": cmd_daily,
+        "simulate": cmd_simulate,
     }
     handlers[args.command](args)
