@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Z哥量化工具 CLI（v2.10.0 统一入口）
+"""Z哥量化工具 CLI（v2.10.0 统一入口）
 
 用法：
     python -m modules.cli analyze 600487.SH
@@ -18,6 +17,8 @@ Z哥量化工具 CLI（v2.10.0 统一入口）
 本文件取代 v2.9.0 散落在 5 个模块的独立 main()（screener / data_sync /
 portfolio_diagnosis / watchlist / indicators.data_layer）。
 """
+
+from __future__ import annotations
 
 import argparse
 import json
@@ -636,7 +637,8 @@ def cmd_track(args):
                     print(f"  {strategy}: {count}只")
 
 
-def main():
+def build_parser():
+    """构建并返回 zt CLI 的 ArgumentParser（支持独立导入测试）"""
     parser = argparse.ArgumentParser(
         prog="zt",
         description="Z哥量化工具 CLI（v2.10.0 统一入口）",
@@ -659,6 +661,7 @@ def main():
   zt daily
   zt sync init
   zt sync sync 600487.SH
+  zt simulate 600487.SH --days 250 --cost-model advanced --slippage dynamic
         """,
     )
 
@@ -781,7 +784,7 @@ def main():
     p_monitor.add_argument("--no-push", action="store_true", help="关闭推送通知")
     p_monitor.add_argument("--json", action="store_true", help="JSON输出")
 
-    # ── simulate（少女/少妇模拟器 v0.1）──
+    # ── simulate（少女/少妇模拟器 v0.2）──
     p_sim = subparsers.add_parser("simulate", help="端到端交易模拟回测（择时+选股+仓位+卖出）")
     p_sim.add_argument("codes", nargs="?", help="股票代码，逗号分隔；省略则使用前 500 只")
     p_sim.add_argument("--days", type=int, default=250, help="回测天数")
@@ -790,8 +793,24 @@ def main():
     p_sim.add_argument("--risk", type=float, default=0.02, help="单笔风险占净值比例")
     p_sim.add_argument("--score", type=float, default=70.0, help="入选信号最低综合评分")
     p_sim.add_argument("--signals", type=int, default=2, help="最小共振标签数")
+    p_sim.add_argument("--benchmark", type=str, default="000300.SH", help="基准指数代码")
+    p_sim.add_argument(
+        "--cost-model", choices=["simple", "advanced"], default="simple", help="成本模型：simple=仅佣金，advanced=含印花税/过户费"
+    )
+    p_sim.add_argument("--slippage", choices=["fixed", "dynamic"], default="fixed", help="滑点模型")
+    p_sim.add_argument("--atr-sizing", action="store_true", help="启用 ATR 波动率仓位调整")
+    p_sim.add_argument("--max-position-pct", type=float, default=0.20, help="单票最大仓位占比")
+    p_sim.add_argument("--no-st", action="store_true", help="不允许交易 ST/*ST 股票")
+    p_sim.add_argument("--t1-lock", dest="t1_lock", action="store_true", default=True, help="启用 T+1 卖出锁定（默认）")
+    p_sim.add_argument("--no-t1-lock", dest="t1_lock", action="store_false", default=True, help="禁用 T+1 卖出锁定")
     p_sim.add_argument("--json", action="store_true", help="JSON输出")
 
+    return parser
+
+
+def main():
+    """zt CLI 主入口"""
+    parser = build_parser()
     args = parser.parse_args()
 
     # 调度表

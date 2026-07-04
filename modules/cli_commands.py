@@ -672,18 +672,33 @@ def cmd_monitor(args):
 
 def cmd_simulate(args) -> None:
     """
-    少女/少妇模拟器 CLI 入口。
+    少女/少妇模拟器 CLI 入口（v0.2）。
 
     示例：
         zt simulate 600487.SH,601318.SH --days 250 --capital 1000000 --json
         zt simulate --days 120 --max-positions 3 --score 75
+        zt simulate 600487.SH --cost-model advanced --slippage dynamic --atr-sizing
     """
+    from dataclasses import asdict
+
     from .simulator.simulator import run_simulation, summary_text
-    from .simulator import SimulationConfig
+    from .simulator import SimulationConfig, CostModel
 
     use_json = getattr(args, "json", False)
     days = getattr(args, "days", 250)
     codes_str = getattr(args, "codes", None)
+
+    # 成本模型：simple 保持 v0.1 默认（仅佣金），advanced 启用完整成本
+    if getattr(args, "cost_model", "simple") == "advanced":
+        cost_model = CostModel()
+    else:
+        cost_model = CostModel(
+            commission_rate=0.0003,
+            min_commission=0.0,
+            stamp_duty_rate=0.0,
+            transfer_fee_rate=0.0,
+            apply_stamp_duty_on_sell=False,
+        )
 
     config = SimulationConfig(
         initial_capital=getattr(args, "capital", 1_000_000.0),
@@ -691,6 +706,13 @@ def cmd_simulate(args) -> None:
         risk_per_trade=getattr(args, "risk", 0.02),
         position_score_threshold=getattr(args, "score", 70.0),
         signal_min_count=getattr(args, "signals", 2),
+        benchmark_code=getattr(args, "benchmark", "000300.SH"),
+        cost_model=cost_model,
+        use_dynamic_slippage=getattr(args, "slippage", "fixed") == "dynamic",
+        use_atr_sizing=getattr(args, "atr_sizing", False),
+        max_position_pct=getattr(args, "max_position_pct", 0.20),
+        allow_st=not getattr(args, "no_st", False),
+        t1_lock=getattr(args, "t1_lock", True),
     )
 
     ts_codes = None
@@ -700,6 +722,15 @@ def cmd_simulate(args) -> None:
     result = run_simulation(ts_codes=ts_codes, days=days, config=config)
 
     if use_json:
+        metrics_dict = asdict(result.metrics) if result.metrics else None
+
+        def _sample_curve(curve, max_points=30):
+            """等间隔采样，最多 max_points 个点"""
+            if not curve:
+                return []
+            step = max(1, (len(curve) + max_points - 1) // max_points)
+            return curve[::step]
+
         _json_output(
             {
                 "initial_capital": result.initial_capital,
@@ -726,6 +757,8 @@ def cmd_simulate(args) -> None:
                     for t in result.trades
                 ],
                 "equity_curve_sample": result.equity_curve[:: max(1, len(result.equity_curve) // 30)],
+                "metrics": metrics_dict,
+                "benchmark_curve_sample": _sample_curve(result.benchmark_curve),
             }
         )
     else:
@@ -784,6 +817,16 @@ if __name__ == "__main__":
     p_sim.add_argument("--risk", type=float, default=0.02, help="单笔风险占净值比例")
     p_sim.add_argument("--score", type=float, default=70.0, help="入选信号最低综合评分")
     p_sim.add_argument("--signals", type=int, default=2, help="最小共振标签数")
+    p_sim.add_argument("--benchmark", type=str, default="000300.SH", help="基准指数代码")
+    p_sim.add_argument(
+        "--cost-model", choices=["simple", "advanced"], default="simple", help="成本模型：simple=仅佣金，advanced=含印花税/过户费"
+    )
+    p_sim.add_argument("--slippage", choices=["fixed", "dynamic"], default="fixed", help="滑点模型")
+    p_sim.add_argument("--atr-sizing", action="store_true", help="启用 ATR 波动率仓位调整")
+    p_sim.add_argument("--max-position-pct", type=float, default=0.20, help="单票最大仓位占比")
+    p_sim.add_argument("--no-st", action="store_true", help="不允许交易 ST/*ST 股票")
+    p_sim.add_argument("--t1-lock", dest="t1_lock", action="store_true", default=True, help="启用 T+1 卖出锁定（默认）")
+    p_sim.add_argument("--no-t1-lock", dest="t1_lock", action="store_false", default=True, help="禁用 T+1 卖出锁定")
     p_sim.add_argument("--json", action="store_true", help="JSON 输出")
 
     args = parser.parse_args()
