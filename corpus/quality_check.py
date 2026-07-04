@@ -6,7 +6,8 @@
 用法:
     python3 quality_check.py <SKILL.md路径>
     python3 quality_check.py <SKILL.md路径> --json
-    python3 quality_check.py <SKILL.md路径> --strict    # 8 项全跑 + 违规 exit 1
+    python3 quality_check.py <SKILL.md路径> --strict    # 12 项全跑 + 违规 exit 1
+    python3 quality_check.py <SKILL.md路径> --score     # 输出 0-100 综合分数
 
 示例:
     python3 quality_check.py SKILL.md
@@ -203,7 +204,7 @@ def check_v2_routing_surface(content: str) -> tuple[bool, str]:
     details.append(f"加载条件: {'✅' if has_load_when else '❌'}")
     details.append(f"不加载条件: {'✅' if has_not_load else '❌'}")
     if has_priority:
-        details.append(f"优先级规则: ✅")
+        details.append("优先级规则: ✅")
     return passed, " | ".join(details)
 
 
@@ -256,14 +257,17 @@ def check_v2_safety_surface(content: str) -> tuple[bool, str]:
 
 
 def main():
-    # 解析参数：支持 --json / --strict
+    # 解析参数：支持 --json / --strict / --score
     args = sys.argv[1:]
     json_mode = "--json" in args
     strict_mode = "--strict" in args
+    score_mode = "--score" in args
     if json_mode:
         args.remove("--json")
     if strict_mode:
         args.remove("--strict")
+    if score_mode:
+        args.remove("--score")
 
     def _err(msg: str) -> None:
         """统一错误输出：JSON 模式走 json.dumps，其他模式走人读"""
@@ -273,7 +277,7 @@ def main():
             print(msg)
 
     if not args:
-        _err("用法: python3 quality_check.py <SKILL.md路径> [--json] [--strict]")
+        _err("用法: python3 quality_check.py <SKILL.md路径> [--json] [--strict] [--score]")
         sys.exit(1)
 
     skill_path = Path(args[0])
@@ -312,6 +316,7 @@ def main():
     passed_count = sum(1 for r in results if r["passed"])
     total = len(results)
     failed_count = total - passed_count
+    score = int(round(passed_count / total * 100)) if total else 0
 
     if json_mode:
         # 结构化输出：便于 CI / PR comment 解析
@@ -320,10 +325,16 @@ def main():
             "passed": passed_count,
             "failed": failed_count,
             "total": total,
+            "score": score,
             "all_passed": passed_count == total,
             "checks": results,
         }
         print(json.dumps(summary, ensure_ascii=False, indent=2))
+        sys.exit(0 if passed_count == total else 1)
+
+    if score_mode:
+        # 仅输出分数，便于脚本调用
+        print(score)
         sys.exit(0 if passed_count == total else 1)
 
     # 人读模式（默认）
@@ -333,7 +344,7 @@ def main():
         status = "✅ PASS" if r["passed"] else "❌ FAIL"
         print(f"  {r['name']:<12} {status}  {r['detail']}")
     print("=" * 60)
-    print(f"结果: {passed_count}/{total} 通过")
+    print(f"结果: {passed_count}/{total} 通过 | 综合得分: {score}/100")
 
     if passed_count == total:
         print("🎉 全部通过，可以交付")

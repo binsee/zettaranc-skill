@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+### 文档与工程化
+
+- **SKILL.md 新增「能力边界与 API 依赖声明」章节**：明确 JNB / Bridge / SQLite / Websearch 四级数据路径、能力边界、强制免责声明。
+- **README.md 新增「数据可用性与推荐工作流」章节**：列出数据降级优先级表和每日/每周/按需推荐工作流。
+- **双轴 Skill 质量评分（实验性）**：
+  - `corpus/quality_check.py` 新增 `--score` 输出 0-100 总分。
+  - 新增 `corpus/dual_axis_review.py`：轴 A 为确定性质量检查，轴 B 为可选 LLM 深度评审（角色一致性 / 表达 DNA / 诚实边界），输出综合评分。
+  - `.github/workflows/test.yml` 的 `quality-gate` job 接入双轴评审（LLM 轴在无 API key 时自动跳过并提示）。
+
 ## [v3.3.2] - 2026-07-04
 
 > **「v3.3.2：DataSource 协议补完 — 全局状态清理 + 参数修正 + 并行安全。」**

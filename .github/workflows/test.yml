@@ -50,7 +50,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install ruff
-        run: pip install "ruff==0.8.6"
+        run: pip install "ruff>=0.15.0"
 
 
       - name: Lint
@@ -99,6 +99,13 @@ jobs:
           python corpus/quality_check.py SKILL.md --json
           echo "=== summary ==="
           python corpus/quality_check.py SKILL.md --strict || true
+
+      - name: Run SKILL.md dual-axis review
+        run: |
+          pip install -e .
+          python corpus/dual_axis_review.py SKILL.md --json || true
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
 
   e2e-realdata:
     runs-on: ubuntu-latest

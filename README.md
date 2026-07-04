@@ -178,6 +178,34 @@ python -m modules.cli screen --strategy B1 --limit 20
 python -m modules.cli backtest shaofu 600487.SH --days 250
 ```
 
+---
+
+## 数据可用性与推荐工作流
+
+### 数据可用性路径
+
+当真实数据不可用时，系统会按以下优先级自动降级，确保分析框架始终可用：
+
+| 优先级 | 数据来源 | 需要的配置 | 说明 |
+|--------|---------|-----------|------|
+| 1. Tushare Pro | `TUSHARE_TOKEN` + `TUSHARE_API_URL` | 实时行情、财务数据、资金流向 | 最佳，数据最全 |
+| 2. tushare-data-bridge | `TUSHARE_BRIDGE_ENABLED=auto/always` | HTTP 代理缓存的数据 | Tushare 直连受限时自动回退 |
+| 3. 本地 SQLite | 已执行过 `python -m modules.data_sync sync` | `data/stock_data.db` | 离线/限额时的最后保障 |
+| 4. Websearch 模式 | `DATA_MODE=websearch` | 无需任何 Token | 纯框架与历史知识问答，无实时数据 |
+
+> 即使处于降级路径，本工具也**不会编造价格或信号**，而是明确告知用户当前数据状态。
+
+### 推荐工作流
+
+| 目标 | 命令 / 入口 | 所需数据 | 频率 |
+|------|------------|---------|------|
+| 每日市场扫描 | `zt daily` 或 `python -m modules.cli daily` | 本地/bridge 即可 | 每日 |
+| 选股 + 战法过滤 | `zt screen --strategy B1 --limit 20` | 本地/bridge/Tushare | 每日 |
+| 持仓检查 | `zt diagnose 600487.SH` | 本地/bridge/Tushare | 持仓期间每日 |
+| 自选股监控 | `zt watchlist scan` | 本地/bridge/Tushare | 每日 |
+| 记录交易 | `zt trade add " oralized 描述 "` | 无 | 每笔交易 |
+| 交易复盘 | `zt trade review` | 本地交易记录 | 每周/每月 |
+| 策略回测验证 | `zt backtest shaofu 600487.SH --days 250` | Tushare/bridge/SQLite | 按需 |
 
 ---
 
