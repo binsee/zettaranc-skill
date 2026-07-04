@@ -447,6 +447,7 @@ def cmd_sync(args):
     from datetime import datetime, timedelta
     from modules.data_sync import DataSyncer
     from modules.database import init_database
+    from modules.datasource import get_datasource
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -457,7 +458,7 @@ def cmd_sync(args):
         print("数据库初始化完成")
 
     elif action == "sync":
-        syncer = DataSyncer()
+        syncer = DataSyncer(datasource=get_datasource("tushare"))
         if args.ts_code:
             # 同步单只股票
             syncer.sync_daily_kline(args.ts_code)
@@ -475,7 +476,7 @@ def cmd_sync(args):
         print(syncer.get_sync_status())
 
     elif action == "stk-factor":
-        syncer = DataSyncer()
+        syncer = DataSyncer(datasource=get_datasource("tushare"))
         if args.ts_code:
             print(f"正在同步 Tushare 官方指标: {args.ts_code} ...")
             start_date = (datetime.now() - timedelta(days=args.days)).strftime("%Y%m%d")
@@ -489,7 +490,7 @@ def cmd_sync(args):
             print(f"批量同步完成，成功 {success}/{len(results)}")
 
     elif action == "status":
-        syncer = DataSyncer()
+        syncer = DataSyncer(datasource=get_datasource("tushare"))
         status = syncer.get_sync_status()
         print("=" * 50)
         print(f"  数据库: {status.get('db_path', 'N/A')}")
