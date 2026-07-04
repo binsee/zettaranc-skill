@@ -25,11 +25,13 @@ class FakeDataSource:
 
 class TestGetAllStocksInjection:
     def test_uses_injected_datasource(self):
-        fake = FakeDataSource(stocks=[
-            {"ts_code": "000001.SZ", "name": "平安银行", "market": "主板"},
-            {"ts_code": "300001.SZ", "name": "特锐德", "market": "创业板"},
-            {"ts_code": "999999.XX", "name": "未知板块", "market": "B股"},
-        ])
+        fake = FakeDataSource(
+            stocks=[
+                {"ts_code": "000001.SZ", "name": "平安银行", "market": "主板"},
+                {"ts_code": "300001.SZ", "name": "特锐德", "market": "创业板"},
+                {"ts_code": "999999.XX", "name": "未知板块", "market": "B股"},
+            ]
+        )
         result = get_all_stocks(datasource=fake)
         assert len(result) == 2
         assert {s["ts_code"] for s in result} == {"000001.SZ", "300001.SZ"}

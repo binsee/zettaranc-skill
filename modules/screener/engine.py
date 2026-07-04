@@ -35,7 +35,9 @@ def _is_picklable(obj) -> bool:
         return False
 
 
-def analyze_stock(ts_code: str, klines: list[DailyData] | None = None, datasource: DataSource | None = None) -> StockScore:
+def analyze_stock(
+    ts_code: str, klines: list[DailyData] | None = None, datasource: DataSource | None = None
+) -> StockScore:
     """
     综合评分单只股票
     """
@@ -171,7 +173,9 @@ def _daily_to_dict(klines: list[DailyData]) -> list[dict]:
     return result
 
 
-def _analyze_worker(ts_code: str, datasource: DataSource | None = None) -> tuple[str, list[DailyData], StockScore] | None:
+def _analyze_worker(
+    ts_code: str, datasource: DataSource | None = None
+) -> tuple[str, list[DailyData], StockScore] | None:
     """
     并行 worker：评分单只股票
     必须在模块顶层定义，以便 ProcessPoolExecutor 可以 pickle
@@ -203,7 +207,11 @@ def _filter_stock(result: tuple[str, list, StockScore], criteria: str) -> bool:
 
 
 def screen_stocks(
-    criteria: str = "b1", max_stocks: int = 0, max_workers: int = 0, use_parallel: bool = True, datasource: DataSource | None = None
+    criteria: str = "b1",
+    max_stocks: int = 0,
+    max_workers: int = 0,
+    use_parallel: bool = True,
+    datasource: DataSource | None = None,
 ) -> list[StockScore]:
     """
     选股筛选（支持多进程并行）
@@ -241,9 +249,7 @@ def screen_stocks(
 
     # 注入的 datasource 必须可 pickle 才能在多进程间传递
     if use_parallel and datasource is not None and not _is_picklable(datasource):
-        logger.warning(
-            "注入的 datasource 无法被 pickle 序列化，screen_stocks 将回退到串行模式"
-        )
+        logger.warning("注入的 datasource 无法被 pickle 序列化，screen_stocks 将回退到串行模式")
         use_parallel = False
 
     if not use_parallel:

@@ -197,7 +197,9 @@ class DataSyncer:
                 return 0
 
             # 选择并填充必要列
-            available_cols = [c for c in ["ts_code", "name", "area", "industry", "market", "list_date", "is_hs"] if c in df.columns]
+            available_cols = [
+                c for c in ["ts_code", "name", "area", "industry", "market", "list_date", "is_hs"] if c in df.columns
+            ]
             df = df[available_cols].fillna("")
             with get_connection() as conn:
                 df.to_sql("stock_basic", conn, if_exists="append", index=False, method="multi")
@@ -382,9 +384,7 @@ class DataSyncer:
                 macd_dif_seq = macd_dea_seq = macd_hist_seq = None
 
             cols = [c.strip() for c in _INDICATOR_INSERT_COLUMNS.split(",")]
-            insert_sql = (
-                f"INSERT OR REPLACE INTO indicator_cache ({_INDICATOR_INSERT_COLUMNS}) VALUES ({','.join(['?'] * len(cols))})"
-            )
+            insert_sql = f"INSERT OR REPLACE INTO indicator_cache ({_INDICATOR_INSERT_COLUMNS}) VALUES ({','.join(['?'] * len(cols))})"
 
             with get_connection() as conn:
                 cursor = conn.cursor()

@@ -64,9 +64,7 @@ def test_data_syncer_public_method_signatures(method_name, expected_defaults):
     sig = inspect.signature(getattr(DataSyncer, method_name))
     for param_name, default in expected_defaults.items():
         assert param_name in sig.parameters, f"DataSyncer.{method_name} missing {param_name}"
-        assert sig.parameters[param_name].default == default, (
-            f"DataSyncer.{method_name}.{param_name} default mismatch"
-        )
+        assert sig.parameters[param_name].default == default, f"DataSyncer.{method_name}.{param_name} default mismatch"
 
 
 # ==================== 依赖注入 DataSource ====================

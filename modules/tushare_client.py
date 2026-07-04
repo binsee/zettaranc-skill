@@ -97,7 +97,9 @@ class TushareClient:
                 )
                 time.sleep(sleep_time)
 
-    def get_daily(self, ts_code: str, start_date: str | None = None, end_date: str | None = None) -> pd.DataFrame | None:
+    def get_daily(
+        self, ts_code: str, start_date: str | None = None, end_date: str | None = None
+    ) -> pd.DataFrame | None:
         """获取日线行情（个股，前复权）"""
         kwargs: dict[str, Any] = {"ts_code": ts_code, "adj": "qfq", "api": self._pro}
         if start_date:

@@ -80,7 +80,18 @@ def test_tushare_datasource_get_kline_dicts_omits_empty_dates(monkeypatch):
     def capture_get_daily(self, ts_code, start_date=None, end_date=None):
         captured.append({"ts_code": ts_code, "start_date": start_date, "end_date": end_date})
         return pd.DataFrame(
-            [{"trade_date": "20260101", "open": 1, "high": 2, "low": 0.5, "close": 1.5, "vol": 100, "amount": 150, "pct_chg": 0.5}]
+            [
+                {
+                    "trade_date": "20260101",
+                    "open": 1,
+                    "high": 2,
+                    "low": 0.5,
+                    "close": 1.5,
+                    "vol": 100,
+                    "amount": 150,
+                    "pct_chg": 0.5,
+                }
+            ]
         )
 
     monkeypatch.setattr("modules.datasource.TushareClient.get_daily", capture_get_daily)

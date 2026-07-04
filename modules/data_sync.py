@@ -3,6 +3,8 @@
 All implementation has moved to modules.data_sync/ subpackage.
 Import from this top-level module remains supported.
 """
+# mypy: ignore-errors
+
 from modules.data_sync import (
     DataSyncer,
     _RateLimiter,

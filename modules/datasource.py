@@ -8,7 +8,13 @@ from typing import Protocol, runtime_checkable
 
 import pandas as pd
 
-from .bridge_client import BridgeConfig, get_all_stocks_bridge_first, get_daily_klines, is_bridge_available, set_bridge_config
+from .bridge_client import (
+    BridgeConfig,
+    get_all_stocks_bridge_first,
+    get_daily_klines,
+    is_bridge_available,
+    set_bridge_config,
+)
 from .database import get_connection
 from .tushare_client import TushareClient
 
@@ -62,7 +68,9 @@ class TushareDataSource:
     def health_check(self) -> bool:
         return self._client.check_connection()
 
-    def get_daily(self, ts_code: str, start_date: str | None = None, end_date: str | None = None) -> pd.DataFrame | None:
+    def get_daily(
+        self, ts_code: str, start_date: str | None = None, end_date: str | None = None
+    ) -> pd.DataFrame | None:
         return self._client.get_daily(ts_code, start_date, end_date)
 
     def get_index_daily(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:

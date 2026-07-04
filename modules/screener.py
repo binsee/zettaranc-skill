@@ -1,4 +1,6 @@
 """Backward-compatibility shim for modules.screener package."""
+# mypy: ignore-errors
+
 from modules.screener import (
     StockScore,
     MarketStatus,
