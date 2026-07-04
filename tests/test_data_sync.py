@@ -139,6 +139,40 @@ def test_data_syncer_default_datasource_is_tushare(monkeypatch):
     assert syncer._datasource.name == "tushare"
 
 
+def test_data_syncer_default_datasource_uses_explicit_token(monkeypatch):
+    """datasource 为 None 时，显式传入的 token 应交给 TushareDataSource"""
+    from modules.data_sync.syncer import DataSyncer
+
+    monkeypatch.setenv("DATA_MODE", "websearch")
+    captured = {}
+
+    class MockTushareDataSource:
+        def __init__(self, token=None):
+            captured["token"] = token
+
+        @property
+        def name(self):
+            return "tushare"
+
+    monkeypatch.setattr("modules.data_sync.syncer.TushareDataSource", MockTushareDataSource)
+    syncer = DataSyncer(token="explicit-token")
+    assert captured["token"] == "explicit-token"
+    assert syncer._datasource.name == "tushare"
+
+
+def test_data_syncer_with_datasource_skips_jnb_validation(monkeypatch):
+    """提供 datasource 时，即使 JNB 模式缺少 token/URL 也不应抛错"""
+    from modules.data_sync.syncer import DataSyncer
+
+    monkeypatch.setenv("DATA_MODE", "jnb")
+    monkeypatch.delenv("TUSHARE_TOKEN", raising=False)
+    monkeypatch.delenv("TUSHARE_API_URL", raising=False)
+    fake = FakeDataSource()
+    syncer = DataSyncer(token=None, datasource=fake)
+    assert syncer._datasource is fake
+    assert syncer._fetcher.datasource is fake
+
+
 # ==================== _call_api_with_retry ====================
 
 
