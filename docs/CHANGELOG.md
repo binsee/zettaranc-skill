@@ -4,25 +4,33 @@
 
 ## [Unreleased]
 
-### Added
+## [v3.3.2] - 2026-07-04
 
-- 新增 `modules/datasource.py`：统一数据源协议 `DataSource` + `TushareDataSource` / `BridgeDataSource` / `SqliteDataSource` / `CompositeDataSource` 实现 + `get_datasource()` 工厂。
-- 新增 `tests/test_datasource.py`、`tests/test_data_sync.py`、`tests/test_screener_data.py`。
+> **「v3.3.2：DataSource 协议补完 — 全局状态清理 + 参数修正 + 并行安全。」**
 
-### Changed
+### 核心变更
 
-- **架构重构**：`modules/data_sync.py`（1181 行）拆分为 `modules/data_sync/` 包（`rate_limiter` / `indicator_cache` / `fetcher` / `syncer` / `cli` / `__main__`），`DataSyncer` 支持 `datasource` 依赖注入。
-- **架构重构**：`modules/screener.py`（1161 行）拆分为 `modules/screener/` 包（`models` / `data` / `criteria` / `scoring` / `engine` / `market` / `format` / `workflow` / `cli`），`get_all_stocks()` / `get_recent_klines()` 支持 `datasource` 注入。
-- `modules/cli.py` 的 `cmd_sync` 显式注入 `TushareDataSource`。
-- 保留 `modules/data_sync.py` 和 `modules/screener.py` 作为向后兼容 shim，所有公共导入不变。
+- **修复 `BridgeDataSource` 全局配置污染**：
+  - `BridgeDataSource(config=...)` 不再调用模块级 `set_bridge_config` 修改全局状态。
+  - `modules/bridge_client.py` 的 `is_bridge_available`、`_http_get`、`_http_post`、`get_bridge_daily`、`get_bridge_stock_list`、`get_daily_klines`、`get_all_stocks_bridge_first` 均新增可选 `config` 参数。
+  - 多个 `BridgeDataSource` 实例可使用不同配置互不干扰。
+- **修复 `TushareDataSource.get_kline_dicts` 空日期字符串问题**：
+  - `TushareClient.get_daily` 与 `TushareDataSource.get_daily` 的 `start_date` / `end_date` 改为可选参数。
+  - 未指定日期时不再向 Tushare SDK 传入空字符串，避免潜在 API 错误。
+- **补全 `CompositeDataSource` 文档**：
+  - 在类 docstring 中明确说明 bridge/SQLite 当前仅完整支持 `get_stock_list` / `get_kline_dicts`，其余 DataSource 方法仅在 `preferred="tushare"` 时生效。
+- **增强 `screen_stocks` 并行安全性**：
+  - 新增 `_is_picklable` 预检；注入的 `datasource` 无法被 pickle 序列化时主动回退串行模式并记录 warning，避免静默降级。
 
-### Fixed
+### 测试
 
-- 修复 `api/routes/system.py` 中错误的 `DataSyncer.compute_indicators` 调用，改为正确的 `sync_indicator_cache`。
+- 更新 `tests/test_datasource.py`：验证实例级 bridge 配置不污染全局、未传配置时使用全局配置、Tushare 日期参数正确省略。
+- 新增 `tests/test_screener.py`：验证不可 pickle 的 datasource 触发串行回退与 warning。
+- 全量回归：772 passed, 11 skipped（原 769 passed）。
 
-### Validation
+### 验证
 
-- `pytest tests/`：764 passed, 11 skipped
+- `pytest tests/`：772 passed, 11 skipped
 - `ruff check modules tests`：All checks passed
 - `mypy modules/ --ignore-missing-imports`：Success, no issues
 

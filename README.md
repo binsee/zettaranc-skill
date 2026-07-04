@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)
-[![v3.1.1](https://img.shields.io/badge/version-3.1.1-green)](docs/CHANGELOG.md)
+[![v3.3.2](https://img.shields.io/badge/version-3.3.2-green)](docs/CHANGELOG.md)
 
 
 <br>
@@ -20,7 +20,7 @@
 
 ---
 
-## v3.1.1 能做什么
+## v3.3.2 能做什么
 
 
 > **不只是炒股工具，是多场景智能决策系统。宿主（Claude Code / Cursor）可直接调用 CLI 工具获取真实数据。**
@@ -48,6 +48,11 @@
 | **🤖 宿主集成** | 所有 CLI 命令支持 `--json`，宿主可直接调用获取结构化数据 | `zt daily --json` |
 
 ### 完整功能清单
+
+**策略与架构优化（v3.3.2 升级）**
+- 🧩 **数据层统一协议**：新增 `modules/datasource.py`，定义 `DataSource` Protocol，提供 `TushareDataSource` / `BridgeDataSource` / `SqliteDataSource` / `CompositeDataSource` 及工厂函数，支持依赖注入与自动回退。
+- 📦 **大模块子包化**：`modules/data_sync.py`（1181 行）拆分为 `modules/data_sync/` 子包，`modules/screener.py`（1161 行）拆分为 `modules/screener/` 子包，保留顶层 shim 保证公共导入 100% 兼容。
+- 🔌 **可注入数据源**：`DataSyncer`、`screen_stocks`、`analyze_stock`、`get_all_stocks`、`get_recent_klines` 均支持传入自定义 `DataSource`。
 
 **策略与架构优化（v3.1.1 升级）**
 - 🛡️ **输入数据大一统**：策略判定函数全面升级为 `list[DailyData]` 强类型输入，并通过智能防御网关实现对字典类型的 100% 向后兼容。
@@ -160,7 +165,7 @@ python -m modules.data_sync sync --ts_code 600487.SH --days 120
 ### 4. 验证
 
 ```bash
-# 运行测试（572 passed, 10 skipped）
+# 运行测试（772 passed, 11 skipped）
 python -m pytest tests/ -v
 
 # 分析一只股票
@@ -421,9 +426,17 @@ zettaranc-skill/
 ├── data/
 │   └── stock_data.db           # SQLite 数据库（8张表）
 ├── modules/                    # Python 数据层（~11800 行）
+│   ├── datasource.py           # 统一数据源协议（Tushare / Bridge / SQLite / Composite）
 │   ├── tushare_client.py       # Tushare API 封装
 │   ├── database.py             # SQLite 管理（8张表 + 事务上下文）
-│   ├── data_sync.py            # 数据同步（增量/全量，限流120次/分）
+│   ├── data_sync.py            # 向后兼容 shim → 实际逻辑在 `modules/data_sync/`
+│   ├── data_sync/              # 数据同步子包（增量/全量，限流120次/分）
+│   │   ├── rate_limiter.py
+│   │   ├── indicator_cache.py
+│   │   ├── fetcher.py
+│   │   ├── syncer.py
+│   │   ├── cli.py
+│   │   └── __main__.py
 │   ├── indicators/             # 技术指标引擎（60+指标，6子模块）
 │   │   ├── core.py             # 基础类型 + 数学工具 + 核心指标
 │   │   ├── price_patterns.py   # 价格形态（双线/单针/砖型图/B1B2B3/三波理论）
@@ -432,7 +445,17 @@ zettaranc-skill/
 │   │   ├── kirin_detector.py   # 麒麟会四阶段（吸筹/拉升/派发/回落）
 │   │   └── data_layer.py       # 数据接入 + 缓存层 + 可视化
 │   ├── strategies/             # 30+ 战法识别引擎（6 子模块）
-│   ├── screener.py             # 选股评分体系（含蜈蚣图/沙漏/牛绳过滤）
+│   ├── screener.py             # 向后兼容 shim → 实际逻辑在 `modules/screener/`
+│   ├── screener/               # 选股评分体系（含蜈蚣图/沙漏/牛绳过滤）
+│   │   ├── models.py
+│   │   ├── data.py
+│   │   ├── criteria.py
+│   │   ├── scoring.py
+│   │   ├── engine.py
+│   │   ├── market.py
+│   │   ├── format.py
+│   │   ├── workflow.py
+│   │   └── cli.py
 │   ├── backtest.py             # 策略组合回测框架
 │   ├── backtest_six_step.py    # 少妇战法六步闭环回测
 │   ├── loop_engine.py          # 六步闭环状态机（择时→选股→B1→止损→卤煮→BBI离场）
@@ -450,7 +473,7 @@ zettaranc-skill/
 │   ├── setup_wizard.py         # 初始化配置向导
 │   └── trade_reviewer.py       # 交割单数据准备层（含 Z 哥话术常量）
 ├── knowledge/                  # 知识文档（14篇交易体系）
-├── tests/                      # 单元测试（pytest，543 用例，24 个测试文件）
+├── tests/                      # 单元测试（pytest，772 用例，30+ 个测试文件）
 ├── scripts/                    # 工具脚本（薄壳，业务逻辑在 modules/）
 │   ├── _common.py              # 共享工具（load_watchlist 等）
 │   ├── sync_watchlist.py       # 同步缺失的自选股 K 线

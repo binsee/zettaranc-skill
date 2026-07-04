@@ -2,8 +2,23 @@
 
 > Zettaranc Skill 待办清单
 > 更新日期：2026-07-04
-> 当前版本：v3.3.1
+> 当前版本：v3.3.2
 > 状态：✅ 已完成 / ⏳ 进行中 / 📋 待规划
+
+---
+
+## ✅ 已完成（v3.3.2 DataSource 协议补完）
+
+- [x] **修复 `BridgeDataSource` 全局配置污染**：
+  - `BridgeDataSource(config=...)` 不再调用 `set_bridge_config` 修改全局状态。
+  - `modules/bridge_client.py` 所有数据接口新增可选 `config` 参数，实例配置与全局配置分离。
+- [x] **修复 `TushareDataSource.get_kline_dicts` 空日期字符串**：
+  - `TushareClient.get_daily` / `TushareDataSource.get_daily` 的 `start_date` / `end_date` 改为可选参数。
+  - 未指定日期时不向 Tushare SDK 传入空字符串。
+- [x] **补全 `CompositeDataSource` 文档**：在类 docstring 中明确 bridge/SQLite 回退能力范围。
+- [x] **增强 `screen_stocks` 并行安全**：不可 pickle 的 `datasource` 触发 warning 并主动回退串行模式。
+- [x] **文档同步**：README / CHANGELOG / TODO 更新至 v3.3.2，`pyproject.toml` 版本号同步。
+- [x] **验证**：772 passed / 11 skipped，ruff / mypy 零错误。
 
 ---
 
@@ -167,6 +182,21 @@
 
 ---
 
+## ✅ 已完成（v3.3.2 DataSource 协议补完）
+
+- [x] **修复 `BridgeDataSource` 全局配置污染**：
+  - `BridgeDataSource(config=...)` 不再调用 `set_bridge_config` 修改全局状态。
+  - `modules/bridge_client.py` 所有数据接口新增可选 `config` 参数，实例配置与全局配置分离。
+- [x] **修复 `TushareDataSource.get_kline_dicts` 空日期字符串**：
+  - `TushareClient.get_daily` / `TushareDataSource.get_daily` 的 `start_date` / `end_date` 改为可选参数。
+  - 未指定日期时不向 Tushare SDK 传入空字符串。
+- [x] **补全 `CompositeDataSource` 文档**：在类 docstring 中明确 bridge/SQLite 回退能力范围。
+- [x] **增强 `screen_stocks` 并行安全**：不可 pickle 的 `datasource` 触发 warning 并主动回退串行模式。
+- [x] **文档同步**：README / CHANGELOG / TODO 更新至 v3.3.2，pyproject.toml 版本号同步。
+- [x] **验证**：772 passed / 11 skipped，ruff / mypy 零错误。
+
+---
+
 ## 📋 待实现
 
 （暂无）
@@ -175,10 +205,7 @@
 
 ## ⏳ 进行中
 
-### Phase 3: SKILL.md 拆分（数据字典外迁 → 心智模型拆分）
-- [ ] 数据字典外迁至 `knowledge/data_dictionary.md` + `knowledge/signal_dictionary.md`
-- [ ] 心智模型独立文件（6 个）+ 启发式索引
-- [ ] 主文件保留"角色扮演规则 + 表达 DNA + 诚实边界"核心
+（暂无）
 
 ---
 
@@ -195,14 +222,8 @@
 | **v2.10.0** | CLI 修复 + 脚本薄壳化 + 5 CI job + 501 测试 + 代码审查 | ✅ 已完成 |
 | **v3.0.0** | 编排模式 + 人生/创业蒸馏 + 双维度扩展 | ✅ 已完成 |
 | **v3.1.0** | P3 指标补完（蜈蚣图/牛绳理论/量比战法/沙漏 V9） | ✅ 已完成 |
+| **v3.2.0** | P3 指标接入 screener + bridge 数据层整合 | ✅ 已完成 |
+| **v3.3.0** | Skill-Schema-V2 合规改造 | ✅ 已完成 |
+| **v3.3.1** | SKILL.md 拆分 + 工程清理 | ✅ 已完成 |
+| **v3.3.2** | DataSource 协议补完 | ✅ 已完成 |
 | **v4.0.0** | 少妇模拟器完整版（自动择时+选股+买入+卖出闭环回测） | 🎯 长期目标 |
-
----
-
-## 下一迭代候选（v3.2.0 候选）
-
-- CI 观察期 4 个 job 改为 required（lint / quality-gate / e2e-realdata / pre-commit）
-- 真实数据 diff 阈值收紧到 2%
-- SKILL.md 拆分（32K 字 → 6 心智模型独立文件 + 30 启发式索引）
-- 活跃市值 +4%/-2.3% 量化层（需指南针数据源）
-- P3 指标集成到 screener（蜈蚣图作为风险扣分项、沙漏评分作为选股加分项）
