@@ -2,8 +2,18 @@
 
 > Zettaranc Skill 待办清单
 > 更新日期：2026-07-04
-> 当前版本：v3.4.0
+> 当前版本：v3.5.0
 > 状态：✅ 已完成 / ⏳ 进行中 / 📋 待规划
+
+---
+
+## ✅ 已完成（v3.5.0 少女/少妇模拟器 v0.3）
+
+- [x] 新增 `modules/simulator/strategy_adapter.py`：把 `modules.strategies` 的 20+ 战法信号标准化为 `RawStrategySignal`。
+- [x] 新增 `modules/simulator/resonance_scorer.py`：多战法同屏共振评分，冲突信号（三波冲刺/麒麟派发/S1/S2/S3/出货五式等）自动降级为 HIGH_RISK。
+- [x] 新增 `modules/simulator/environment_weights.py`：根据市场环境动态调整 breakout/rebound/pattern/stage/risk 各类别权重。
+- [x] 改造 `modules/simulator/signal_filter.py`：支持 `strategy_mode="simple"`（v0.2 原逻辑）和 `"resonance"`（战法共振）。
+- [x] CLI `zt simulate` 新增 `--strategy-mode/--strategy-lookback/--min-resonance-score` 参数。
 
 ---
 
@@ -240,4 +250,5 @@
 | **v3.3.1** | SKILL.md 拆分 + 工程清理 | ✅ 已完成 |
 | **v3.3.2** | DataSource 协议补完 | ✅ 已完成 |
 | **v3.4.0** | 少女/少妇模拟器 v0.2（A股真实约束） | ✅ 已完成 |
+| **v3.5.0** | 少女/少妇模拟器 v0.3（战法共振评分） | ✅ 已完成 |
 | **v4.0.0** | 少妇模拟器完整版（自动择时+选股+买入+卖出闭环回测） | 🎯 长期目标 |

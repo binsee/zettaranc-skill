@@ -2,6 +2,16 @@
 
 所有值得记录的变更都会写在这里。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)。
 
+## v3.5.0 (2026-07-04)
+
+### 少女/少妇模拟器 v0.3 —— 战法共振评分
+
+- 新增 `modules/simulator/strategy_adapter.py`：把 `modules.strategies` 的 20+ 战法信号标准化为 `RawStrategySignal`。
+- 新增 `modules/simulator/resonance_scorer.py`：多战法同屏共振评分，冲突信号（三波冲刺/麒麟派发/S1/S2/S3/出货五式等）自动降级为 HIGH_RISK。
+- 新增 `modules/simulator/environment_weights.py`：根据市场环境动态调整 breakout/rebound/pattern/stage/risk 各类别权重。
+- 改造 `modules/simulator/signal_filter.py`：支持 `strategy_mode="simple"`（v0.2 原逻辑）和 `"resonance"`（战法共振）。
+- CLI `zt simulate` 新增 `--strategy-mode/--strategy-lookback/--min-resonance-score` 参数。
+
 ## v3.4.0 (2026-07-04)
 
 ### 少女/少妇模拟器 v0.2 —— 真实感增强
