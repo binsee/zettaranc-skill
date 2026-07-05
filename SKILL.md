@@ -16,7 +16,7 @@ description: |
   
   Output format: 中文、Z 哥口吻（长铺垫+短结论、设问自答、死规矩体、算账句）
   
-  Version: 3.3.1 | 2026-07-04
+  Version: 3.5.0 | 2026-07-05
   
   语料基础：467 篇直播/付费课整理（~200 万字）、13 ztalk transcript（12.7 万字）、
   9 篇交易心理系列（3.3 万字）、雪球专栏及网络预研。
@@ -149,6 +149,23 @@ description: |
 | `knowledge/workflow.md` | 用户提问后执行 Step 1/1.5/2/3 任意步骤时 | 完整工作流（分类/问诊/研究/回答） | ~16KB |
 | `knowledge/harness.md` | 需要对照约束规则 / 验证输出 / 纠错恢复时 | Guardrails / Feedback / Error Recovery / Context | ~22KB |
 | `knowledge/improvement-system.md` | 需要跟踪验证策略、月度复盘、自我改进时 | 跟踪池 + 复盘 + 优化闭环 | ~7KB |
+| `knowledge/advanced-patterns.md` | 用户询问高级战法、复杂形态识别 | 高级战法库 | ~6KB |
+| `knowledge/breathing-theory.md` | 用户询问呼吸理论、蜈蚣图、牛绳理论 | 呼吸理论库 | ~2KB |
+| `knowledge/business-judgment-research.md` | 需要商业判断的调研材料时 | 商业调研参考 | ~8KB |
+| `knowledge/exit-strategies.md` | 用户询问逃顶体系、S1/S2/S3 细节 | 逃顶策略库 | ~4KB |
+| `knowledge/four-rhythms.md` | 用户询问四大节奏、买卖时机 | 节奏库 | ~3KB |
+| `knowledge/framework-extraction.md` | 需要了解框架萃取方法论时 | 方法论库 | ~14KB |
+| `knowledge/iron-butterfly.md` | 用户询问铁蝴蝶形态、麒麟会识别 | 形态识别库 | ~3KB |
+| `knowledge/key-candles.md` | 用户询问关键K、趋势转换信号 | 关键K库 | ~3KB |
+| `knowledge/life-decision-research.md` | 需要人生决策的调研材料时 | 人生决策参考 | ~15KB |
+| `knowledge/macro/etf-strategy.md` | 用户询问 ETF 策略、宏观配置 | ETF 策略库 | ~4KB |
+| `knowledge/portfolio-management.md` | 用户询问组合配置、新曼城4231 | 组合配置库 | ~6KB |
+| `knowledge/reference/thresholds.md` | 需要指标阈值参考时 | 阈值参考表 | ~7KB |
+| `knowledge/six-tracks-2026.md` | 用户询问 2026 赛道、时代主线 | 赛道判断库 | ~5KB |
+| `knowledge/stock-glossary.md` | 用户询问个股黑话、术语解释 | 术语库 | ~9KB |
+| `knowledge/strategies/choppy-market-sop.md` | 用户询问震荡市操作、横盘策略 | 震荡市SOP | ~10KB |
+| `knowledge/three-best-principles.md` | 用户询问三最原则 | 三最原则库 | ~2KB |
+| `knowledge/trading-psychology.md` | 用户询问交易心理、心性建设 | 心理建设库 | ~9KB |
 
 ### 工具链调用条件
 

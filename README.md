@@ -1,103 +1,82 @@
 # zettaranc（万千）· 思维操作系统
 
-> *「利润是市场给的，都是概率的事儿，谁也别吹牛逼。」*
+> **散户最难的不是选股，是卖出时管住手。**
+
+前阳光私募冠军基金经理、B站百大UP主的交易纪律，封装成可运行在真实行情上的 AI Skill。  
+基于 ~200 万字语料蒸馏，60+ 指标，30+ 战法，可回测可自改进。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)
-[![v3.6.0](https://img.shields.io/badge/version-3.6.0-green)](docs/CHANGELOG.md)
-
-
-<br>
-
-**前阳光私募冠军基金经理、B站百大UP主的投资思维框架，可运行在真实行情数据之上。**<br>
-基于 ~467 篇直播/付费课整理文章（约 200 万字）+ 13 个 ztalk 视频 transcript（12.7 万字）+ 9 篇股探报告交易心理系列（3.3 万字）的深度蒸馏。
-
-<br>
-
-[快速开始](#快速开始) · [CLI 工具](#cli-工具) · [Python API](#python-api) · [使用手册](docs/USER_GUIDE.md) · [架构说明](#架构说明) · [更新日志](docs/CHANGELOG.md)
-
-</div>
+[![Version](https://img.shields.io/badge/version-3.6.0-green)](docs/CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/tests-892%20passed-brightgreen)](tests/)
+[![Quality](https://img.shields.io/badge/quality-100%2F100-blue)](corpus/quality_check.py)
 
 ---
 
-## v3.5.0 能做什么
+## 30 秒体验（无需 Token）
 
+```bash
+# 1. 克隆并安装
+git clone https://github.com/lululu811/zettaranc-skill.git && cd zettaranc-skill
+pip install -r requirements.txt && pip install -e .
 
-> **不只是炒股工具，是多场景智能决策系统。宿主（Claude Code / Cursor）可直接调用 CLI 工具获取真实数据。**
+# 2. 设置 websearch 模式（零配置）
+echo "DATA_MODE=websearch" > .env
 
-### 数据规模
+# 3. 立即体验
+zt analyze 600519.SH  # 用框架分析茅台，不需要行情数据
+```
 
-| 数据表 | 行数 | 说明 |
-|--------|------|------|
-| stock_basic | 5,525 | 全量 A 股基本信息 |
-| daily_kline | 25,591 | 测试股票 2 年 K 线（可增量同步至全量） |
-| indicator_cache | 6,360 | 60+ 技术指标每日快照 |
-| moneyflow | 207,361 | 全市场资金流向（60 天） |
-| financial_data | 2,733 | 财报数据（含 PE/PB/PS） |
-| tushare_indicator_cache | 12,554 | Tushare 官方指标（diff 验证用） |
+---
 
-### 六大核心能力
+## 它能做什么
+
+**不只是炒股工具，是多场景智能决策系统。**
 
 | 能力 | 说明 | 示例 |
 |------|------|------|
-| **🎯 意图识别** | 自动识别 stock/career/life/chat 四种意图，路由到对应角色框架 | `python -m modules.intent_chat "B1 买点怎么判断"` |
-| **📊 股票分析** | 60+ 技术指标实时计算，战法自动识别，支持 `--json` 输出 | `zt analyze 600487.SH --json` |
-| **📈 策略回测** | 少妇战法六步闭环 / 多策略融合 / 组合回测 | `zt backtest shaofu 600487.SH` |
-| **🔍 智能选股** | 曼城评分 + 蜈蚣图过滤 + 沙漏评分 + 牛绳判断 | `zt screen --strategy B1 --limit 20` |
-| **👁️ 观察池管理** | 自选股批量监控，每日信号扫描 + 报告生成 | `zt watchlist scan --json` |
-| **🤖 宿主集成** | 所有 CLI 命令支持 `--json`，宿主可直接调用获取结构化数据 | `zt daily --json` |
+| 🎯 **意图识别** | 自动识别 stock/career/life/chat，路由到对应框架 | `zt workflow "B1 买点怎么判断"` |
+| 📊 **股票分析** | 60+ 技术指标，30+ 战法自动识别 | `zt analyze 600487.SH --json` |
+| 📈 **策略回测** | 少妇战法 / 多策略融合 / 组合回测 / Walk-forward 寻优 | `zt backtest shaofu 600487.SH` |
+| 🔍 **智能选股** | 曼城评分 + 战法共振 + 环境权重 | `zt screen --strategy B1 --limit 20` |
+| 👁️ **观察池** | 自选股批量监控，每日信号扫描 | `zt watchlist scan --json` |
+| 🤖 **宿主集成** | 所有命令支持 `--json`，Claude/Cursor 可直接调用 | `zt daily --json` |
 
-### 完整功能清单
+### 效果展示
 
-**策略与架构优化（v3.3.2 升级）**
-- 🧩 **数据层统一协议**：新增 `modules/datasource.py`，定义 `DataSource` Protocol，提供 `TushareDataSource` / `BridgeDataSource` / `SqliteDataSource` / `CompositeDataSource` 及工厂函数，支持依赖注入与自动回退。
-- 📦 **大模块子包化**：`modules/data_sync.py`（1181 行）拆分为 `modules/data_sync/` 子包，`modules/screener.py`（1161 行）拆分为 `modules/screener/` 子包，保留顶层 shim 保证公共导入 100% 兼容。
-- 🔌 **可注入数据源**：`DataSyncer`、`screen_stocks`、`analyze_stock`、`get_all_stocks`、`get_recent_klines` 均支持传入自定义 `DataSource`。
+<!-- 效果截图位置 -->
+<!-- [analyze 输出示例](assets/screenshots/analyze-example.png) -->
+<!-- [screen 选股结果](assets/screenshots/screen-example.png) -->
+<!-- [backtest 资金曲线](assets/screenshots/backtest-example.png) -->
 
-**策略与架构优化（v3.1.1 升级）**
-- 🛡️ **输入数据大一统**：策略判定函数全面升级为 `list[DailyData]` 强类型输入，并通过智能防御网关实现对字典类型的 100% 向后兼容。
-- 🚀 **彻底清空“猴子补丁”**：移除了针对核心指标模块动态劫持的补丁机制，升级为全量指标属性一次性挂载，各战法读取指标降低为 O(1) 开销。
-- 🎣 **逃顶出货五式联动**：在 S2 (顶背离) / S3 (反弹受阻) 逃顶策略中集成出货五式量化验证，通过出货共振高危过滤大幅优化逃顶准确率。
+---
 
-**性能与架构优化（v2.10.0 新增）**
+## 完整安装（接入真实行情）
 
-- ⚡️ **60x 指标计算提速**：全面引入 Pandas 向量化引擎（替换 Python For 循环），严格匹配通达信（TDX）算法精度。
-- 🚀 **10x-50x 写入提速**：SQLite 数据同步全量采用 Batch Insert 并发写入（`executemany`），彻底消除性能瓶颈。
-- 🌐 **多线程网络 I/O**：全市场 5000+ 股票数据并发拉取（`ThreadPoolExecutor`），带线程安全的 Tushare API 防封限流锁。
-- 🧩 **模块深度解耦**：超大策略文件（1600行+）解耦为标准 Python 策略包，确保 367 项单元测试 100% 隔离安全。
+> 需要 [Tushare Pro](https://tushare.pro/) Token（免费注册）
 
-**意图识别（v2.8.0 新增）**
-- ✅ 四意图自动路由：stock / career / life / chat
-- ✅ 规则匹配引擎（keywords + patterns，零 token 消耗）
-- ✅ 向量知识库检索适配器（Qdrant，按意图分类过滤，默认关闭）
-- ✅ LLM 生成层（MiniMax / OpenAI 兼容格式，可选）
-- ✅ Z哥职业决策框架（rules/career_prompt.md）
-- ✅ Z哥人生决策框架（rules/life_prompt.md）
+```bash
+# 1. 克隆并安装
+git clone https://github.com/lululu811/zettaranc-skill.git && cd zettaranc-skill
+pip install -r requirements.txt && pip install -e .
 
-**数据层**
-- ✅ Tushare 真实行情接入（日线 OHLCV、资金流向、财报、财务指标）
-- ✅ SQLite 本地缓存（5525 只股票基本信息 + K线 + 指标快照 + 财报）
-- ✅ 增量同步（只拉取新增数据，避免重复请求）
-- ✅ 120次/分钟限流保护
-- ✅ 财务数据多接口组合（fina_indicator + income + balancesheet + daily_basic）
+# 2. 配置环境变量
+cp .env.example .env
+# 编辑 .env，填入你的 TUSHARE_TOKEN 和 TUSHARE_API_URL
 
-**指标计算（60+）**
-- ✅ KDJ / MACD / BBI / RSI / WR / 布林带 / DMI
-- ✅ 双线战法（白线+黄线）/ 单针下 20 / 砖形图
-- ✅ 量比 / 资金流向 / 筹码分布
+# 3. 初始化数据库
+python -m modules.database
 
-**P3 新指标（v3.1.0）**
-- ✅ 蜈蚣图识别：5 因子评分（长上影/长下影/十字星/量能无规律/价格无趋势），≥60 分判定为呼吸紊乱
-- ✅ 牛绳理论量化：牵牛/牛绳断/金叉/死叉 + 缺口百分比 + 白线趋势
-- ✅ 量比战法引擎：6 种场景判定（攻击日/出货日/单向拉升/正常震荡/弱势日/超级攻击）
-- ✅ 沙漏评分 V9：5 因子评分（缩量收敛/枢轴邻近/量能斜率/均线结构/事件风险），≥80 分为完美图形
+# 4. 同步股票数据
+python -m modules.data_sync sync
 
-**战法识别（30+）**
-- ✅ B1 / B2 / B3 / SB1 / 超级 B1
-- ✅ 长安战法 / 平行重炮 / 坑里起好货 / 对称 VA
-- ✅ 四分之三阴量 / 娜娜图形 / 异动地量
-- ✅ S1/S2/S3 逃顶体系
-- ✅ 滴滴战法 / MACD 金叉空·死叉多 / 祖冲之法（目标价）
+# 5. 开始使用
+zt analyze 600519.SH --json
+```
+
+**详细安装指南**：[docs/USER_GUIDE.md](docs/USER_GUIDE.md)
+
+---
+
 - ✅ 主力出货五式 / 灾后重建 / 跃跃欲试 / 关键 K 识别
 - ✅ 三波理论（建仓波/拉升波/冲刺波）
 - ✅ 麒麟会四阶段（吸筹/拉升/派发/回落）
