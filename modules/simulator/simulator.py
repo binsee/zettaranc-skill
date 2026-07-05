@@ -314,7 +314,7 @@ def run_simulation(
             sub = _klines_for_date(stock_klines, date)
             if len(sub) < 60:
                 continue
-            sig = evaluate_stock(code, date, klines=sub, datasource=ds)
+            sig = evaluate_stock(code, date, klines=sub, datasource=ds, config=config, context=context)
             if sig.verdict == SignalVerdict.PASS:
                 candidates.append(sig)
 

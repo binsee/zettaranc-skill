@@ -2,28 +2,38 @@
 """
 信号过滤模块。
 
-对 screener 评分结果进行二次过滤：
-- 综合评分 >= threshold
-- 至少触发 N 个共振标签（如 B1 + 沙漏完美 + 量比攻击日 + 牛绳金叉）
-- 风险不过高（非冲刺波/派发）
-- 输出 SignalScore 列表，按分数降序
+对 screener 评分结果或战法共振信号进行二次过滤：
+- simple 模式：综合评分 >= threshold，至少触发 N 个共振标签，风险不过高
+- resonance 模式：调用 modules.strategies 检测战法，经适配、去重、加权后
+  计算战法共振分，输出 SignalScore
 """
 
 from __future__ import annotations
 
-from ..screener import StockScore, analyze_stock, get_all_stocks
+from ..screener import StockScore, analyze_stock
 from ..datasource import DataSource, get_datasource
 from ..indicators import DailyData, calculate_sandglass_score
 from ..indicators.volume_patterns import detect_volume_ratio_strategy
 from ..indicators.price_patterns import detect_bull_rope
-from . import SignalScore, SignalVerdict
+from ..strategies import detect_all_strategies
+from . import (
+    SignalScore,
+    SignalVerdict,
+    SimulationConfig,
+    MarketContext,
+    MarketRegime,
+    RawStrategySignal,
+)
+from .strategy_adapter import adapt, filter_by_date, deduplicate
+from .resonance_scorer import calculate_resonance
+from .environment_weights import get_weights
 
 
 _REQUIRED_SIGNALS = ("B1", "沙漏完美", "量比攻击", "牛绳金叉")
 
 
 def _extract_signals(score: StockScore, klines: list[DailyData]) -> list[str]:
-    """从 StockScore 和原始 K 线中提取共振标签。"""
+    """从 StockScore 和原始 K 线中提取共振标签（v0.2 simple 模式）。"""
     signals: list[str] = []
     reasons = " ".join(score.reasons)
     warnings = " ".join(score.warnings)
@@ -73,11 +83,61 @@ def _extract_signals(score: StockScore, klines: list[DailyData]) -> list[str]:
     return signals
 
 
+def _evaluate_resonance(
+    ts_code: str,
+    trade_date: str,
+    name: str,
+    klines: list[DailyData],
+    context: MarketContext | None,
+    config: SimulationConfig,
+) -> SignalScore:
+    """resonance 模式：使用 modules.strategies 检测战法并计算共振分。"""
+    raw_signals = adapt(detect_all_strategies(ts_code, days=120))
+    recent = filter_by_date(raw_signals, trade_date, config.strategy_lookback_days)
+    recent = deduplicate(recent)
+
+    weights = get_weights(context.regime if context else MarketRegime.NEUTRAL, config)
+    weighted = [
+        RawStrategySignal(
+            strategy=s.strategy,
+            category=s.category,
+            action=s.action,
+            confidence=s.confidence * weights.get(s.category, 1.0),
+            trade_date=s.trade_date,
+            reason=s.reason,
+        )
+        for s in recent
+    ]
+
+    resonance = calculate_resonance(weighted, ts_code, name, trade_date, config)
+
+    # 将 resonance.total_score 映射到 0-100
+    mapped_score = max(0.0, min(100.0, resonance.total_score * 50 + 50))
+
+    return SignalScore(
+        ts_code=ts_code,
+        name=name,
+        date=trade_date,
+        score=mapped_score,
+        b1_score=0.0,
+        trend_score=0.0,
+        volume_score=0.0,
+        risk_score=resonance.risk_score * 50,
+        signals=resonance.matched_strategies,
+        reasons=[f"共振分 {resonance.total_score:.2f}"] + resonance.conflicts,
+        warnings=resonance.conflicts,
+        verdict=resonance.verdict,
+        resonance=resonance,
+    )
+
+
 def evaluate_stock(
     ts_code: str,
     trade_date: str,
     klines: list[DailyData] | None = None,
     datasource: DataSource | None = None,
+    config: SimulationConfig | None = None,
+    context: MarketContext | None = None,
 ) -> SignalScore:
     """
     评估单只股票在某交易日的信号质量。
@@ -87,10 +147,18 @@ def evaluate_stock(
         trade_date: 当前日期
         klines: 可选，外部传入 K 线
         datasource: 数据源
+        config: 模拟配置；为空时使用默认配置
+        context: 当前市场环境
 
     Returns:
         SignalScore
     """
+    config = config or SimulationConfig()
+
+    if config.strategy_mode == "resonance":
+        return _evaluate_resonance(ts_code, trade_date, ts_code, klines or [], context, config)
+
+    # simple 模式保持 v0.2 原逻辑
     ds = datasource or get_datasource()
     if klines is None:
         from ..screener.data import get_recent_klines

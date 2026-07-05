@@ -804,3 +804,71 @@ class TestAtrSizingIntegration:
         assert len(kwargs.get("klines")) == len(klines)
         assert kwargs.get("can_sell_date") == next_trading_date(dates, sig.date)
         assert kwargs.get("is_st") is False
+
+
+def test_evaluate_stock_resonance_mode_uses_strategies():
+    """resonance 模式下 evaluate_stock 应使用 modules.strategies 信号并返回共振分。"""
+    from modules.simulator.signal_filter import evaluate_stock
+    from modules.simulator import SimulationConfig, SignalVerdict, MarketContext, MarketRegime
+    from modules.strategies import StrategySignal, StrategyType, Action
+
+    klines = _make_klines(n=70, ts_code="000001.SZ", start_price=10.0, trend=0.01)
+    mock_signal = StrategySignal(
+        ts_code="000001.SZ",
+        trade_date="20240101",
+        strategy=StrategyType.B1,
+        action=Action.BUY.value,
+        confidence=0.9,
+        description="B1买点",
+        reason="B1买点",
+    )
+
+    cfg = SimulationConfig(strategy_mode="resonance")
+    ctx = MarketContext(
+        date="20240101",
+        regime=MarketRegime.STRONG,
+        index_trend=70,
+        breadth=0.1,
+        moneyflow_score=60,
+    )
+
+    with patch("modules.simulator.signal_filter.detect_all_strategies", return_value=[mock_signal]) as mock_detect:
+        score = evaluate_stock("000001.SZ", "20240101", klines=klines, datasource=MagicMock(), config=cfg, context=ctx)
+
+    mock_detect.assert_called_once_with("000001.SZ", days=120)
+    assert score.resonance is not None
+    assert score.verdict == SignalVerdict.PASS
+    assert score.score > 0
+    assert "B1" in score.signals
+    assert any("共振分" in r for r in score.reasons)
+
+
+def test_evaluate_stock_simple_mode_unchanged():
+    """simple 模式下 evaluate_stock 保持 v0.2 行为，resonance 字段为 None。"""
+    from modules.simulator.signal_filter import evaluate_stock
+    from modules.simulator import SimulationConfig, SignalVerdict
+    from modules.screener import StockScore
+
+    klines = _make_klines(n=70, ts_code="600519.SH", start_price=100.0, trend=0.01)
+    cfg = SimulationConfig(strategy_mode="simple")
+
+    mock_score = StockScore(
+        ts_code="600519.SH",
+        name="茅台",
+        score=75,
+        b1_score=70,
+        trend_score=70,
+        volume_score=70,
+        risk_score=80,
+        reasons=["B1信号"],
+        warnings=[],
+    )
+
+    with patch("modules.simulator.signal_filter.analyze_stock", return_value=mock_score):
+        score = evaluate_stock("600519.SH", "20260101", klines=klines, datasource=MagicMock(), config=cfg)
+
+    assert score.resonance is None
+    assert score.verdict == SignalVerdict.PASS
+    assert score.score == 75
+    assert "B1" in score.signals
+
