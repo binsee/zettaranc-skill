@@ -61,7 +61,7 @@ class LoopConfig:
     """策略参数配置"""
 
     j_threshold: float = 12  # B1 J 值阈值（SOP: J<=12，最好负值）
-    stop_loss_pct: float = -0.07  # 止损比例（负值，默认 -7%）
+    stop_loss_pct: float = -0.03  # 止损比例（现已实际生效，原硬编码 0.97 = -3%）
     stop_loss_method: str = "entry_low"  # "entry_low" | "n_structure_low" | "j_negative_low"
     bbi_break_days: int = 2  # BBI 连续跌破天数触发离场
     bbi_break_threshold: float = 0.01  # 收盘价低于 BBI 超过此比例才算"跌破"（1%）
@@ -124,12 +124,13 @@ def _calc_stop_loss_price(
     klines: list[DailyData],
     day_idx: int,
     method: str = "entry_low",
+    stop_loss_pct: float = -0.07,
 ) -> float:
     """
     根据不同方法计算止损价
 
     三种方法（SOP 第 4 步）：
-    - entry_low: 入场 K 线最低价
+    - entry_low: 入场 K 线最低价 + 止损比例缓冲
     - n_structure_low: N 型结构前低（入场前最近一个回调低点）
     - j_negative_low: J 值转负那天 K 线的最低价
 
@@ -137,6 +138,7 @@ def _calc_stop_loss_price(
         klines: K 线数据
         day_idx: 入场日索引
         method: 止损方法
+        stop_loss_pct: 止损比例（负值，如 -0.07 表示 -7%）
 
     Returns:
         止损价
@@ -144,7 +146,9 @@ def _calc_stop_loss_price(
     entry_kline = klines[day_idx]
 
     if method == "entry_low":
-        return entry_kline.low * 0.97
+        # 入场日最低价 × (1 + 止损比例)
+        # stop_loss_pct=-0.07 表示入场低下方 7% 为止损位
+        return entry_kline.low * (1 + stop_loss_pct)
 
     if method == "n_structure_low":
         # 回溯找入场前最近的回调低点（N 型结构的前低）
@@ -565,7 +569,7 @@ class ShaofuLoopEngine:
                 signal = self._check_entry_internal(klines, day_idx)
                 if signal is not None:
                     entry_price = klines[day_idx].close
-                    stop_loss = _calc_stop_loss_price(klines, day_idx, self.config.stop_loss_method)
+                    stop_loss = _calc_stop_loss_price(klines, day_idx, self.config.stop_loss_method, self.config.stop_loss_pct)
                     current_trade = LoopTrade(
                         ts_code=ts_code,
                         entry_date=klines[day_idx].trade_date,
