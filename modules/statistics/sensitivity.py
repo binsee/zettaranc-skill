@@ -15,7 +15,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 
 @dataclass
@@ -106,7 +107,7 @@ class ParameterSensitivityReport:
                     f"敏感性 {result.sensitivity_score:.2f})"
                 )
                 if result.has_cliff:
-                    lines.append(f"    ⚠️  存在参数悬崖！")
+                    lines.append("    ⚠️  存在参数悬崖！")
             lines.append("")
 
         lines.append(f"{'=' * 70}")
@@ -181,10 +182,7 @@ def analyze_parameter_sensitivity(
     if base_score > 0:
         threshold_low = base_score * 0.7
         threshold_high = base_score * 1.3
-        robust_values = [
-            val for val, score in zip(scan_range, scan_scores)
-            if threshold_low <= score <= threshold_high
-        ]
+        robust_values = [val for val, score in zip(scan_range, scan_scores) if threshold_low <= score <= threshold_high]
         robust_range = (min(robust_values), max(robust_values)) if robust_values else (base_value, base_value)
     else:
         robust_range = (base_value, base_value)
@@ -233,6 +231,7 @@ def analyze_all_parameters(
     ]
 
     for param_name, scan_range in params_to_analyze:
+
         def evaluate_fn(param_value, _param_name=param_name):
             # 创建新配置
             config_dict = {

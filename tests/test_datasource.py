@@ -119,7 +119,7 @@ def test_composite_prefers_bridge_when_available(monkeypatch):
 def test_composite_falls_back_to_sqlite(monkeypatch, temp_db, db_conn):
     from tests.conftest import write_klines_to_db, write_stock_basic
 
-    monkeypatch.setattr("modules.datasource.is_bridge_available", lambda: False)
+    monkeypatch.setattr("modules.bridge_client.is_bridge_available", lambda: False)
     write_stock_basic(db_conn, ts_code="600519.SH", name="贵州茅台", industry="白酒", market="主板")
     rows = [
         {
@@ -210,7 +210,7 @@ def test_composite_auto_does_not_use_tushare(monkeypatch, temp_db, db_conn):
     from tests.conftest import write_klines_to_db, write_stock_basic
 
     # bridge 不可用
-    monkeypatch.setattr("modules.datasource.is_bridge_available", lambda config=None: False)
+    monkeypatch.setattr("modules.bridge_client.is_bridge_available", lambda config=None: False)
     # 标记 TushareDataSource.get_kline_dicts 被调用即失败
     original_get_kline_dicts = TushareDataSource.get_kline_dicts
 
