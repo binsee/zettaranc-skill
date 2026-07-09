@@ -483,6 +483,9 @@ def phase1_basic_grid_search(
 def _load_index_klines(days: int) -> list[DailyData] | None:
     """加载大盘指数 K 线数据（用于市场状态分类）
 
+    优先从数据库加载 000001.SH（上证指数）。
+    如果不存在，使用所有股票的平均价格构建合成市场指数。
+
     Args:
         days: 加载天数
 
@@ -495,6 +498,8 @@ def _load_index_klines(days: int) -> list[DailyData] | None:
     try:
         conn = sqlite3.connect(str(db_path))
         cursor = conn.cursor()
+
+        # 尝试加载上证指数
         cursor.execute(
             """
             SELECT trade_date, open, high, low, close, vol, amount, pct_chg
@@ -504,26 +509,94 @@ def _load_index_klines(days: int) -> list[DailyData] | None:
             (days + 120,),
         )
         rows = cursor.fetchall()
+
+        if rows and len(rows) >= 120:
+            # 使用真实指数数据
+            klines: list[DailyData] = []
+            for row in reversed(rows):
+                klines.append(
+                    DailyData(
+                        ts_code="000001.SH",
+                        trade_date=row[0],
+                        open=float(row[1]),
+                        high=float(row[2]),
+                        low=float(row[3]),
+                        close=float(row[4]),
+                        vol=float(row[5]),
+                        amount=float(row[6]) if row[6] else 0,
+                        pct_chg=float(row[7]) if row[7] else 0.0,
+                    )
+                )
+            conn.close()
+            return klines
+
+        # 指数数据不存在，构建合成市场指数
+        print("  注意: 上证指数数据不存在，使用所有股票构建合成市场指数...")
+        cursor.execute(
+            """
+            SELECT trade_date, AVG(close) as avg_close, SUM(vol) as total_vol
+            FROM daily_kline
+            GROUP BY trade_date
+            ORDER BY trade_date DESC
+            LIMIT ?
+            """,
+            (days + 120,),
+        )
+        avg_rows = cursor.fetchall()
         conn.close()
-        if not rows or len(rows) < 120:
+
+        if not avg_rows or len(avg_rows) < 120:
             return None
-        klines: list[DailyData] = []
-        for row in reversed(rows):
+
+        # 构建合成指数（归一化到 3000 点基准）
+        klines = []
+        base_price = 3000.0
+        prev_close = base_price
+
+        for row in reversed(avg_rows):
+            trade_date = row[0]
+            avg_close = float(row[1])
+            total_vol = float(row[2]) if row[2] else 0
+
+            # 使用平均价格的变化率模拟指数
+            if len(klines) == 0:
+                # 第一天：基准价格
+                close = base_price
+                open_p = base_price
+                high = base_price * 1.005
+                low = base_price * 0.995
+                pct_chg = 0.0
+            else:
+                # 后续天数：按平均价格变化率调整
+                # 需要一个参考点，使用所有股票的平均价格比率
+                close = prev_close * (avg_close / base_price) if base_price > 0 else prev_close
+                open_p = prev_close
+                high = max(open_p, close) * 1.005
+                low = min(open_p, close) * 0.995
+                pct_chg = (close - prev_close) / prev_close * 100 if prev_close > 0 else 0.0
+
             klines.append(
                 DailyData(
-                    ts_code="000001.SH",
-                    trade_date=row[0],
-                    open=float(row[1]),
-                    high=float(row[2]),
-                    low=float(row[3]),
-                    close=float(row[4]),
-                    vol=float(row[5]),
-                    amount=float(row[6]) if row[6] else 0,
-                    pct_chg=float(row[7]) if row[7] else 0.0,
+                    ts_code="MARKET_INDEX",
+                    trade_date=trade_date,
+                    open=round(open_p, 2),
+                    high=round(high, 2),
+                    low=round(low, 2),
+                    close=round(close, 2),
+                    vol=round(total_vol, 0),
+                    amount=round(total_vol * close, 0),
+                    pct_chg=round(pct_chg, 2),
                 )
             )
+            prev_close = close
+            # 更新基准价格
+            base_price = avg_close
+
+        print(f"  合成市场指数: {len(klines)} 日, 起始 {klines[0].trade_date}, 结束 {klines[-1].trade_date}")
         return klines
-    except Exception:
+
+    except Exception as e:
+        print(f"  警告: 加载指数数据失败: {e}")
         return None
 
 
