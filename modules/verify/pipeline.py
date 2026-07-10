@@ -214,9 +214,14 @@ def verify_v10_pipeline(
     # 3. 聚合
     aggregate = _aggregate_metrics(per_stock, days)
 
+    # 4. Gates 判定（Task 5）
+    from .gates import check_gates
+    gates = check_gates(aggregate, wf=None)  # Task 6 加入 wf
+
     return VerifyResult(
         per_stock=per_stock,
         aggregate=aggregate,
+        gates=gates,
         config_used=_config_to_dict(config),
         meta=meta,
     )
