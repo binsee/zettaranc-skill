@@ -862,7 +862,45 @@ def cmd_simulate(args) -> None:
             _simulate_print_narrative(_simulate_narrate_text(result=result, wf_payload=None))
 
 
-# ==================== 主入口（独立运行示例） ====================
+# ==================== 4. cmd_verify_v10（M4 验收 CLI 适配）====================
+
+
+def cmd_verify_v10(args) -> int:
+    """少妇战法 v1.0 验收子命令"""
+    from modules.verify.cli import main as verify_main
+
+    # 把 argparse Namespace 转成 main() 接受的 argv 列表
+    argv = []
+    if args.limit != 50:
+        argv.extend(["--limit", str(args.limit)])
+    if args.days != 250:
+        argv.extend(["--days", str(args.days)])
+    if getattr(args, "walk_forward", False):
+        argv.append("--walk-forward")
+    if getattr(args, "wf_train", 120) != 120:
+        argv.extend(["--wf-train", str(args.wf_train)])
+    if getattr(args, "wf_test", 60) != 60:
+        argv.extend(["--wf-test", str(args.wf_test)])
+    if getattr(args, "json", False):
+        argv.append("--json")
+    if getattr(args, "no_markdown", False):
+        argv.append("--no-markdown")
+    return verify_main(argv)
+
+
+def add_verify_v10_parser(subparsers) -> None:
+    """注册 verify v1.0 验收子命令"""
+    p_verify = subparsers.add_parser("verify", help="v1.0 验收")
+    p_verify.add_argument("version", choices=["v1.0"], help="验收版本")
+    p_verify.add_argument("--limit", type=int, default=50)
+    p_verify.add_argument("--days", type=int, default=250)
+    p_verify.add_argument("--walk-forward", action="store_true")
+    p_verify.add_argument("--wf-train", type=int, default=120)
+    p_verify.add_argument("--wf-test", type=int, default=60)
+    p_verify.add_argument("--json", action="store_true")
+    p_verify.add_argument("--no-markdown", action="store_true")
+    p_verify.set_defaults(func=cmd_verify_v10)
+
 
 if __name__ == "__main__":
     import argparse
@@ -933,6 +971,9 @@ if __name__ == "__main__":
     p_sim.add_argument("--min-resonance-score", type=float, default=0.35, help="共振模式最低入选分")
     p_sim.add_argument("--json", action="store_true", help="JSON 输出")
 
+    # ── verify ──
+    add_verify_v10_parser(subparsers)
+
     args = parser.parse_args()
 
     # 调度
@@ -941,5 +982,6 @@ if __name__ == "__main__":
         "trade": cmd_trade,
         "daily": cmd_daily,
         "simulate": cmd_simulate,
+        "verify": cmd_verify_v10,
     }
     handlers[args.command](args)

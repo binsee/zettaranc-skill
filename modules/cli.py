@@ -823,6 +823,11 @@ def build_parser():
         help="目标函数（默认 calmar）",
     )
 
+    # ── verify（v1.0 验收）──
+    from modules.cli_commands import add_verify_v10_parser
+
+    add_verify_v10_parser(subparsers)
+
     return parser
 
 
@@ -832,7 +837,14 @@ def main():
     args = parser.parse_args()
 
     # 调度表
-    from modules.cli_commands import cmd_backtest, cmd_trade, cmd_daily, cmd_monitor, cmd_simulate
+    from modules.cli_commands import (
+        cmd_backtest,
+        cmd_trade,
+        cmd_daily,
+        cmd_monitor,
+        cmd_simulate,
+        cmd_verify_v10,
+    )
 
     handlers = {
         "analyze": cmd_analyze,
@@ -849,6 +861,7 @@ def main():
         "self-optimize": cmd_self_optimize,
         "monitor": cmd_monitor,
         "simulate": cmd_simulate,
+        "verify": cmd_verify_v10,
     }
     handlers[args.command](args)
 

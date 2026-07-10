@@ -13,6 +13,7 @@ from .report import (
     render_markdown,
     write_report,
 )
+from .cli import build_parser, run_verify_v10, main as verify_cli_main
 
 __all__ = [
     "AggregateMetrics",
@@ -20,8 +21,11 @@ __all__ = [
     "ReportPaths",
     "StockResult",
     "VerifyResult",
+    "build_parser",
     "render_json",
     "render_markdown",
+    "run_verify_v10",
+    "verify_cli_main",
     "verify_v10_pipeline",
     "write_report",
 ]
