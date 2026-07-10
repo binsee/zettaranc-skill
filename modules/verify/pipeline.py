@@ -168,19 +168,107 @@ def _run_single_stock_backtest(
 def verify_v10_pipeline(
     ts_codes: list[str],
     days: int = 250,
-    config: object | None = None,
-    walk_forward: bool = False,
+    config: LoopConfig | None = None,
+    walk_forward: bool = False,  # Task 6 实现
     wf_train_days: int = 120,
     wf_test_days: int = 60,
 ) -> VerifyResult:
-    """v1.0 验收流水线骨架（Task 2-4 补完内部逻辑）"""
+    """
+    v1.0 验收流水线（完整版）：
+    1. 加载 K 线（带数据预检）
+    2. 逐股回测（调 backtest_shaofu_single）
+    3. 聚合组合级指标
+    4. （Task 5 加入 gates 判定）
+    5. （Task 6 加入 walk_forward 分支）
+    """
     logger.info(
         "verify_v10_pipeline 启动: stocks=%d, days=%d, wf=%s",
         len(ts_codes),
         days,
         walk_forward,
     )
+    meta = {
+        "ts_codes_count": len(ts_codes),
+        "days": days,
+        "walk_forward": walk_forward,
+        "skipped_count": 0,
+    }
+
     if not ts_codes:
-        return VerifyResult(meta={"empty_input": True})
-    # TODO Task 2-4: 实现数据加载 + 回测 + 指标计算 + gates 判定
-    return VerifyResult(meta={"stub": True})
+        return VerifyResult(meta={**meta, "empty_input": True})
+
+    # 1. 数据预检
+    prechecked = _load_klines_with_precheck(ts_codes, days)
+    skipped_count = sum(1 for r in prechecked if r.skipped)
+    meta["skipped_count"] = skipped_count
+
+    # 2. 逐股回测
+    per_stock: list[StockResult] = []
+    for pre in prechecked:
+        if pre.skipped:
+            per_stock.append(pre)
+            continue
+        result = _run_single_stock_backtest(pre.ts_code, days, config)
+        per_stock.append(result)
+
+    # 3. 聚合
+    aggregate = _aggregate_metrics(per_stock, days)
+
+    return VerifyResult(
+        per_stock=per_stock,
+        aggregate=aggregate,
+        config_used=_config_to_dict(config),
+        meta=meta,
+    )
+
+
+def _config_to_dict(config: LoopConfig | None) -> dict:
+    """把 LoopConfig 序列化为 dict（便于 JSON 输出）"""
+    if config is None:
+        return {}
+    return {
+        "j_threshold": config.j_threshold,
+        "stop_loss_pct": config.stop_loss_pct,
+        "vol_shrink_threshold": config.vol_shrink_threshold,
+        "bbi_break_days": config.bbi_break_days,
+        "min_holding_days": config.min_holding_days,
+        "lu_half": config.lu_half,
+        "position_pct": config.position_pct,
+    }
+
+
+def _aggregate_metrics(per_stock: list[StockResult], days: int) -> AggregateMetrics:
+    """从单股结果聚合到组合级 AggregateMetrics"""
+    active = [r for r in per_stock if not r.skipped and r.trades > 0]
+    if not active:
+        return AggregateMetrics()
+
+    total_trades = sum(r.trades for r in active)
+    wins = sum(r.trades * r.win_rate for r in active)
+    win_rate = wins / total_trades if total_trades > 0 else 0.0
+
+    # 加权平均收益（按交易数加权）
+    return_pcts = [r.return_pct for r in active if r.trades > 0]
+    total_return = sum(return_pcts) / len(return_pcts) if return_pcts else 0.0
+
+    sharpes = [r.sharpe for r in active]
+    avg_sharpe = sum(sharpes) / len(sharpes) if sharpes else 0.0
+
+    drawdowns = [r.max_drawdown for r in active]
+    max_drawdown = max(drawdowns) if drawdowns else 0.0
+
+    # 年化（粗略：days/250 折算）
+    annual_return = total_return * (250 / max(days, 1))
+
+    # Calmar = 年化收益 / 最大回撤
+    calmar = annual_return / max_drawdown if max_drawdown > 0.001 else 0.0
+
+    return AggregateMetrics(
+        total_trades=total_trades,
+        win_rate=win_rate,
+        total_return_pct=total_return,
+        annual_return_pct=annual_return,
+        sharpe=avg_sharpe,
+        calmar=calmar,
+        max_drawdown=max_drawdown,
+    )

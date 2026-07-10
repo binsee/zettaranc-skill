@@ -69,3 +69,19 @@ def test_backtest_single_real_stock_returns_metrics():
     # 至少有一个交易或零交易（极端行情）
     assert result.trades >= 0
     assert 0.0 <= result.win_rate <= 1.0
+
+
+def test_pipeline_aggregate_has_zero_for_empty_run():
+    """全跳过的 pipeline：aggregate 是零值，不是抛异常"""
+    result = verify_v10_pipeline(ts_codes=["999999.SH"], days=250)
+    assert isinstance(result, VerifyResult)
+    assert isinstance(result.aggregate, AggregateMetrics)
+    assert result.aggregate.total_trades == 0
+    # meta 记录跳过的股票数
+    assert result.meta.get("skipped_count", 0) >= 1
+
+
+def test_pipeline_meta_contains_run_metadata():
+    """meta 字段包含样本信息"""
+    result = verify_v10_pipeline(ts_codes=[], days=250)
+    assert "ts_codes_count" in result.meta or "empty_input" in result.meta
