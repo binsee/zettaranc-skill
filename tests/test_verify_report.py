@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import tempfile
 from pathlib import Path
 
 from modules.verify.pipeline import (
@@ -64,7 +63,7 @@ def test_render_json_has_required_keys():
     assert "total_count" in data
 
 
-def test_render_markdown_contains_gate_table():
+def test_render_markdown_includes_gates():
     """Markdown 报告含五项硬指标表格"""
     result = _make_full_result()
     md = render_markdown(result)
@@ -74,7 +73,7 @@ def test_render_markdown_contains_gate_table():
     assert "1/2 通过" in md or "总评" in md
 
 
-def test_write_report_creates_files(tmp_path: Path):
+def test_write_report_creates_file_at_path(tmp_path: Path):
     """write_report 同时写 JSON + Markdown 文件"""
     result = _make_full_result()
     paths = write_report(result, output_dir=tmp_path, base_name="test")
