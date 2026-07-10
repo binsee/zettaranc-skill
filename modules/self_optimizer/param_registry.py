@@ -132,6 +132,17 @@ _reg(
             impact="增大 → 允许更多连续下跌后入场；减小 → 更保守",
             wired=True,
         ),
+        ParamSpec(
+            name="vol_shrink_threshold",
+            default=0.8,
+            min=0.5,
+            max=1.0,
+            step=0.05,
+            category="entry",
+            description="B1 缩量判定阈值（当日量 / 前日量 < 此值视为缩量）",
+            impact="降低 → 更严格的缩量要求；升高 → 放宽缩量要求",
+            wired=True,
+        ),
     ],
 )
 

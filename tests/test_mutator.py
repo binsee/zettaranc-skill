@@ -115,9 +115,9 @@ def test_mutate_n_params_are_distinct(mutator, default_params):
 
 def test_mutate_n_does_not_exceed_available_params(mutator, default_params):
     """n 超过可用参数数时不会崩溃。"""
-    # 总共有 32 个参数，n=50 应该安全地变异全部
+    # 总共有 33 个参数，n=50 应该安全地变异全部
     params, records = mutator.mutate_n(default_params, n=50)
-    assert len(records) <= 33  # 最多就是总参数数
+    assert len(records) <= 34  # 最多就是总参数数
 
 
 # ==================== 历史记录 ====================

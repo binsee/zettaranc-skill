@@ -70,6 +70,22 @@ class LoopConfig:
     position_pct: float = 0.3  # 单笔仓位比例
     vol_shrink_threshold: float = 0.8  # 缩量判定阈值（当日量 / 前日量 < 此值视为缩量）
 
+    @classmethod
+    def from_registry(cls, strategy_name: str = "shaofu_v1") -> LoopConfig | None:
+        """
+        从 param_registry 读取 LoopConfig（可选扩展点）。
+
+        注意：本方法需要循环依赖避免，所以延迟 import：
+        - modules.verify.registry_writer.load_config_from_registry
+        - 若 modules.verify 不可用（如 zettaranc_skill 未安装 verify 子包），
+          返回 None
+        """
+        try:
+            from modules.verify.registry_writer import load_config_from_registry
+            return load_config_from_registry(strategy_name)
+        except ImportError:
+            return None
+
 
 @dataclass
 class LoopTrade:

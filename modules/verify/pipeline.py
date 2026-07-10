@@ -194,6 +194,15 @@ def verify_v10_pipeline(
         "skipped_count": 0,
     }
 
+    # 0. config 为 None 时尝试从 registry 读
+    if config is None:
+        config = LoopConfig.from_registry("shaofu_v1")
+        meta["config_source"] = (
+            "param_registry:shaofu_v1" if config is not None else "loop_engine:default"
+        )
+    else:
+        meta["config_source"] = "user:explicit"
+
     if not ts_codes:
         return VerifyResult(meta={**meta, "empty_input": True})
 
