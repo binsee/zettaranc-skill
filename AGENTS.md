@@ -15,7 +15,7 @@
 - **Web 看板**：`api/`（FastAPI 后端）+ `frontend/`（React + Vite + Tailwind 前端），可选
 - **语料基础**：约 467 篇直播/付费课整理文章（~200 万字）+ 13 个 ztalk 视频 transcript（~12.7 万字）+ 9 篇交易心理系列（~3.3 万字）+ 后续新增文章
 - **许可证**：MIT
-- **版本**：`docs/CHANGELOG.md` 与 `pyproject.toml` 当前版本为 **v3.9.0**。
+- **版本**：`docs/CHANGELOG.md` 与 `pyproject.toml` 当前版本为 **v3.10.0**。
 
 ### 双模式架构
 
@@ -255,122 +255,25 @@ IM_PUSH_WEBHOOK=                    # 可选，飞书 webhook
 
 ---
 
-## 项目结构与模块划分
+## 项目结构
+
+模块级别的详细架构树见上方「架构分层」一节。顶层目录结构：
 
 ```
 zettaranc-skill/
-├── SKILL.md                    # 核心 Skill 文件（LLM 角色扮演协议，Skill-Schema-V2 合规）
-├── README.md                   # 面向人类用户的项目介绍
-├── AGENTS.md                   # 本文件（AI Agent 开发指南）
-├── LICENSE                     # MIT
-├── pyproject.toml              # 包定义 + 命令入口
-├── .env / .env.example         # 本地配置（.env 不入库）
-├── .gitignore                  # Git 忽略规则
-├── .editorconfig               # 编辑器格式统一配置
-├── .pre-commit-config.yaml     # 提交前质量门
-├── requirements.txt            # Python 依赖
-├── data/                       # 本地 SQLite 数据库与报告（不入库）
-│   ├── stock_data.db           # 主数据库
-│   ├── registry/               # 参数注册表持久化（如 shaofu_v1.json）
-│   └── reports/                # 自动生成的监控/评估/验收报告
-├── docs/                       # 项目说明文档
-│   ├── CHANGELOG.md            # 版本变更日志（当前 v3.9.0）
-│   ├── CHANGELOG-v3.0.md       # v3.0 专题变更日志
-│   ├── TODO.md                 # 待办与路线图
-│   ├── CONTRIBUTING.md         # 贡献指南
-│   ├── USER_GUIDE.md           # 详细使用手册
-│   ├── CONFIG_GUIDE.md         # 配置指南
-│   ├── STATISTICS_VALIDATION.md # 统计检验说明
-│   ├── IMPROVEMENT_SYSTEM_SUMMARY.md
-│   ├── intent-router-design.md # 意图路由设计文档
-│   └── luban-reports/          # 鲁班评审报告归档
-├── modules/                    # Python 数据层与业务逻辑
-│   ├── datasource.py           # 统一数据源协议（DataSource Protocol + TushareDataSource / BridgeDataSource / SqliteDataSource / CompositeDataSource + get_datasource() 工厂）
-│   ├── database.py             # SQLite 15+ 张表、事务上下文、CRUD 助手
-│   ├── data_sync.py            # 向后兼容 shim → 实际逻辑在 modules/data_sync/
-│   ├── data_sync/              # 数据同步子包（增量/全量，限流 120 次/分）
-│   ├── tushare_client.py       # Tushare Pro API 封装
-│   ├── bridge_client.py        # tushare-data-bridge HTTP 客户端
-│   ├── indevs_client.py        # indevs 数据客户端
-│   ├── indicators/             # 60+ 技术指标（含 price_patterns 子包）
-│   ├── strategies/             # 30+ 战法识别引擎（5 子模块）
-│   ├── screener.py             # 向后兼容 shim → 实际逻辑在 modules/screener/
-│   ├── screener/               # 选股评分子包
-│   ├── simulator/              # 少女/少妇模拟器
-│   ├── statistics/             # 统计检验框架
-│   ├── core/                   # 公共模块（metrics/walk_forward/market_context/net）
-│   ├── verify/                 # 少妇战法 v1.0 验收工程化（v3.7.0+，含 portfolio_engine/portfolio_walk_forward）
-│   ├── backtest/               # 回测子包（single.py + portfolio.py）
-│   ├── backtest_six_step.py    # 少妇战法六步闭环回测
-│   ├── loop_engine.py          # 六步闭环状态机
-│   ├── loop_engine_enhanced.py # 增强版多策略共振闭环
-│   ├── portfolio_diagnosis.py  # 持股检查端到端
-│   ├── watchlist.py            # 自选股观察池
-│   ├── cli.py / cli_commands.py # 命令行统一入口
-│   ├── trade_parser.py         # 口语化/JSON/CSV 交易输入解析
-│   ├── trade_manager.py        # 交易记录 CRUD、持仓计算、盈亏统计
-│   ├── trade_reviewer.py       # 交割单数据准备层
-│   ├── intent_router.py        # YAML 规则意图路由
-│   ├── intent_chat.py          # LLM 聊天接口
-│   ├── knowledge_retriever.py  # RAG 知识检索适配器
-│   ├── llm_providers.py        # LLM 提供者抽象
-│   ├── setup_wizard.py         # 初始化向导
-│   ├── report.py               # Z 哥量化评估报告
-│   ├── commentary_service.py   # 点评服务
-│   ├── review_generator.py     # 复盘生成
-│   ├── monitor.py / notifier.py # 自选股监控与预警推送
-│   ├── tracking_manager.py / tracking_syncer.py # 自我改进跟踪池
-│   ├── improvement_logger.py / harness_updater.py
-│   ├── dynamic_config.py       # 动态配置管理
-│   ├── market_regime.py        # 市场状态机
-│   ├── position_manager.py     # 仓位管理
-│   ├── industry_filter.py      # 行业过滤
-│   └── self_optimizer/         # Darwin 自优化管线
-├── api/                        # FastAPI REST API（可选）
-│   ├── main.py                 # 服务入口
-│   ├── config.py               # pydantic-settings 配置
-│   ├── routes/                 # 路由层
-│   ├── services/               # 业务服务层
-│   ├── models/                 # Pydantic 请求/响应模型
-│   └── utils/                  # 序列化等工具
-├── frontend/                   # React 前端看板（可选）
-│   ├── src/                    # 页面与组件
-│   ├── package.json
-│   └── vite.config.ts
-├── knowledge/                  # 33 篇交易体系知识文档
-├── tests/                      # pytest 测试（61 个文件，962 passed / 12 skipped）
-├── scripts/                    # 薄壳工具脚本（业务逻辑在 modules/）
-│   ├── _common.py
-│   ├── sync_watchlist.py
-│   ├── sync_and_compute.py
-│   ├── batch_compute_indicators.py
-│   ├── generate_report.py
-│   ├── e2e_data_integrity.py
-│   ├── verify_v10.py
-│   ├── optimize_for_v10_verify.py
-│   ├── optimization_*.py
-│   ├── test_enhanced_engine.py
-│   ├── demo_validation.py
-│   └── ...
-├── corpus/                     # 语料采集与质检工具
-│   ├── quality_check.py        # SKILL.md 12 项质量检查
-│   ├── dual_axis_review.py     # SKILL.md 双轴评审
-│   ├── batch_download_bilibili.py
-│   ├── batch_transcribe.py
-│   ├── srt_to_transcript.py
-│   └── merge_research.py
-└── references/
-    └── research/               # 11 份调研提炼文件
-        ├── 01-writings.md
-        ├── 02-conversations.md
-        ├── 03-expression-dna.md
-        ├── 04-external-views.md
-        ├── 05-decisions.md
-        ├── 06-timeline.md
-        └── 07-11-*.md
+├── SKILL.md / README.md / AGENTS.md / pyproject.toml / .env.example
+├── data/          # SQLite 数据库与报告（不入库）
+├── docs/          # 文档（CHANGELOG, TODO, USER_GUIDE 等）
+├── modules/       # Python 数据层与业务逻辑（详见架构分层）
+├── api/           # FastAPI REST API（可选）
+├── frontend/      # React 前端看板（可选）
+├── knowledge/     # 33 篇交易体系知识文档
+├── tests/         # pytest 测试（61 个文件）
+├── scripts/       # 薄壳工具脚本（业务逻辑在 modules/）
+├── corpus/        # 语料采集与质检工具
+├── rules/         # 意图规则与决策框架
+└── references/    # 调研提炼文件（原始语料不入库）
 ```
-
-**注意**：`references/sources/` 下的原始语料因版权和体积原因 **不提交到 Git**。仓库中只保留调研提炼文件、`SKILL.md` 与转写文本。
 
 ---
 
@@ -718,27 +621,6 @@ $ python -m pytest tests/ -v
 | 跑 Darwin 自优化 | `zt self-optimize run --target trading --rounds 3` |
 | 跑少妇战法 v1.0 验收 | `zt verify v1.0 --limit 50 --days 300 --walk-forward` |
 | 跑参数寻优（v1.0） | `python scripts/optimize_for_v10_verify.py --rounds 5 --stocks 100 --days 300` |
-
----
-
-## 外部依赖安装
-
-```bash
-# Python 依赖
-pip install -r requirements.txt
-pip install -e .
-
-# Web API 依赖（运行 zt-web 时需要）
-pip install fastapi uvicorn pydantic-settings
-
-# 前端依赖
-cd frontend && npm install
-
-# yt-dlp 可能需要 ffmpeg（处理音频）
-# macOS: brew install ffmpeg
-```
-
-**注意**：`faster-whisper` 的 base 模型首次运行时会自动下载到本地缓存（约 150MB）。
 
 ---
 

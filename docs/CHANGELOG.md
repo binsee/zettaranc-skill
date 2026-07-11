@@ -2,6 +2,34 @@
 
 所有值得记录的变更都会写在这里。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)。
 
+## v3.10.0 (2026-07-11)
+
+### 多策略融合引擎
+
+> **「v3.10.0：组合回测引擎从 B1-only 升级为多策略并行，支持 B1 + B2 + SB1 + 长安战法共振评分。」**
+
+#### 新增
+
+- **`modules/backtest/portfolio.py`**：新增 `EntrySignal` 数据类，封装单策略入场信号（策略名、置信度、原因、止损价）
+- **多策略检测**：新增 `_check_multi_entry()` 方法，遍历启用策略列表，收集所有触发的入场信号
+- **综合评分**：新增 `_score_candidate()` 方法，按 `置信度 × 策略权重 + 共振奖励` 计算综合分
+- **策略注册表**：`STRATEGY_DETECTORS` 映射策略名到检测函数（B1/B2/SB1/长安）
+- **配置扩展**：`PortfolioConfig` 新增 `enabled_strategies`、`strategy_weights`、`min_composite_score`
+
+#### 改动
+
+- **`_scan_and_buy()`**：从调用 `loop_engine.check_entry()`（B1-only）改为调用 `_check_multi_entry()` 多策略接口，按综合评分排序选股
+- **`LoopTrade.entry_reason`**：记录入场策略标签（如 `B1: J=-15, 缩量回调`）
+
+#### 测试
+
+- 新增 `tests/test_backtest_multistrategy.py`：19 个用例覆盖 EntrySignal、评分函数、权重、共振奖励、配置、注册表
+- 更新 `tests/test_verify_portfolio_engine.py`：mock 接口从 `check_entry` 迁移到 `_check_multi_entry`
+
+#### 验证
+
+- 全量测试：`1116 passed, 15 skipped`（新增 19 个，无回归）
+
 ## v3.9.0 (2026-07-11)
 
 ### 技术债务清理（地基工程）

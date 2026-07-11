@@ -63,8 +63,8 @@ class TestPortfolioBacktestEngine:
         # 阻止真实 K 线加载：mock _load_klines
         klines = _make_klines("600519.SH", ["20260101", "20260102", "20260103"], [100.0, 101.0, 102.0])
         monkeypatch.setattr(engine, "_load_klines", lambda *args, **kwargs: {"600519.SH": klines})
-        # mock check_entry 无信号
-        monkeypatch.setattr(engine.loop_engine, "check_entry", lambda *args, **kwargs: None)
+        # mock _check_multi_entry 无信号（v3.10.0 多策略接口）
+        monkeypatch.setattr(engine, "_check_multi_entry", lambda *args, **kwargs: [])
 
         result = engine.run(["600519.SH"], days=3)
         assert result.total_trades == 0
@@ -74,6 +74,8 @@ class TestPortfolioBacktestEngine:
 
     def test_signal_triggers_buy(self, monkeypatch):
         """B1 信号触发买入，持仓后净值包含股票市值"""
+        from modules.backtest.portfolio import EntrySignal
+
         engine = PortfolioBacktestEngine(
             portfolio_config=PortfolioConfig(
                 initial_capital=1_000_000.0,
@@ -92,13 +94,13 @@ class TestPortfolioBacktestEngine:
         )
         monkeypatch.setattr(engine, "_load_klines", lambda *args, **kwargs: {"600519.SH": klines})
 
-        # 第二天收盘出现 B1 信号
-        def mock_check_entry(klines_sub):
-            if len(klines_sub) >= 2 and klines_sub[-1].trade_date == "20260102":
-                return {"reason": "B1 mock", "entry_price": klines_sub[-1].close}
-            return None
+        # 第二天收盘出现 B1 信号（v3.10.0 多策略接口）
+        def mock_check_multi_entry(klines_arg, idx, enabled):
+            if idx >= 1 and klines_arg[idx].trade_date == "20260102":
+                return [EntrySignal(strategy="B1", confidence=0.9, reason="J=-15", stop_loss_price=97.0)]
+            return []
 
-        monkeypatch.setattr(engine.loop_engine, "check_entry", mock_check_entry)
+        monkeypatch.setattr(engine, "_check_multi_entry", mock_check_multi_entry)
         # process_day 不触发离场
         monkeypatch.setattr(
             engine.loop_engine,
@@ -115,6 +117,8 @@ class TestPortfolioBacktestEngine:
 
     def test_max_positions_respected(self, monkeypatch):
         """最多同时持仓 max_positions 只"""
+        from modules.backtest.portfolio import EntrySignal
+
         engine = PortfolioBacktestEngine(
             portfolio_config=PortfolioConfig(
                 initial_capital=1_000_000.0,
@@ -135,11 +139,11 @@ class TestPortfolioBacktestEngine:
             )
         monkeypatch.setattr(engine, "_load_klines", lambda *args, **kwargs: klines_map)
 
-        # 所有股票第二天都有 B1 信号
+        # 所有股票第二天都有 B1 信号（v3.10.0 多策略接口）
         monkeypatch.setattr(
-            engine.loop_engine,
-            "check_entry",
-            lambda klines_sub: {"reason": "B1 mock", "entry_price": klines_sub[-1].close},
+            engine,
+            "_check_multi_entry",
+            lambda klines_arg, idx, enabled: [EntrySignal(strategy="B1", confidence=0.8, reason="B1", stop_loss_price=97.0)],
         )
         monkeypatch.setattr(
             engine.loop_engine,
@@ -157,6 +161,8 @@ class TestPortfolioBacktestEngine:
 
     def test_sell_updates_cash(self, monkeypatch):
         """平仓后现金增加并记录交易"""
+        from modules.backtest.portfolio import EntrySignal
+
         engine = PortfolioBacktestEngine(
             portfolio_config=PortfolioConfig(
                 initial_capital=1_000_000.0,
@@ -175,14 +181,13 @@ class TestPortfolioBacktestEngine:
         )
         monkeypatch.setattr(engine, "_load_klines", lambda *args, **kwargs: {"600519.SH": klines})
 
-        # 第二天买入
-        monkeypatch.setattr(
-            engine.loop_engine,
-            "check_entry",
-            lambda klines_sub: {"reason": "B1 mock", "entry_price": klines_sub[-1].close}
-            if klines_sub[-1].trade_date == "20260102"
-            else None,
-        )
+        # 第二天买入（v3.10.0 多策略接口：只在 20260102 返回信号）
+        def mock_check_multi_entry(klines_arg, idx, enabled):
+            if idx >= 1 and klines_arg[idx].trade_date == "20260102":
+                return [EntrySignal(strategy="B1", confidence=0.9, reason="J=-15", stop_loss_price=97.0)]
+            return []
+
+        monkeypatch.setattr(engine, "_check_multi_entry", mock_check_multi_entry)
 
         # 第三天平仓，盈利 10%
         def mock_process_day(ts_code, klines, day_idx, current_trade):

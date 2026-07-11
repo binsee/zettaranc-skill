@@ -1,6 +1,6 @@
-"""组合级回测引擎（v3.7.6，v3.9.0 迁移到 backtest/）
+"""组合级回测引擎（v3.7.6，v3.9.0 迁移到 backtest/，v3.10.0 多策略融合）
 
-每日扫描 B1 信号、动态选股、维护真实组合账户，从组合资金曲线计算
+每日扫描多策略信号、动态选股、维护真实组合账户，从组合资金曲线计算
 年化 / Sharpe / MaxDD / Calmar。
 """
 from __future__ import annotations
@@ -16,7 +16,39 @@ from ..indicators import DailyData, get_kline_data
 from ..loop_engine import LoopConfig, LoopTrade, ShaofuLoopEngine, _calc_stop_loss_price
 from ..simulator.market_context import precompute_market_contexts
 
+# 多策略检测函数（延迟导入避免循环依赖）
+from ..strategies.base_strategies import detect_b1, detect_b2, detect_sb1
+from ..strategies.compound_strategies import detect_changan
+
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class EntrySignal:
+    """单策略入场信号"""
+
+    strategy: str          # "B1", "B2", "长安", "SB1"
+    confidence: float      # 置信度 0-1
+    reason: str           # 信号原因
+    stop_loss_price: float # 建议止损价
+
+
+# 策略检测函数映射：策略名 -> (detector_func, default_weight)
+STRATEGY_DETECTORS: dict[str, tuple] = {
+    "B1": (detect_b1, 1.0),
+    "B2": (detect_b2, 0.8),
+    "SB1": (detect_sb1, 1.2),
+    "长安": (detect_changan, 0.9),
+}
+
+
+# 策略名 -> StrategyType 映射（用于 entry_reason）
+STRATEGY_NAME_TO_TYPE: dict[str, str] = {
+    "B1": "B1",
+    "B2": "B2",
+    "SB1": "SB1",
+    "长安": "长安战法",
+}
 
 
 @dataclass
@@ -54,6 +86,12 @@ class PortfolioConfig:
     stamp_duty_rate: float = 0.0005  # 印花税（卖出）
     min_signal_days: int = 30        # 最少需要多少根 K 线才检查信号
     adaptive: MarketAdaptiveConfig = field(default_factory=MarketAdaptiveConfig)
+    # v3.10.0 多策略融合配置
+    enabled_strategies: list[str] = field(default_factory=lambda: ["B1"])
+    strategy_weights: dict[str, float] = field(default_factory=lambda: {
+        "B1": 1.0, "B2": 0.8, "SB1": 1.2, "长安": 0.9
+    })
+    min_composite_score: float = 0.3
 
 
 @dataclass
@@ -341,6 +379,79 @@ class PortfolioBacktestEngine:
 
         return cash
 
+    def _check_multi_entry(
+        self,
+        klines: list[DailyData],
+        idx: int,
+        enabled_strategies: list[str],
+    ) -> list[EntrySignal]:
+        """检测多策略入场信号
+
+        Args:
+            klines: 完整 K 线序列
+            idx: 当日索引
+            enabled_strategies: 启用的策略名列表
+
+        Returns:
+            触发的 EntrySignal 列表（可能为空）
+        """
+        signals: list[EntrySignal] = []
+        for strategy_name in enabled_strategies:
+            detector = STRATEGY_DETECTORS.get(strategy_name)
+            if detector is None:
+                continue
+            detect_fn, _default_weight = detector
+            try:
+                sig = detect_fn(klines, idx)
+            except Exception:  # noqa: BLE001
+                continue
+            if sig is None:
+                continue
+            # 只保留 BUY 类信号
+            if sig.action != "BUY":
+                continue
+            # 计算止损价
+            stop_price = _calc_stop_loss_price(
+                klines, idx,
+                self.loop_config.stop_loss_method,
+                self.loop_config.stop_loss_pct,
+            )
+            signals.append(EntrySignal(
+                strategy=strategy_name,
+                confidence=float(sig.confidence or 0.5),
+                reason=str(sig.reason or sig.description or strategy_name),
+                stop_loss_price=stop_price,
+            ))
+        return signals
+
+    @staticmethod
+    def _score_candidate(
+        signals: list[EntrySignal],
+        weights: dict[str, float],
+    ) -> float:
+        """计算候选股票的综合评分
+
+        评分 = sum(confidence * strategy_weight) + 共振奖励
+        共振奖励：多策略同时触发时额外加分（每多一个策略 +0.1）
+
+        Args:
+            signals: 该股票触发的信号列表
+            weights: 策略权重字典
+
+        Returns:
+            综合评分（>= 0）
+        """
+        if not signals:
+            return 0.0
+        base_score = 0.0
+        for sig in signals:
+            w = weights.get(sig.strategy, 1.0)
+            base_score += sig.confidence * w
+        # 共振奖励：多策略同时触发
+        if len(signals) > 1:
+            base_score += 0.1 * (len(signals) - 1)
+        return base_score
+
     def _scan_and_buy(
         self,
         date: str,
@@ -351,8 +462,9 @@ class PortfolioBacktestEngine:
         net_value: float,
         prev_context: MarketContext | None = None,
     ) -> float:
-        """扫描 B1 信号并买入，返回更新后的现金
+        """扫描多策略信号并买入，返回更新后的现金
 
+        支持多策略并行检测，按综合评分（置信度 × 策略权重 + 共振奖励）排序。
         prev_context 为上一交易日市场环境，用于自适应仓位控制。
         """
         config = self.portfolio_config
@@ -367,7 +479,12 @@ class PortfolioBacktestEngine:
         if available_slots <= 0:
             return cash
 
-        candidates: list[tuple[str, dict[str, Any], float]] = []
+        enabled = config.enabled_strategies
+        weights = config.strategy_weights
+        min_score = config.min_composite_score
+
+        # 收集候选：(code, EntrySignal 列表, 综合评分)
+        candidates: list[tuple[str, list[EntrySignal], float]] = []
         for code, klines in klines_map.items():
             if code in positions:
                 continue
@@ -376,20 +493,25 @@ class PortfolioBacktestEngine:
             if idx is None or idx < min_days:
                 continue
 
-            signal = self.loop_engine.check_entry(klines[: idx + 1])
-            if signal:
-                # 用 60 日涨幅做排序（这里简化为近段累计涨幅）
-                recent_return = self._recent_return(klines, idx)
-                candidates.append((code, signal, recent_return))
+            # 多策略检测
+            signals = self._check_multi_entry(klines, idx, enabled)
+            if not signals:
+                continue
+
+            composite_score = self._score_candidate(signals, weights)
+            if composite_score < min_score:
+                continue
+
+            candidates.append((code, signals, composite_score))
 
         if not candidates:
             return cash
 
-        # 按近期涨幅排序（涨幅高优先，可配置为其他规则）
+        # 按综合评分降序排序
         candidates.sort(key=lambda x: x[2], reverse=True)
 
         max_new = min(eff_max_entries, available_slots)
-        for code, signal, _ in candidates[:max_new]:
+        for code, signals, score in candidates[:max_new]:
             idx = date_index_map[code][date]
             price = klines_map[code][idx].close
 
@@ -415,18 +537,18 @@ class PortfolioBacktestEngine:
             if total_cost > cash:
                 continue
 
+            # 选取置信度最高的信号作为入场原因
+            best_signal = max(signals, key=lambda s: s.confidence)
+            strategy_label = STRATEGY_NAME_TO_TYPE.get(best_signal.strategy, best_signal.strategy)
+            entry_reason = f"{strategy_label}: {best_signal.reason}"
+
             # 创建 LoopTrade 持仓对象
-            stop_loss = _calc_stop_loss_price(
-                klines_map[code],
-                idx,
-                self.loop_config.stop_loss_method,
-                self.loop_config.stop_loss_pct,
-            )
+            stop_loss = best_signal.stop_loss_price
             trade = LoopTrade(
                 ts_code=code,
                 entry_date=date,
                 entry_price=price,
-                entry_reason=signal.get("reason", "B1信号"),
+                entry_reason=entry_reason,
                 stop_loss_price=stop_loss,
                 position_pct=self.loop_config.position_pct,
             )
