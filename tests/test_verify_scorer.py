@@ -31,13 +31,21 @@ def _make_failed_gates() -> dict[str, GateResult]:
     }
 
 
+def _make_mock_result(gates: dict[str, GateResult], annual_return: float = 0.10) -> MagicMock:
+    """构造带 aggregate 的 VerifyResult mock"""
+    mock_aggregate = AggregateMetrics(annual_return_pct=annual_return)
+    mock_result = MagicMock(spec=VerifyResult)
+    mock_result.gates = gates
+    mock_result.aggregate = mock_aggregate
+    return mock_result
+
+
 def test_score_with_all_gates_passed_returns_high_fit():
-    """5/5 通过 → fit 应当高（passed_count=5 + 0.1*sharpe）"""
+    """5/5 通过 → fit = 10*5 + 2*1.2 + 5*0.8 + 20*0.10 = 63.6"""
     pool = ["600487.SH"]
     scorer = V10VerifyScorer(stock_pool=pool, days=240)
 
-    mock_result = MagicMock(spec=VerifyResult)
-    mock_result.gates = _make_passed_gates()
+    mock_result = _make_mock_result(_make_passed_gates(), annual_return=0.10)
 
     with patch("modules.verify.scorer.verify_v10_pipeline", return_value=mock_result):
         out = scorer.score({"j_threshold": 8})
@@ -45,25 +53,25 @@ def test_score_with_all_gates_passed_returns_high_fit():
     assert isinstance(out, V10ScoreResult)
     assert out.passed_count == 5
     assert out.total_count == 5
-    # fit = 5 + 0.1 * 1.2 = 5.12
-    assert abs(out.fit - 5.12) < 1e-6
+    # fit = 10*5 + 2*1.2 + 5*0.8 + 20*0.10 = 50 + 2.4 + 4.0 + 2.0 = 58.4
+    assert abs(out.fit - 58.4) < 1e-6
+    assert out.calmar == 0.8
+    assert out.annual_return == 0.10
     assert out.error == ""
 
 
 def test_score_with_all_gates_failed_returns_low_fit():
-    """0/5 通过 → fit 应当低（0 + 0.1 * (-0.5) = -0.05，clamp 到 0）"""
+    """0/5 通过 + 全部负值 → fit ≥ 0（calmar/annual_return 取 max(0, …)）"""
     pool = ["600487.SH"]
     scorer = V10VerifyScorer(stock_pool=pool, days=240)
 
-    mock_result = MagicMock(spec=VerifyResult)
-    mock_result.gates = _make_failed_gates()
+    mock_result = _make_mock_result(_make_failed_gates(), annual_return=-0.05)
 
     with patch("modules.verify.scorer.verify_v10_pipeline", return_value=mock_result):
         out = scorer.score({"stop_loss_pct": -0.07})
 
     assert out.passed_count == 0
-    # fit = max(0, 0 + 0.1 * sharpe_negative)
-    assert out.fit >= 0.0
+    assert out.fit >= 0.0  # 所有项 max(0, x) 都 ≥ 0
     assert out.error == ""
 
 
@@ -84,7 +92,7 @@ def test_score_handles_pipeline_exception_without_crashing():
 
 
 def test_score_emits_partial_pass_count():
-    """1/5 通过 → passed_count=1, sharpe 为负数, fit=正值（passed=1 主导）"""
+    """1/5 通过（max_drawdown）→ passed_count=1, 其余负值，fit = 10*1 + 0 + 0 + 0 = 10"""
     pool = ["600487.SH"]
     scorer = V10VerifyScorer(stock_pool=pool, days=240)
 
@@ -97,13 +105,14 @@ def test_score_emits_partial_pass_count():
     gates["win_rate"].value = 0.2
     gates["oos_is_ratio"].passed = False
     gates["oos_is_ratio"].value = 0.1
-    # 只留 max_drawdown 通过
+    # 只留 max_drawdown 通过；annual_return 设成 -0.02（负值）
 
-    mock_result = MagicMock(spec=VerifyResult)
-    mock_result.gates = gates
+    mock_result = _make_mock_result(gates, annual_return=-0.02)
 
     with patch("modules.verify.scorer.verify_v10_pipeline", return_value=mock_result):
         out = scorer.score({"j_threshold": 12})
 
     assert out.passed_count == 1
     assert out.total_count == 5
+    # fit = 10*1 + 2*max(0, -0.3) + 5*max(0, -0.1) + 20*max(0, -0.02) = 10
+    assert abs(out.fit - 10.0) < 1e-6

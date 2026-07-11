@@ -90,10 +90,13 @@ def run_hillclimb(
         "passed_count": current_result.passed_count,
     }]
     logger.info(
-        "基线 fit=%.3f passed=%d/%d",
+        "基线 fit=%.3f passed=%d/%d sharpe=%.3f calmar=%.3f annret=%.3f",
         current_result.fit,
         current_result.passed_count,
         current_result.total_count,
+        getattr(current_result, "sharpe", 0.0),
+        getattr(current_result, "calmar", 0.0),
+        getattr(current_result, "annual_return", 0.0),
     )
 
     best = current
@@ -126,9 +129,13 @@ def run_hillclimb(
             best_result = candidate_result
 
         logger.info(
-            "round %d: %s fit=%.3f passed=%d/%d (best so far fit=%.3f passed=%d/%d)",
+            "round %d: %s fit=%.3f passed=%d/%d sharpe=%.3f calmar=%.3f annret=%.3f (best fit=%.3f p=%d/%d)",
             r, status, candidate_result.fit, candidate_result.passed_count,
-            candidate_result.total_count, best_result.fit, best_result.passed_count,
+            candidate_result.total_count,
+            getattr(candidate_result, "sharpe", 0.0),
+            getattr(candidate_result, "calmar", 0.0),
+            getattr(candidate_result, "annual_return", 0.0),
+            best_result.fit, best_result.passed_count,
             best_result.total_count,
         )
 
@@ -215,10 +222,12 @@ def main() -> int:
         strategy_name="shaofu_v1",
     )
     logger.info(
-        "已写回 param_registry:shaofu_v1 → fit=%.3f passed=%d/%d",
+        "已写回 param_registry:shaofu_v1 → fit=%.3f passed=%d/%d (calmar=%.3f, annret=%.3f)",
         best_result.fit,
         best_result.passed_count,
         best_result.total_count,
+        getattr(best_result, "calmar", 0.0),
+        getattr(best_result, "annual_return", 0.0),
     )
 
     print(f"PASSED: {best_result.passed_count}/{best_result.total_count}")
