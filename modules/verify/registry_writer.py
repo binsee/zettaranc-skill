@@ -11,8 +11,9 @@ from dataclasses import dataclass, field
 
 from modules.loop_engine import LoopConfig
 from modules.self_optimizer.param_registry import (
+    _ACTIVE_OVERRIDES,
     get_param_info,
-    using_params,
+    persist_override,
 )
 
 logger = logging.getLogger(__name__)
@@ -33,16 +34,25 @@ def write_optimization_to_registry(
     strategy_name: str = DEFAULT_STRATEGY_NAME,
 ) -> RegistryWriteReport:
     """
-    把多因子优化结果写入 param_registry。
-    使用 using_params() 上下文管理器设置 active override。
+    把多因子优化结果写入 param_registry 的 active override。
+
+    接受 2 种格式的输入:
+      A. v3.3.3 多因子：{"phase1_best": {"params": {j_threshold: ...}}}
+      B. v3.7.1 验收集成：{"best_params": {j_threshold: ...}}  ← 主路
+
+    将 strategy_name 作为一个策略分组持久化到 _ACTIVE_OVERRIDES，
+    以便 load_config_from_registry / LoopConfig.from_registry 能读回。
     """
     report = RegistryWriteReport()
 
-    # v3.3.3 多因子结果格式：phase1_best.params 含 j_threshold 等
-    phase1 = optimization_results.get("phase1_best", {})
-    params = phase1.get("params", {}) if isinstance(phase1, dict) else {}
+    # 解出 params dict（兼容 v3.3.3 与 v3.7.1 两种格式）
+    if "best_params" in optimization_results:
+        params = optimization_results["best_params"]
+    else:
+        phase1 = optimization_results.get("phase1_best", {})
+        params = phase1.get("params", {}) if isinstance(phase1, dict) else {}
 
-    # 校验所有参数都在 param_registry 中存在
+    # 校验 + 写入
     valid_params: dict[str, float | int] = {}
     for name, value in params.items():
         info = get_param_info("b1", name) or get_param_info("stop_loss", name)
@@ -56,12 +66,13 @@ def write_optimization_to_registry(
         report.warnings.append("无有效参数可写入")
         return report
 
-    # 用 using_params() 写入 active override（Darwin 标准做法）
-    # 注意：此函数不真正"持久化"到磁盘，Darwin pipeline 会读 using_params 的输出
-    # 这里仅记录"已配置"
+    # 真正写入 _ACTIVE_OVERRIDES[strategy_name]（让 load_config_from_registry 可读）
+    _ACTIVE_OVERRIDES[strategy_name] = dict(valid_params)
+    # 同时落盘 data/registry/<strategy>.json，跨进程生效
+    persist_override(strategy_name, valid_params)
     logger.info(
-        "已为 %s 配置参数: %s（Darwin pipeline 会持久化）",
-        strategy_name, valid_params,
+        "已为 %s 写入 %d 个参数到 active override: %s",
+        strategy_name, len(valid_params), valid_params,
     )
     report.written = len(valid_params)
     return report

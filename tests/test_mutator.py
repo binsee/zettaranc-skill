@@ -115,9 +115,10 @@ def test_mutate_n_params_are_distinct(mutator, default_params):
 
 def test_mutate_n_does_not_exceed_available_params(mutator, default_params):
     """n 超过可用参数数时不会崩溃。"""
-    # 总共有 33 个参数，n=50 应该安全地变异全部
+    # v3.7.0 + v3.7.1 后 b1 增加了 5 个 LoopConfig 字段（stop_loss_pct/bbi_break_days/min_holding_days/lu_half/position_pct）
+    # 总参数数现为 38（33+5），n=50 安全地变异全部
     params, records = mutator.mutate_n(default_params, n=50)
-    assert len(records) <= 34  # 最多就是总参数数
+    assert len(records) <= 39  # 总参数数 + 1 缓冲
 
 
 # ==================== 历史记录 ====================

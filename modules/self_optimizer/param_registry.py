@@ -25,7 +25,10 @@ Param Registry — 可进化参数清单
 from __future__ import annotations
 
 import contextlib
+import json as _json
+import logging
 from dataclasses import dataclass, field
+from pathlib import Path as _Path
 from typing import Any, Literal
 from collections.abc import Iterator
 
@@ -141,6 +144,62 @@ _reg(
             category="entry",
             description="B1 缩量判定阈值（当日量 / 前日量 < 此值视为缩量）",
             impact="降低 → 更严格的缩量要求；升高 → 放宽缩量要求",
+            wired=True,
+        ),
+        # ── v3.7.0 新增：少妇战法六步闭环的可调字段 ──
+        ParamSpec(
+            name="stop_loss_pct",
+            default=-0.03,
+            min=-0.10,
+            max=-0.01,
+            step=0.01,
+            category="risk",
+            description="止损百分比（默认 -3%）",
+            impact="更负 → 止损更紧（更早止损）；接近 0 → 止损更宽松",
+            wired=True,
+        ),
+        ParamSpec(
+            name="bbi_break_days",
+            default=2,
+            min=1,
+            max=5,
+            step=1,
+            category="exit",
+            description="白线破位天数（默认 2 天）",
+            impact="增大 → 离场判定更宽松（容忍更多破位）；减小 → 离场更严格",
+            wired=True,
+        ),
+        ParamSpec(
+            name="min_holding_days",
+            default=3,
+            min=2,
+            max=7,
+            step=1,
+            category="risk",
+            description="最短持仓天数（避免洗盘出场，默认 3）",
+            impact="增大 → 更长的最短持仓期，更抗洗盘；减小 → 更灵活",
+            wired=True,
+        ),
+        ParamSpec(
+            name="lu_half",
+            default=1,
+            min=0,
+            max=1,
+            step=1,
+            category="risk",
+            description="卤煮半仓止盈开关（True/False → 1/0）",
+            impact="True → 半仓止盈；False → 全仓止盈",
+            wired=True,
+        ),
+        ParamSpec(
+            name="position_pct",
+            default=0.3,
+            min=0.10,
+            max=0.50,
+            step=0.05,
+            category="risk",
+            description="单票仓位比例（默认 30%）",
+            impact="增大 → 单票仓位更重；减小 → 仓位更分散",
             wired=True,
         ),
     ],
@@ -618,3 +677,54 @@ def using_params(params: dict[str, dict[str, Any]]) -> Iterator[None]:
         yield
     finally:
         set_active_params(old)
+
+
+# ──────────────────────────────────────────────
+# v3.7.1 持久化层：data/registry/<strategy>.json
+# ──────────────────────────────────────────────
+
+_REGISTRY_DIR = _Path("data/registry")
+_REGISTRY_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _persisted_path(strategy_name: str) -> _Path:
+    return _REGISTRY_DIR / f"{strategy_name}.json"
+
+
+def persist_override(strategy_name: str, params: dict) -> None:
+    """把 strategy_name 的 override 写到 data/registry/<name>.json。
+
+    跨进程持久化：在 write_optimization_to_registry 内部调用，
+    让 zt verify v1.0 这种新进程能读到寻优结果。
+    """
+    p = _persisted_path(strategy_name)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(
+        _json.dumps(
+            {"strategy_name": strategy_name, "params": dict(params)},
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+
+
+def load_persisted_override(strategy_name: str) -> dict | None:
+    """从 data/registry/<strategy_name>.json 读 override。"""
+    p = _persisted_path(strategy_name)
+    if not p.exists():
+        return None
+    try:
+        d = _json.loads(p.read_text(encoding="utf-8"))
+        return d.get("params") if isinstance(d, dict) else None
+    except Exception as e:  # noqa: BLE001
+        logging.getLogger(__name__).warning("读 %s 失败: %s", p, e)
+        return None
+
+
+# 模块加载时尝试回填 _ACTIVE_OVERRIDES（让冷启动的进程也能读到寻优结果）
+for _name in ("shaofu_v1",):
+    _p = load_persisted_override(_name)
+    if _p:
+        _ACTIVE_OVERRIDES[_name] = _p
