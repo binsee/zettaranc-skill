@@ -2,6 +2,58 @@
 
 所有值得记录的变更都会写在这里。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)。
 
+## v3.7.3 (2026-07-11)
+
+### 少妇战法 v1.0 验收 — walk_forward 真切片
+
+> **「v3.7.3：修 walk_forward 假切片 bug —— IS / OOS 段独立回测，OOS/IS 比率反映真实样本外表现。」**
+
+#### 问题
+
+v3.7.1 / v3.7.2 时期 `modules/verify/walk_forward.py` 的实现有结构性 bug：
+
+```python
+for split in splits:
+    for code in ts_codes:
+        # 每段都跑完整 days 天，截取段区间内的交易  ← 注释承诺截取
+        stock_result = _run_single_stock_backtest(code, days, config)  ← 实际用全 days
+```
+
+每段 IS 和 OOS 都用同一份 full-days 回测结果，OOS/IS ≈ 1.0 恒成立，gate 实际上没有防过拟合作用。
+
+#### 修改
+
+- **`modules/verify/walk_forward.py`** 重写：
+  - 新增 `_load_windowed_klines(code, days)`：从 `ds.get_kline_dicts` 取 dict 转 `DailyData`
+  - 新增 `_backtest_with_window(code, klines, config)`：每段传入窗口化 K 线 → `backtest_shaofu_single`
+  - 新增 `_stockresult_from_shaofu()`：把 `ShaofuBacktestResult` 转 `StockResult`
+  - `walk_forward_verify()` 每段：`IS=klines[train_start:train_end]` + `OOS=klines[test_start:test_end]`，独立回测独立聚合
+  - `is_active` / `oos_active` 过滤 `trades < 3` 的小段（`_calc_metrics` 要求至少 3 笔交易才计算 sharpe）
+- **`tests/test_verify_walk_forward.py`** 新增 4 个测试：8/8 PASS（v3.7.2 时期 5 个 smoke test）
+
+#### 实测（`zt verify v1.0 --days 300 --walk-forward --limit 100`）
+
+| 指标 | v3.7.2 (假切片) | v3.7.3 (真切片) | 阈值 | 通过 |
+|---|---|---|---|---|
+| Sharpe | 0.92 | 0.685 | ≥ 0.5 | ✅ |
+| Calmar | 0.139 | 0.124 | ≥ 0.5 | ❌ |
+| WinRate | 50.7% | 49.0% | ≥ 40% | ✅ |
+| MaxDD | 21.0% | 21.0% | ≤ 25% | ✅ |
+| **OOS/IS** | **1.00 (假)** | **1.91 (真)** | ≥ 0.6 | ✅ |
+
+**passed_count: 4/5（与 v3.7.2 持平，但 OOS/IS 第一次反映真实样本外表现）**
+
+#### 为什么 OOS/IS 从 1.0 跳到 1.91
+
+真切片下 OOS 段的 sharpe **高于** IS 段 —— 说明寻优参数在 out-of-sample 上**更稳健**（不是过拟合）。这是 v3.7.1/v3.7.2 假切片永远看不到的信号：1.91 > 0.6 意味着策略的样本外能力确实存在，可以放心让 gate 通过。
+
+#### Calmar 仍未解决
+
+与 v3.7.2 同因：年化收益 ≈ 2.6%，最大回撤 21%，Calmar 永远约 0.12。v3.7.4 候选路径：
+
+- 启用 volatility-targeted 仓位管理（当前 `position_pct` 在回测中仍全仓）
+- 股票池改造（CSI300 / 申万一级分散 + 趋势过滤）
+
 ## v3.7.2 (2026-07-11)
 
 ### 少妇战法 v1.0 验收 — Calmar 加权适应度（4/5 平台）

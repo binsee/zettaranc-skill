@@ -90,8 +90,6 @@ zt verify v1.0 --output data/reports/my_verify
 
 ## v3.7.2 Calmar 加权寻优（4/5 平台确认）
 
-重写爬山适应度：Calmar × 5 + annual_return × 20
-
 ```python
 fit = 10 * passed_count
     + 2 * max(0, sharpe)
@@ -110,6 +108,30 @@ fit = 10 * passed_count
 | OOS/IS | 1.00 | 1.00 | ≥ 0.6 | ✅ |
 
 要冲 5/5 需在 v3.7.3 推进：① 重写 walk_forward 真切片；② 改股票池（流动性+行业分散）；③ 启用 volatility-targeted 仓位管理（当前 `position_pct` 在回测里没生效）。
+
+---
+
+## v3.7.3 walk_forward 真切片
+
+修 v3.7.1/v3.7.2 时期 walk_forward 的结构性 bug：每段都用同一份 full-days 回测结果，OOS/IS ≈ 1.0 恒成立（gate 实际无效）。
+
+**修改**：`modules/verify/walk_forward.py` 重写为：
+
+- 每段独立跑窗口化回测（IS = klines[train_start:train_end]，OOS = klines[test_start:test_end]）
+- `backtest_shaofu_single` 传入窗口化 K-line
+- `trades < 3` 的小段过滤掉（`_calc_metrics` 要求至少 3 笔才计算 sharpe）
+
+**实测**（`zt verify v1.0 --days 300 --walk-forward --limit 100`）：
+
+| 指标 | v3.7.2 (假切片) | v3.7.3 (真切片) | 阈值 | 通过 |
+|---|---|---|---|---|
+| Sharpe | 0.92 | 0.685 | ≥ 0.5 | ✅ |
+| Calmar | 0.139 | 0.124 | ≥ 0.5 | ❌ |
+| WinRate | 50.7% | 49.0% | ≥ 40% | ✅ |
+| MaxDD | 21.0% | 21.0% | ≤ 25% | ✅ |
+| **OOS/IS** | **1.00 (假)** | **1.91 (真)** | ≥ 0.6 | ✅ |
+
+passed_count 4/5（与 v3.7.2 持平），但 OOS/IS 第一次反映**真实的样本外表现**（1.91 > 0.6 说明参数在 out-of-sample 上更稳健，不是过拟合）。
 
 ---
 
@@ -1293,6 +1315,7 @@ zettaranc ❯ 平安银行 250 天模拟，A 股真实约束 + ATR 仓位：
 
 | 版本 | 核心变化 |
 |------|---------|
+| **v3.7.3** | 少妇战法 v1.0 验收 walk_forward 真切片（OOS/IS 从假 1.0 → 真 1.91） | ✅ 已完成 |
 | **v3.7.2** | 少妇战法 v1.0 验收 Calmar 加权寻优（4/5 平台确认 + 5/5 路径图） | ✅ 已完成 |
 | **v3.7.1** | 少妇战法 v1.0 验收参数寻优（1/5 → 4/5 passed_count） | ✅ 已完成 |
 | **v3.7.0** | 少妇战法 v1.0 验收工程化（一键命令 + 五项硬指标 + WF） | ✅ 已完成 |
