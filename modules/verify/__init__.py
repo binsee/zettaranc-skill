@@ -14,6 +14,7 @@ from .report import (
     write_report,
 )
 from .cli import build_parser, run_verify_v10, main as verify_cli_main
+from .scorer import V10ScoreResult, V10VerifyScorer
 
 __all__ = [
     "AggregateMetrics",
@@ -21,6 +22,8 @@ __all__ = [
     "ReportPaths",
     "StockResult",
     "VerifyResult",
+    "V10ScoreResult",
+    "V10VerifyScorer",
     "build_parser",
     "render_json",
     "render_markdown",
