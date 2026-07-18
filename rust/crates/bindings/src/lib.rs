@@ -103,5 +103,9 @@ fn _core_compute(m: &Bound<'_, PyModule>) -> PyResult<()> {
         backtest_bindings::run_single_strategy_backtest_py,
         m
     )?)?;
+    m.add_function(wrap_pyfunction!(
+        backtest_bindings::run_portfolio_backtest_py,
+        m
+    )?)?;
     Ok(())
 }
