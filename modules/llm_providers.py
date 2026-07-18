@@ -19,6 +19,7 @@ class LLMProvider:
     """LLM 生成基类"""
 
     def generate(self, system_prompt: str, user_message: str, temperature: float = 0.7, stream: bool = False) -> str:
+        """根据 system + user 提示词调用 LLM 生成回复。子类必须实现。"""
         raise NotImplementedError
 
 
