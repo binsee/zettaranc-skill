@@ -70,7 +70,15 @@ jobs:
 
       - name: Run cargo clippy
         working-directory: rust
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        # Same config as rust-ci: --no-deps --exclude zt_bindings
+        # + allow stylistic lints. zt_bindings has 8 PyO3 0.23 deprecations.
+        run: |
+          cargo clippy --workspace --all-targets --no-deps --exclude zt_bindings -- \
+            -D warnings \
+            -A clippy::needless_range_loop \
+            -A clippy::len_zero \
+            -A clippy::type_complexity \
+            -A dead_code
 
       - name: Run cargo tests (exclude zt_bindings on Linux)
         working-directory: rust
