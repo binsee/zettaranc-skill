@@ -118,7 +118,7 @@ class BacktestScorer:
         days: int = 240,
         seed: int | None = None,
         max_stocks: int | None = None,
-    ):
+    ) -> None:
         self._pool = stock_pool or list(self.DEFAULT_POOL)
         self._days = days
         self._rng = random.Random(seed) if seed else None

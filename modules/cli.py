@@ -126,7 +126,7 @@ def _analyze_core(ts_code: str, days: int = 120) -> dict:
     }
 
 
-def cmd_analyze(args):
+def cmd_analyze(args) -> None:
     """分析单只股票（指标 + 主力 + 战法 + 诊断 + 评分）"""
     core = _analyze_core(args.ts_code, args.days)
 
@@ -269,7 +269,7 @@ def cmd_analyze(args):
     print(format_report(diagnosis))
 
 
-def cmd_screen(args):
+def cmd_screen(args) -> None:
     """筛选股票（调 screener.screen_stocks）
 
     Rust 路径：screen_stocks 暂未封装为 PyO3 binding（v4.0.1），所以 Rust 优先
@@ -331,7 +331,7 @@ def cmd_screen(args):
             print(f"    warnings: {','.join(warnings[:3])}")
 
 
-def cmd_score(args):
+def cmd_score(args) -> None:
     """单只股票综合评分（复用 _analyze_core，不重复计算）"""
     from modules.screener import format_stock_score
 
@@ -363,14 +363,14 @@ def cmd_score(args):
     print(format_stock_score(score))
 
 
-def cmd_workflow(args):
+def cmd_workflow(args) -> None:
     """每日五步工作流（来自 screener.py workflow action）"""
     from modules.screener import daily_workflow
 
     daily_workflow()
 
 
-def cmd_watchlist(args):
+def cmd_watchlist(args) -> None:
     """自选股管理"""
     from modules.watchlist import (
         add_watch,
@@ -439,7 +439,7 @@ def cmd_watchlist(args):
         print(generate_daily_report())
 
 
-def cmd_diagnose(args):
+def cmd_diagnose(args) -> None:
     """持仓诊断"""
     from modules.portfolio_diagnosis import diagnose_stock, format_report
 
@@ -457,7 +457,7 @@ def cmd_diagnose(args):
     print(format_report(diagnosis))
 
 
-def cmd_sync(args):
+def cmd_sync(args) -> None:
     """数据同步（init / sync / status / stk-factor）"""
     import logging
     from datetime import datetime, timedelta
@@ -558,7 +558,7 @@ def add_self_optimize_parser(subparsers) -> None:
     p.set_defaults(func=cmd_self_optimize)
 
 
-def cmd_track(args):
+def cmd_track(args) -> None:
     """跟踪池管理（add / remove / list / info / status / stats）"""
     from modules.tracking_manager import TrackingManager
 
@@ -651,7 +651,7 @@ def cmd_track(args):
                     print(f"  {strategy}: {count}只")
 
 
-def build_parser():
+def build_parser() -> argparse.ArgumentParser:
     """构建并返回 zt CLI 的 ArgumentParser（支持独立导入测试）"""
     parser = argparse.ArgumentParser(
         prog="zt",
@@ -845,7 +845,7 @@ def build_parser():
     return parser
 
 
-def main():
+def main() -> None:
     """zt CLI 主入口"""
     parser = build_parser()
     args = parser.parse_args()

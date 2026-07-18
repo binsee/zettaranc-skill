@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class TrackingSyncer:
     """跟踪数据同步器"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化同步器"""
         self.logger = ImprovementLogger()
 
@@ -453,7 +453,7 @@ class TrackingSyncer:
         return {"stage": None, "stage_confidence": None}
 
 
-def main():
+def main() -> None:
     """测试函数"""
     syncer = TrackingSyncer()
 

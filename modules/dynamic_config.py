@@ -94,7 +94,7 @@ class DynamicConfigAdapter:
         self,
         base_config: LoopConfig | None = None,
         regime_params: dict[str, dict] | None = None,
-    ):
+    ) -> None:
         self.base_config = base_config if base_config is not None else LoopConfig()
 
         # 深拷贝默认映射，再用用户传入的覆盖

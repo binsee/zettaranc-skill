@@ -48,7 +48,7 @@ STOCK_NAME_MAP = {
 class TradeParser:
     """随堂测试解析器"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.name_to_code = STOCK_NAME_MAP
 
     def parse(self, text: str) -> ParseResult:

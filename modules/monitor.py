@@ -93,7 +93,7 @@ def run_watchlist_monitor(sync_days: int = 30, enable_push: bool = True) -> dict
     return {"alerts_count": len(alerts), "summary": summary, "status": "success"}
 
 
-def main():
+def main() -> None:
     """CLI 入口：运行自选股主动预警服务。"""
     import argparse
 

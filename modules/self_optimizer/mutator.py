@@ -64,7 +64,7 @@ class ParamMutator:
         self,
         seed: int | None = None,
         default_params: dict[str, dict[str, float | int]] | None = None,
-    ):
+    ) -> None:
         self._rng = random.Random(seed)
         self._defaults = default_params or get_defaults()
         # 完整的历史记录（跨所有 mutate 调用）

@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from .syncer import DataSyncer
 
 
-def main():
+def main() -> None:
     """命令行入口"""
     import argparse
 

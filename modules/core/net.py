@@ -5,7 +5,7 @@
 import os
 
 
-def disable_proxy():
+def disable_proxy() -> None:
     """
     禁用 HTTP/HTTPS 代理
 

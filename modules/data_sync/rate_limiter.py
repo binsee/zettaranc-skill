@@ -29,7 +29,7 @@ class _RateLimiter:
         _GLOBAL_LIMITER.wait()  # 阻塞直到安全可调
     """
 
-    def __init__(self, max_per_min: int = 180):
+    def __init__(self, max_per_min: int = 180) -> None:
         self._max = max_per_min
         self._window: collections.deque = collections.deque()
         # 关键：multiprocessing.Lock 不是进程间共享的默认锁

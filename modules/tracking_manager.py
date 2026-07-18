@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class TrackingManager:
     """跟踪池管理器"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化跟踪池管理器"""
         pass
 
@@ -305,7 +305,7 @@ class TrackingManager:
             return {}
 
 
-def main():
+def main() -> None:
     """测试函数"""
     manager = TrackingManager()
 

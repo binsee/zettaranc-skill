@@ -50,7 +50,7 @@ class ValidationReport:
     criteria_results: list[CriteriaResult] = field(default_factory=list)
     summary: str = ""  # 总结
 
-    def add_result(self, result: CriteriaResult):
+    def add_result(self, result: CriteriaResult) -> None:
         """添加一项验证结果"""
         self.criteria_results.append(result)
         # 重新计算总体结果

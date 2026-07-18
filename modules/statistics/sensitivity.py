@@ -61,7 +61,7 @@ class ParameterSensitivityReport:
     robust_params: list[str] = field(default_factory=list)  # 稳健的参数列表
     sensitive_params: list[str] = field(default_factory=list)  # 敏感的参数列表
 
-    def add_result(self, result: SensitivityResult):
+    def add_result(self, result: SensitivityResult) -> None:
         """添加单个参数的分析结果"""
         self.results.append(result)
         self._recalculate()
@@ -240,7 +240,7 @@ def analyze_all_parameters(
 
     for param_name, scan_range in params_to_analyze:
 
-        def evaluate_fn(param_value, _param_name=param_name):
+        def evaluate_fn(param_value, _param_name=param_name) -> float:
             """对单个参数值跑回测，返回综合得分（夏普比率）。闭包参数通过默认参数传递。"""
             # 创建新配置
             config_dict = {

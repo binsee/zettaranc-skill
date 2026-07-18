@@ -38,7 +38,7 @@ class KnowledgeRetriever:
         "life": ["05_交易心理心态", "09_其他", "08_知识汇总体系", "02_直播笔记"],
     }
 
-    def __init__(self, kb_api_url: str | None = None, top_k: int = 5):
+    def __init__(self, kb_api_url: str | None = None, top_k: int = 5) -> None:
         if kb_api_url is None:
             kb_api_url = os.getenv("KB_API_URL", "http://localhost:8000")
         self.api_url = kb_api_url.rstrip("/")

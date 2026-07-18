@@ -93,7 +93,7 @@ class DataSource(Protocol):
 class TushareDataSource:
     """Tushare Pro API 数据源封装。"""
 
-    def __init__(self, token: str | None = None):
+    def __init__(self, token: str | None = None) -> None:
         self._client = TushareClient(token)
 
     @property
@@ -183,7 +183,7 @@ class TushareDataSource:
 class IndevsDataSource:
     """Indevs Tushare Replay API 数据源封装。"""
 
-    def __init__(self, api_key: str | None = None, base_url: str | None = None):
+    def __init__(self, api_key: str | None = None, base_url: str | None = None) -> None:
         self._client = IndevsClient(api_key, base_url)
 
     @property
@@ -251,7 +251,7 @@ class BridgeDataSource:
     若未传 config，则使用当前全局配置。
     """
 
-    def __init__(self, config: BridgeConfig | None = None):
+    def __init__(self, config: BridgeConfig | None = None) -> None:
         self._config = config
 
     @property
@@ -458,7 +458,7 @@ class CompositeDataSource:
 
     VALID_PREFERRED = ("auto", "tushare", "indevs", "bridge", "sqlite")
 
-    def __init__(self, preferred: str = "auto"):
+    def __init__(self, preferred: str = "auto") -> None:
         if preferred not in self.VALID_PREFERRED:
             raise ZettarancError(
                 ErrorCode.INVALID_PARAM,

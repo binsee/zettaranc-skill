@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "zettaranc-skill"
-version = "4.0.2"
+version = "4.0.3-dev"
 description = "zettaranc（万千）的思维框架与量化工具"
 readme = "README.md"
 license = {text = "MIT"}
@@ -78,9 +78,27 @@ quote-style = "double"
 indent-style = "space"
 
 [tool.mypy]
+python_version = "3.12"
 namespace_packages = true
 explicit_package_bases = true
 ignore_missing_imports = true
+warn_unused_ignores = true
+warn_return_any = false
+disallow_untyped_defs = false  # 渐进式，不强制
+disallow_incomplete_defs = false
+no_implicit_optional = true
+check_untyped_defs = true
+strict = false  # 起步非 strict
+exclude = [
+    "data/",
+    "logs/",
+    "knowledge/",
+    "tests/",
+]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+check_untyped_defs = false
 
 [tool.coverage.run]
 source = ["modules"]

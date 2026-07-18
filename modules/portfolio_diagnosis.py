@@ -375,7 +375,7 @@ def format_report(report: DiagnosisReport) -> str:
 # ==================== 命令行工具 ====================
 
 
-def main():
+def main() -> None:
     """命令行入口"""
     import argparse
 

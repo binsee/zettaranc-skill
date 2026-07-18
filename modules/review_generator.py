@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class ReviewGenerator:
     """复盘报告生成器"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化复盘报告生成器"""
         self.logger = ImprovementLogger()
 
@@ -508,7 +508,7 @@ class ReviewGenerator:
             return []
 
 
-def main():
+def main() -> None:
     """测试函数"""
     generator = ReviewGenerator()
 

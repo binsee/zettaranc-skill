@@ -11,7 +11,7 @@ from ..datasource import DataSource
 class DataFetcher:
     """Encapsulates raw data pulling from a DataSource."""
 
-    def __init__(self, datasource: DataSource):
+    def __init__(self, datasource: DataSource) -> None:
         self.datasource = datasource
 
     def fetch_stock_basic(self) -> pd.DataFrame | None:

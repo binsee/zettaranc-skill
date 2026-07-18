@@ -67,7 +67,7 @@ class MarketRegimeClassifier:
         weights: dict[str, float] | None = None,
         bull_threshold: float = 0.3,
         bear_threshold: float = -0.3,
-    ):
+    ) -> None:
         self.weights = weights if weights is not None else dict(_DEFAULT_WEIGHTS)
         self.bull_threshold = bull_threshold
         self.bear_threshold = bear_threshold

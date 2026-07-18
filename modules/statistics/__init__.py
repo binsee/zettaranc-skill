@@ -400,7 +400,7 @@ def analyze_sub_periods(
     overall_max_dd = _calc_max_drawdown_from_returns(all_returns) if all_returns else 0.0
 
     # 计算各子周期指标
-    def calc_sub_stats(trade_list):
+    def calc_sub_stats(trade_list) -> tuple[float, float, float]:
         """子周期指标聚合：返回 (sharpe, 累计收益, 胜率) 三元组。"""
         if not trade_list:
             return 0.0, 0.0, 0.0

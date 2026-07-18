@@ -112,7 +112,7 @@ def test_jnb_connection(token: str) -> bool:
         return False
 
 
-def run_wizard():
+def run_wizard() -> str | None:
     """
     运行启动向导（命令行模式，agent 对话中不直接使用）
 
@@ -130,6 +130,9 @@ def run_wizard():
     # 检查是否已配置
     if check_env_exists():
         mode = check_data_mode()
+        if mode is None:
+            print("[未配置] 环境变量缺失 DATA_MODE，请重新配置")
+            return None
         display = get_mode_display_name(mode)
         print(f"[已配置] 当前模式: {display}")
         print()
@@ -194,4 +197,5 @@ def run_wizard():
 
 if __name__ == "__main__":
     mode = run_wizard()
-    print(f"\n最终模式: {get_mode_display_name(mode)}")
+    if mode is not None:
+        print(f"\n最终模式: {get_mode_display_name(mode)}")

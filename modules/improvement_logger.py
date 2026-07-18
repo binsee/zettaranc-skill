@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class ImprovementLogger:
     """自我改进日志记录器"""
 
-    def __init__(self, log_dir: str | None = None):
+    def __init__(self, log_dir: str | None = None) -> None:
         """
         初始化日志记录器
 
@@ -306,7 +306,7 @@ class ImprovementLogger:
             return {}
 
 
-def main():
+def main() -> None:
     """测试函数"""
     logger = ImprovementLogger()
 
