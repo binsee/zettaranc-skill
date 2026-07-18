@@ -178,27 +178,54 @@
 
 ## 技术债务
 
-### 高优先级
+> 最后盘点：2026-07-18（v4.0.1 release 后）  
+> 数据基线：脚本扫描 `modules/` 全部 `.py` + `cargo build --workspace --release` warning 统计
 
-1. ~~文档完善~~ ✅ v3.10.4 完成（USER_GUIDE 追平、发布 Checklist）
-2. ~~性能优化~~ ✅ v3.10.4 完成（precompute_market_contexts、批量查询）
+### 🔴 高优先级（影响运行时 / 当前已积累）
 
-### 中优先级
+| # | ID | 项目 | 量化 | 影响 | 估算 |
+|---|---|---|---|---|---|
+| H1 | cli-rust | **CLI 接入 Rust 实现** | 5 个 binding 可调，但 `zt backtest/screen/verify` 仍走 Python | 用户跑命令拿不到 Rust 加速 | 1-2 天 |
+| H2 | rust-warnings | **Rust backtest_engine 8 个 dead-code warning** | `cash`/`held_days`/`total_pnl` 等 assignment 不读 | 掩盖逻辑 bug + review 噪音 | 半天 |
+| H3 | silent-except | **120 静默 except + 107 magic number 集中 5 文件** | `data_sync/syncer.py`(8) `tracking_manager.py`(7) `simulator/narrator.py`(7) `tracking_syncer.py`(6) `review_generator.py`(6) | 失败排查困难 + 配置漂移 | 1-2 天 |
 
-3. **类型注解** ⏳
-   - 部分模块缺少类型注解
-   - mypy 未全量开启
-4. **错误处理** ⏳（v3.10.4 已建最小骨架）
-   - 其余模块接入统一错误码
-   - API 调用失败时静默返回 None 的收敛
+### 🟡 中优先级（ROADMAP ⏳ 项 + 仍可推）
 
-### 低优先级
+| # | ID | 项目 | 量化 | 估算 |
+|---|---|---|---|---|
+| M1 | error-code | **统一错误码扩张** | 7 模块已试点（v3.10.4：`tushare/datasource/cli/data_sync/position_manager/self_optimizer/verify`），剩 ~15 模块 | 1-2 天 |
+| M2 | none-silent | **`return None` 收敛** | 193 处，集中在 `indevs_client` (84-201) / `tushare_client` / `datasource` / `strategies/sell_signals` / `loop_engine` | 1-2 天 |
+| M3 | pyo3-upgrade | **PyO3 0.22 → 0.23** | 解锁 Python 3.14 + 减少 silent import 风险 | 1 天 |
+| M4 | except-narrow | **`except Exception` 不带 raise 收敛** | 121 处 | 1 天 |
+| M5 | type-annot | **mypy 启用 + 函数返回注解补缺** | 当前 528/563 (93%) 已有 → 全量 + mypy strict | 2-3 天 |
 
-5. **依赖升级** ⏳
-   - Python 3.10 → 3.12
-   - pandas 版本升级
-6. **CI/CD 优化** ⏳
-   - 缺少自动化部署
+### 🟢 低优先级（结构性 / 改进型）
+
+| # | ID | 项目 | 备注 |
+|---|---|---|---|
+| L1 | cdylib-test | Cargo `[[test]]` 不能链 cdylib | 需 maturin-driven 集成测试；现用 byte-equal golden test workaround |
+| L2 | py-upgrade | Python 3.10 → 3.12 | classifier 已声明 |
+| L3 | pandas-upgrade | pandas 版本升级 | DataFrame 行为兼容风险 |
+| L4 | ci-deploy | CI/CD 自动化部署 | 现仅 Lint+test |
+| L5 | doc-coverage | Docstring 覆盖率 80% → 90% | 缺 109/563 public 函数 |
+| L6 | magic-lit | 重复 magic literal（0.05/0.10/0.20 等）107 处 | 提取到 `modules/constants.py` |
+
+### 🌐 跨平台 / 兼容性
+
+| # | ID | 项目 | 状态 |
+|---|---|---|---|
+| C1 | macos-linkedit | macOS LINKEDIT 链接器 bug | ✅ 已用 post-build workaround（fix_linkedit_alignment.py + lld 22）解决 |
+| C2 | linux-docker | Linux Docker fallback | ✅ `rust/Dockerfile.test` + `rust/scripts/build-linux.sh` |
+| C3 | windows | Windows 验证 | 未验证；未列入测试 |
+
+### ✅ 已偿还（历史归档）
+
+| # | ID | 完成 |
+|---|---|---|
+| ~~D1~~ | 文档完善 | ✅ v3.10.4（USER_GUIDE 追平、发布 Checklist） |
+| ~~D2~~ | 性能优化 | ✅ v3.10.4（`precompute_market_contexts` ~6.3×、`get_kline_dicts_batch` ~2.2–2.4×） |
+| ~~D3~~ | Rust 内核迁移 | ✅ v4.0.0（5 个算法 crate + 22 测试）+ v4.0.1（PyO3 runtime 打通 + 59 测试） |
+| ~~D4~~ | macOS LINKEDIT | ✅ v4.0.1（post-build workaround） |
 
 ---
 
