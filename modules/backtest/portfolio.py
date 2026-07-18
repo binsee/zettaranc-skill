@@ -163,7 +163,7 @@ class PortfolioBacktestEngine:
         self,
         portfolio_config: PortfolioConfig | None = None,
         loop_config: LoopConfig | None = None,
-    ):
+    ) -> None:
         self.portfolio_config = portfolio_config or PortfolioConfig()
         self.loop_config = loop_config or LoopConfig()
         self._validate_config(self.portfolio_config)

@@ -38,7 +38,7 @@ VERIFY_TOKEN_URL = os.environ.get("TUSHARE_VERIFY_TOKEN_URL", "")
 class DataSyncer:
     """数据同步器"""
 
-    def __init__(self, token: str | None = None, datasource: DataSource | None = None):
+    def __init__(self, token: str | None = None, datasource: DataSource | None = None) -> None:
         self.token = token or os.environ.get("TUSHARE_TOKEN")
 
         # 依赖注入 DataSource；默认按环境变量选择数据源
@@ -548,7 +548,7 @@ class DataSyncer:
 
     # ==================== 每日估值指标 (PE/PB/PS) ====================
 
-    def ensure_daily_basic_columns(self):
+    def ensure_daily_basic_columns(self) -> None:
         """确保 daily_kline 表包含 PE/PB/PS/总市值/流通市值 列"""
         with get_connection() as conn:
             cursor = conn.cursor()

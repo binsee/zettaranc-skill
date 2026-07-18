@@ -35,7 +35,7 @@ class IndustryFilter:
         db_path: str | None = None,
         max_per_industry: int = 2,
         max_industry_pct: float = 0.4,
-    ):
+    ) -> None:
         """初始化过滤器
 
         Args:

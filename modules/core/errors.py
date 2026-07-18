@@ -85,7 +85,7 @@ class ZettarancError(ValueError):
     str(exc) 输出统一格式：[ERROR_CODE] message
     """
 
-    def __init__(self, code: ErrorCode, message: str, *, cause: Exception | None = None):
+    def __init__(self, code: ErrorCode, message: str, *, cause: Exception | None = None) -> None:
         self.code = code
         self.message = message
         self.cause = cause

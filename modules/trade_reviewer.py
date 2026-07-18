@@ -164,7 +164,7 @@ class ReviewContext:
 class TradeReviewer:
     """交割单 - 数据准备层"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.parser = TradeParser()
 
     def parse_input(self, text: str) -> tuple[ParseResult, dict | None]:

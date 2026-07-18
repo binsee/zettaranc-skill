@@ -716,7 +716,7 @@ def _print_daily_report(report: dict, today: str) -> None:
     print(f"\n{'=' * 60}")
 
 
-def cmd_monitor(args):
+def cmd_monitor(args) -> None:
     """自选股监控扫描命令行处理入口"""
     from modules.monitor import run_watchlist_monitor
 

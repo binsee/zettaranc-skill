@@ -96,7 +96,7 @@ def reset_cache() -> None:
 _func_cache: dict[str, object | None] = {}
 
 
-def compute_func(name: str):
+def compute_func(name: str) -> object | None:
     """返回 `_core_compute.<name>` 函数；若不可用则返回 None。
 
     设计目标（v4.0.2 CLI ↔ Rust 桥接）：

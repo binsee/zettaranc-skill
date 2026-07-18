@@ -44,7 +44,7 @@ class TushareClient:
     - get_trade_cal: 交易日历
     """
 
-    def __init__(self, token: str | None = None):
+    def __init__(self, token: str | None = None) -> None:
         self.token = token or TUSHARE_TOKEN
         data_mode = os.getenv("DATA_MODE", "websearch")
 

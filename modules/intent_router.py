@@ -29,7 +29,7 @@ class RouterResult:
 class IntentRouter:
     """意图识别 + RAG 检索 + 系统提示组装 统一入口"""
 
-    def __init__(self, rules_path: str | None = None, kb_api_url: str | None = None, top_k: int = 5):
+    def __init__(self, rules_path: str | None = None, kb_api_url: str | None = None, top_k: int = 5) -> None:
         if rules_path is None:
             rules_path = str(Path(__file__).parent.parent / "rules" / "intent_rules.yaml")
 

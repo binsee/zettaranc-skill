@@ -8,7 +8,7 @@ from .format import format_stock_score
 from .workflow import daily_workflow
 
 
-def main():
+def main() -> None:
     """命令行入口"""
     parser = argparse.ArgumentParser(description="Z哥 选股系统")
     parser.add_argument(

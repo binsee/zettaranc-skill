@@ -206,7 +206,7 @@ def generate_daily_report(tags: str | None = None) -> str:
 # ==================== 命令行工具 ====================
 
 
-def main():
+def main() -> None:
     """命令行入口"""
     import argparse
 

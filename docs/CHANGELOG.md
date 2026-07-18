@@ -4,6 +4,18 @@
 
 ## v4.0.3 (TBD) — 收尾技术债
 
+### M5: mypy 启用 + 返回类型注解补齐
+
+- **新增** `pyproject.toml` 的 `[tool.mypy]` 配置（`strict = false` 起步）
+  - `python_version = "3.12"`、`ignore_missing_imports = true`、`no_implicit_optional = true`
+  - 排除 `data/`、`logs/`、`knowledge/`、`tests/`
+  - `tests.*` 单独 override：`check_untyped_defs = false`
+- **补齐 66 处缺失的函数返回类型注解**（基线 537/603 = 89.1% → 603/603 = 100%）
+  - 涉及文件：harness_updater / cli_commands / market_regime / tracking_syncer / tracking_manager / monitor / intent_router / intent_chat / tushare_client / llm_providers / setup_wizard / datasource (×4) / industry_filter / loop_engine / portfolio_diagnosis / watchlist / trade_manager / indevs_client / cli (×10) / trade_reviewer / dynamic_config / loop_engine_enhanced / knowledge_retriever / review_generator (×2) / improvement_logger (×2) / trade_parser / statistics (×3) / core (×3) / screener/cli / verify/scorer / indicators (×3) / self_optimizer (×2) / backtest/portfolio / data_sync (×4)
+- **mypy 报错数：21**（不阻塞 CI，仅 follow-up）
+  - 主要为 `object` 调用约束（`compute_func` 桥接）、`str | None` vs `str` 实参不匹配、`[unused-ignore]`、`[name-defined]`
+- **修复 setup_wizard 副作用**：补齐返回注解后发现 `run_wizard` 在 `check_data_mode() is None` 分支返回 `None`，与 `str` 签名冲突 → 显式分支处理 + `str | None` 标注
+
 ### L4: CI/CD 自动化部署
 
 - **新增** `.github/workflows/release.yml`

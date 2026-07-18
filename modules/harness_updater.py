@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class HarnessUpdater:
     """Harness 层更新器"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化 Harness 更新器"""
         self.logger = ImprovementLogger()
 
@@ -277,7 +277,7 @@ class HarnessUpdater:
             return {"success": False, "message": f"Harness 更新失败: {str(e)}"}
 
 
-def main():
+def main() -> None:
     """测试函数"""
     updater = HarnessUpdater()
 

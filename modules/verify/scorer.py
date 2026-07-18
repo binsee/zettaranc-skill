@@ -59,7 +59,7 @@ class V10VerifyScorer:
         wf_test_days: int = 60,
         use_portfolio_engine: bool = True,  # v3.7.6 默认开
         portfolio_config: object | None = None,  # v3.8.0 市场环境自适应
-    ):
+    ) -> None:
         self.stock_pool = stock_pool
         self.days = days
         self.walk_forward = walk_forward

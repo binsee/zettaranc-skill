@@ -66,7 +66,7 @@ class EnhancedLoopTrade(LoopTrade):
 class EnhancedShaofuLoopEngine(ShaofuLoopEngine):
     """增强版少妇战法引擎"""
 
-    def __init__(self, config: EnhancedLoopConfig | None = None):
+    def __init__(self, config: EnhancedLoopConfig | None = None) -> None:
         super().__init__(config or EnhancedLoopConfig())
         self.enhanced_config = config or EnhancedLoopConfig()
 

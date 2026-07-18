@@ -276,7 +276,7 @@ class ShaofuLoopEngine:
     - 支持回测场景（顺序遍历历史数据）
     """
 
-    def __init__(self, config: LoopConfig | None = None):
+    def __init__(self, config: LoopConfig | None = None) -> None:
         """
         初始化引擎
 

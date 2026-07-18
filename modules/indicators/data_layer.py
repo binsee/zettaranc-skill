@@ -293,7 +293,7 @@ def _save_indicator_cache(result: IndicatorResult, klines: list[DailyData]) -> b
         return False
 
 
-def clear_indicator_memory_cache():
+def clear_indicator_memory_cache() -> None:
     """清空内存缓存（用于测试或数据更新后）"""
     _indicator_memory_cache.clear()
 
@@ -896,7 +896,7 @@ def format_result(result: IndicatorResult) -> str:
     return "\n".join(lines)
 
 
-def main():
+def main() -> None:
     """命令行入口"""
     import argparse
 

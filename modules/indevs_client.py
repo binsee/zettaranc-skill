@@ -103,7 +103,7 @@ def _dataframe_from_payload(payload: dict[str, Any] | None) -> pd.DataFrame | No
 class IndevsClient:
     """Indevs Tushare Replay API 客户端。"""
 
-    def __init__(self, api_key: str | None = None, base_url: str | None = None):
+    def __init__(self, api_key: str | None = None, base_url: str | None = None) -> None:
         self.api_key = api_key or INDEVS_API_KEY
         self.base_url = (base_url or INDEVS_API_URL).rstrip("/")
         self._session = requests.Session()
