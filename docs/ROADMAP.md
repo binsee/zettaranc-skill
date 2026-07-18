@@ -1,7 +1,7 @@
 # 产品路线图
 
 > 最后更新：2026-07-18  
-> 当前版本：v4.0.0（Rust 内核）
+> 当前版本：v4.0.1（Rust 内核 + PyO3 运行时）
 
 ## 版本号规定
 
@@ -27,28 +27,29 @@
 
 ## 近期（0–2 个月）
 
-### v4.0.0 Rust 内核（MAJOR）✅
+### v4.0.1 PyO3 运行时打通（PATCH）✅
 
-**目标**：核心计算链路迁至 Rust（PyO3 + Polars + Rayon），预期提速 5–50×
+**目标**：v4.0.0 留尾 —— 在 macOS 跑通 PyO3 + 加固算法测试
 
-**已完成**（本次会话）：
-- [x] Rust workspace（6 crate）全部编译通过
-- [x] `compute_atr` Rust 实现 + golden file byte-equal 验证（epsilon=1e-9）
-- [x] 单策略回测引擎 + 3/3 单元测试
-- [x] 组合回测引擎（rayon 并行）+ 3/3 单元测试
-- [x] Walk-forward + 网格搜索（rayon 并行）+ 5/5 单元测试
-- [x] 选股引擎（polars）+ 5/5 单元测试
-- [x] compat shim（env-var `ZETTARANC_BACKTEST_IMPL` 切换）
-- [x] GitHub Actions CI（macOS + Linux）
-- [x] 测试基线快照（313 通过）
+**已完成**（本轮）：
+- [x] macOS Mach-O LINKEDIT 链接器 bug workaround（`fix_linkedit_alignment.py` + lld 22 配置 + build_macos.sh 一键脚本）
+- [x] 3 个 PyO3 backtest bindings 落地（Task 15/18/20）：单策略/组合/网格搜索
+- [x] 35 个 proptest 属性测试（5 个 crate × 8 个 invariant）
+- [x] `cargo test --workspace --release` 59/59 通过（含 atr_golden byte-equal）
+- [x] `pytest tests/test_rust_compat.py` 5/5 通过（之前 4/5 因 linker 失败）
+- [x] Linux Docker fallback 文件就位
 
-**待完成**（环境修复后）：
-- [ ] PyO3 binding 运行时验证（macOS 15+ Mach-O 链接器 bug 修复后）
-- [ ] 接入现有 CLI（`zt backtest` / `zt verify` / `zt screen`）
-- [ ] benchmark 实测（计划 ≥8× / ≥10× / ≥30× / ≥5×）
-- [ ] `_core_compute` dlopen 修复后立即可用，无需改 Rust 代码
+**向后兼容**：
+- 默认行为：`_core_compute` 已能 dlopen，所有 binding 函数可用
+- env-var `ZETTARANC_BACKTEST_IMPL=python` 仍可秒级回退
+- 工具链 bump 到 Rust stable（lld 22 必需）
 
-详见 `docs/superpowers/specs/2026-07-18-rust-refactor-design.md`
+**待接入**（下一波）：
+- [ ] 接入 CLI（`zt backtest` / `zt verify` / `zt screen`）触发 Rust 实现
+- [ ] benchmark 实测（≥8× / ≥10× / ≥30× / ≥5×）
+- [ ] python `_core_compute` 包管理（PyPI 发布？）
+
+详见 `docs/superpowers/specs/2026-07-18-env-blocker-recovery.md`
 
 ### v3.10.4 技术债与文档收尾（PATCH）✅
 

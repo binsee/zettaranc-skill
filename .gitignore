@@ -95,3 +95,10 @@ frontend/vite
 data/reports/
 .superpowers/
 design-demos/
+
+# Python venv (added 2026-07-18)
+.venv311/
+
+# Rust build artifacts (added 2026-07-18)
+rust/target/
+

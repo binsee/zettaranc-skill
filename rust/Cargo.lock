@@ -4023,7 +4023,9 @@ dependencies = [
  "pyo3",
  "serde",
  "serde_json",
+ "zt_backtest_engine",
  "zt_core_types",
+ "zt_grid_search",
  "zt_indicators",
 ]
 

@@ -56,9 +56,70 @@
 
 ### 已知问题
 
-- macOS 15+ 链接器 Mach-O LINKEDIT 对齐错：`_core_compute.cpython-*.so` dlopen 失败（环境特异性，与 Python 版本无关）。代码本身正确，Linux/Docker 或 macOS 补丁后立即可用。
+- macOS 15+ 链接器 Mach-O LINKEDIT 对齐错：见 **v4.0.1** 已解决（lld 22 + `-no-deduplicate-symbol-strings` + post-build `fix_linkedit_alignment.py` 修补）
 
 详见 `docs/superpowers/specs/2026-07-18-rust-refactor-design.md`
+
+## v4.0.1 (2026-07-18) — PyO3 运行时打通
+
+> **「v4.0.1：在 macOS 上跑通 PyO3 运行时；3 个 backtest binding 落地；35 个属性测试加固。」**
+
+### 修复（v4.0.0 留尾）
+
+- **macOS 15+ Mach-O LINKEDIT 链接器 bug（已解决）**
+  - Root cause：lld 22 把 `LC_SYMTAB.stroff` 输出到 4-byte 对齐边界，而 macOS 15+ dyld 要求 8-byte 对齐
+  - 修复：`rust/.cargo/config.toml` 强制 `-fuse-ld=/opt/homebrew/bin/ld64.lld` + `-no-deduplicate-symbol-strings` + `--no-tail-merge-strings`，build 后再 `fix_linkedit_alignment.py` 补齐 8-byte 边界 + `codesign --force --sign -` 重签
+  - 一键脚本：`rust/scripts/build_macos.sh`（Python 3.11 venv + maturin develop + 修补 + smoke）
+  - 验证：`python -c "import _core_compute; print(_core_compute.rust_smoke())"` → `OK: ok from rust`
+  - 已验证 ATR 计算结果与 Python 端完全一致（ATR[14:18] = 2.0，与 golden file byte-equal 一致）
+
+### 新增
+
+- **3 个 PyO3 backtest binding（Tasks 15/18/20）**
+  - `run_single_strategy_backtest_py(config, klines) → dict`（trades / metrics / equity_curve / cash_history）
+  - `run_portfolio_backtest_py(config, klines_by_code) → dict`（portfolio_metrics / per_strategy_trades / aggregate_equity_curve）
+  - `run_grid_search_py(base_config, param_grid, splits, klines) → dict`（all_results / best_params / best_score / n_results）
+- **35 个属性测试**：`proptest` 加固 5 个算法 crate
+  - `indicators` 8 个（ATR 长度对齐、非负、零波动、滚动均值 ≤ max(TR)、单调常数等）
+  - `backtest_engine` 11 个（单 + 组合：数据不足报错、trade 数 ≤ n、pnl 守恒、net_values 长度）
+  - `grid_search` 8 个（results = splits × grid、单 split、test 窗口不重叠、splits 结构）
+  - `screener` 8 个（scores 长度上界、降序排序、total_score = Σ 权重、空 criteria 报错）
+- **Linux Docker fallback**：`rust/Dockerfile.test` + `rust/scripts/build-linux.sh`（Linux 上无需修补即可用）
+
+### 改动
+
+- `rust/rust-toolchain.toml`：1.78.0 → `stable`（1.97.1）
+- `rust/Cargo.toml`：`proptest = "1.4"` → `"1.5"`（workspace 依赖）
+- `.gitignore`：新增 `.venv311/` + `rust/target/`
+
+### 测试
+
+- `cargo test --workspace --release`：**59/59 通过**（24 单元 + 35 属性 + atr_golden）
+- `pytest tests/test_rust_compat.py`：**5/5 通过**（之前 4/5 因 linker 失败）
+
+### 已知限制
+
+- macOS 必须使用 Homebrew lld ≥ 22.1.8（`brew install lld`）+ Rust stable ≥ 1.97
+- Python 必须 3.11（PyO3 0.22 不支持 3.14，跨 3.14 需升级 PyO3）
+- Cargo `[test]` 不能链 `cdylib`（PyO3 限制），runtime 测试必须经 maturin
+
+### 新增文件
+
+- `rust/.cargo/config.toml`
+- `rust/Dockerfile.test`
+- `rust/scripts/fix_linkedit_alignment.py`（post-build 修补）
+- `rust/scripts/build_macos.sh`（一键构建）
+- `rust/scripts/build-linux.sh`（Linux fallback）
+- `rust/crates/{indicators,backtest_engine,grid_search,screener}/tests/proptest.rs`
+- `rust/crates/bindings/src/backtest_bindings.rs`（3 个 binding 实现）
+- `docs/superpowers/specs/2026-07-18-env-blocker-recovery.md`
+
+### Merge 记录
+
+- `515c230` merge: rust-proptest (35 attribute tests across 5 crates)
+- `01f167d` merge: pyo3-bindings (single/portfolio/grid search PyO3 wrappers)
+- `fe3f550` merge: env-try (macOS LINKEDIT fix + Docker fallback)
+- `f83643a` chore(hygiene): adopt 68 unstaged files + 1 stash from prior session
 
 ## v3.10.4 (2026-07-16)
 
