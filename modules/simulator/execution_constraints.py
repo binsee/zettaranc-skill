@@ -13,6 +13,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..indicators import DailyData
+from ..constants import (
+    SIMULATOR_GEM_STAR_PRICE_LIMIT_PCT,
+    SIMULATOR_MAIN_BOARD_PRICE_LIMIT_PCT,
+    SIMULATOR_ST_PRICE_LIMIT_PCT,
+)
 
 
 @dataclass
@@ -39,11 +44,11 @@ def _is_st_name(name: str | None) -> bool:
 def _limit_pct(ts_code: str, is_st: bool) -> float:
     """返回涨跌停幅度。"""
     if is_st:
-        return 0.05
+        return SIMULATOR_ST_PRICE_LIMIT_PCT
     if ts_code.startswith("688") or ts_code.startswith("300") or ts_code.startswith("301"):
-        return 0.20
+        return SIMULATOR_GEM_STAR_PRICE_LIMIT_PCT
     # 主板默认
-    return 0.10
+    return SIMULATOR_MAIN_BOARD_PRICE_LIMIT_PCT
 
 
 def _price_limits(prev_close: float, ts_code: str, is_st: bool) -> tuple[float, float]:

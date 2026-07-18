@@ -13,6 +13,7 @@ from enum import Enum
 from typing import Any, TYPE_CHECKING
 
 from ..core.market_context import MarketRegime
+from ..constants import BACKTEST_DEFAULT_MAX_POSITION_PCT
 
 if TYPE_CHECKING:
     from .walk_forward import WalkForwardConfig
@@ -168,7 +169,7 @@ class SimulationConfig:
     use_dynamic_slippage: bool = False
     use_atr_sizing: bool = False
     atr_window: int = 20
-    max_position_pct: float = 0.20
+    max_position_pct: float = BACKTEST_DEFAULT_MAX_POSITION_PCT
     cash_utilization_limit: float = 0.95
     allow_st: bool = False
     t1_lock: bool = True

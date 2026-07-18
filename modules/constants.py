@@ -109,6 +109,15 @@ SIMULATOR_MAX_RISK_PER_TRADE_PCT = 0.10
 # 执行约束默认滑点（5bps）
 SIMULATOR_DEFAULT_SLIPPAGE = 0.05
 
+# A 股主板单日涨跌幅限制
+SIMULATOR_MAIN_BOARD_PRICE_LIMIT_PCT = 0.10
+
+# A 股 ST/*ST 单日涨跌幅限制
+SIMULATOR_ST_PRICE_LIMIT_PCT = 0.05
+
+# A 股创业板 / 科创板 单日涨跌幅限制
+SIMULATOR_GEM_STAR_PRICE_LIMIT_PCT = 0.20
+
 
 # ---------------------------------------------------------------------------
 # 搜索空间粒度（参数优化器步长）
