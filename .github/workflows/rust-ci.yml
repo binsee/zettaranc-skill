@@ -1,0 +1,84 @@
+name: rust-ci
+
+on:
+  pull_request:
+    paths:
+      - "rust/**"
+      - "python/**"
+      - "pyproject.toml"
+      - ".github/workflows/rust-ci.yml"
+  push:
+    branches: [main, feature/rust-core-compute]
+
+jobs:
+  test-rust:
+    name: cargo test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1.78.0
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry & target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: cargo fmt --check
+        working-directory: rust
+        run: cargo fmt --all -- --check
+
+      - name: cargo clippy
+        working-directory: rust
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: cargo test
+        working-directory: rust
+        run: cargo test --workspace
+
+  test-python:
+    name: python smoke (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1.78.0
+
+      - name: Install maturin
+        run: pip install maturin pytest polars pyarrow
+
+      - name: Build _core_compute
+        run: |
+          cd rust/crates/bindings
+          maturin develop --release
+
+      - name: Smoke import
+        run: |
+          python -c "import _core_compute; print(_core_compute.__version__)"
