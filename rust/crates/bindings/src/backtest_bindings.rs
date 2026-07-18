@@ -18,6 +18,7 @@ use zt_backtest_engine::{
     PortfolioResult, SingleStrategyConfig, SingleStrategyResult, Trade,
 };
 use zt_core_types::KLineSeries;
+use zt_grid_search::{run_grid_search, GridSearchResult, ParamSet, WalkForwardSplit};
 
 use crate::error::core_error_to_pyerr;
 
@@ -352,4 +353,148 @@ pub fn run_portfolio_backtest_py(
 
     let v = portfolio_result_to_value(&result, initial_cash);
     Ok(json_to_py(py, &v)?.unbind())
+}
+
+// ---------------------------------------------------------------------------
+// 网格搜索
+// ---------------------------------------------------------------------------
+
+/// `Vec<HashMap<String, f64>>` → `Vec<ParamSet>`，使用 serde derive。
+fn parse_param_grid(grid: Vec<HashMap<String, f64>>) -> PyResult<Vec<ParamSet>> {
+    let mut out = Vec::with_capacity(grid.len());
+    for (i, params) in grid.into_iter().enumerate() {
+        let mut m = serde_json::Map::new();
+        for (k, val) in params {
+            m.insert(k, Value::from(val));
+        }
+        // 兜底字段
+        m.entry("j_threshold".to_string()).or_insert(Value::from(-5.0_f64));
+        m.entry("stop_loss_pct".to_string()).or_insert(Value::from(0.05_f64));
+        m.entry("vol_shrink_threshold".to_string()).or_insert(Value::from(0.5_f64));
+        m.entry("bbi_break_days".to_string()).or_insert(Value::from(3_i64));
+        m.entry("min_holding_days".to_string()).or_insert(Value::from(3_i64));
+        m.entry("lu_half".to_string()).or_insert(Value::Bool(true));
+        m.entry("position_pct".to_string()).or_insert(Value::from(0.5_f64));
+
+        let v = Value::Object(m);
+        let p: ParamSet = serde_json::from_value(v).map_err(|e| {
+            pyo3::exceptions::PyValueError::new_err(format!(
+                "param_grid[{i}] deserialize: {e}"
+            ))
+        })?;
+        out.push(p);
+    }
+    Ok(out)
+}
+
+/// Python `list[dict]` → `Vec<WalkForwardSplit>`。
+fn parse_walk_forward_splits(v: &Value) -> PyResult<Vec<WalkForwardSplit>> {
+    let arr = v
+        .as_array()
+        .ok_or_else(|| pyo3::exceptions::PyTypeError::new_err("splits must be list"))?;
+    let mut out = Vec::with_capacity(arr.len());
+    for (i, item) in arr.iter().enumerate() {
+        let obj = item.as_object().ok_or_else(|| {
+            pyo3::exceptions::PyTypeError::new_err("split must be dict")
+        })?;
+        let get = |k: &str| -> PyResult<usize> {
+            obj.get(k)
+                .and_then(|v| v.as_u64())
+                .map(|u| u as usize)
+                .ok_or_else(|| {
+                    pyo3::exceptions::PyKeyError::new_err(format!("splits[{i}].{k}"))
+                })
+        };
+        out.push(WalkForwardSplit {
+            train_start: get("train_start")?,
+            train_end: get("train_end")?,
+            test_start: get("test_start")?,
+            test_end: get("test_end")?,
+        });
+    }
+    Ok(out)
+}
+
+fn param_set_to_value(p: &ParamSet) -> Value {
+    let mut m = serde_json::Map::new();
+    m.insert("j_threshold".into(), Value::from(p.j_threshold));
+    m.insert("stop_loss_pct".into(), Value::from(p.stop_loss_pct));
+    m.insert("vol_shrink_threshold".into(), Value::from(p.vol_shrink_threshold));
+    m.insert("bbi_break_days".into(), Value::from(p.bbi_break_days as i64));
+    m.insert("min_holding_days".into(), Value::from(p.min_holding_days as i64));
+    m.insert("lu_half".into(), Value::Bool(p.lu_half));
+    m.insert("position_pct".into(), Value::from(p.position_pct));
+    Value::Object(m)
+}
+
+fn grid_result_to_value(r: &GridSearchResult) -> Value {
+    let mut m = serde_json::Map::new();
+    m.insert("params".into(), param_set_to_value(&r.param));
+    m.insert("train_sharpe".into(), Value::from(r.train_sharpe));
+    m.insert("test_sharpe".into(), Value::from(r.test_sharpe));
+    m.insert("oos_is_ratio".into(), Value::from(r.oos_is_ratio));
+    Value::Object(m)
+}
+
+/// PyO3 包装：网格搜索 + walk-forward（Task 20）。
+///
+/// 输入：
+///   - `base_config`：dict（含 initial_cash）
+///   - `param_grid`：list[dict]，每个 dict 含一组超参
+///   - `splits`：list[dict]，每个 dict 含 train_start/train_end/test_start/test_end
+///   - `klines`：list[dict] —— 单只股票 K 线序列
+///
+/// 输出：dict 含 `all_results` (list[dict]) + `best_params` + `best_score` + `n_results`。
+#[pyfunction]
+#[pyo3(signature = (base_config, param_grid, splits, klines))]
+pub fn run_grid_search_py(
+    py: Python<'_>,
+    base_config: &Bound<'_, pyo3::PyAny>,
+    param_grid: Vec<HashMap<String, f64>>,
+    splits: &Bound<'_, pyo3::PyAny>,
+    klines: Vec<Bound<'_, pyo3::PyAny>>,
+) -> PyResult<PyObject> {
+    let base_v = pyany_to_json(base_config)?;
+    let initial_cash = read_f64(&base_v, "initial_cash", 100_000.0)?;
+    let splits_v = pyany_to_json(splits)?;
+    let splits_rust = parse_walk_forward_splits(&splits_v)?;
+    let grid_rust = parse_param_grid(param_grid)?;
+    let series = parse_klines_series(&klines)?;
+
+    let results = run_grid_search(&series, &grid_rust, &splits_rust, initial_cash)
+        .map_err(core_error_to_pyerr)?;
+
+    // 选 test_sharpe 最大者
+    let best = results.iter().max_by(|a, b| {
+        a.test_sharpe
+            .partial_cmp(&b.test_sharpe)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    let mut out = serde_json::Map::new();
+    out.insert(
+        "all_results".into(),
+        Value::Array(results.iter().map(grid_result_to_value).collect()),
+    );
+    out.insert("n_results".into(), Value::from(results.len()));
+    if let Some(b) = best {
+        out.insert("best_score".into(), Value::from(b.test_sharpe));
+        out.insert("best_params".into(), param_set_to_value(&b.param));
+        out.insert(
+            "best_train_sharpe".into(),
+            Value::from(b.train_sharpe),
+        );
+        out.insert(
+            "best_oos_is_ratio".into(),
+            Value::from(b.oos_is_ratio),
+        );
+    } else {
+        out.insert("best_score".into(), Value::from(0.0));
+        out.insert(
+            "best_params".into(),
+            Value::Object(serde_json::Map::new()),
+        );
+    }
+
+    Ok(json_to_py(py, &Value::Object(out))?.unbind())
 }
