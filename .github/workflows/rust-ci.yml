@@ -50,7 +50,9 @@ jobs:
 
       - name: cargo clippy
         working-directory: rust
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        # Use --no-deps to only lint our crates; -D warnings to fail on any warning
+        # in our own code (third-party deps may have warnings from upgrades)
+        run: cargo clippy --workspace --all-targets --no-deps -- -D warnings
 
       - name: cargo test
         working-directory: rust
@@ -85,6 +87,8 @@ jobs:
           source .venv/bin/activate
           pip install --upgrade pip
           pip install maturin pytest polars pyarrow
+          # pyo3 0.23 supports Python ≤3.13; explicit Python interpreter avoids 3.14 default on macos
+          echo "PYO3_PYTHON=$VIRTUAL_ENV/bin/python" >> $GITHUB_ENV
 
       - name: Build _core_compute
         run: |
