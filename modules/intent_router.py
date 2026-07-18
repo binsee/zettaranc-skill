@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from typing import Literal, Optional
 
 from .knowledge_retriever import KnowledgeRetriever, format_knowledge_cards
+from .constants import INTENT_DEFAULT_SCORE_THRESHOLD
 
 
 @dataclass
@@ -119,7 +120,7 @@ class IntentRouter:
             else:
                 score = 0
 
-            if score > 0.05:  # 阈值
+            if score > INTENT_DEFAULT_SCORE_THRESHOLD:  # 阈值
                 scored.append((score, intent, priority, matched_kw))
 
         if not scored:

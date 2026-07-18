@@ -9,14 +9,15 @@
 from __future__ import annotations
 
 from . import RawStrategySignal, ResonanceScore, SimulationConfig, SignalVerdict
+from ..constants import PARAM_STEP_COARSE
 
 
 # 类别组合共振奖励
 CATEGORY_RESONANCE_BONUS: dict[tuple[str, str], float] = {
     ("rebound", "breakout"): 0.15,
-    ("rebound", "pattern"): 0.10,
-    ("breakout", "stage"): 0.10,
-    ("rebound", "stage"): 0.10,
+    ("rebound", "pattern"): PARAM_STEP_COARSE,
+    ("breakout", "stage"): PARAM_STEP_COARSE,
+    ("rebound", "stage"): PARAM_STEP_COARSE,
 }
 
 

@@ -194,6 +194,7 @@ class IndevsClient:
         start_date: str | None = None,
         end_date: str | None = None,
     ) -> pd.DataFrame | None:
+        """获取个股日线行情（OHLCV + 涨跌幅）"""
         params: dict[str, Any] = {"ts_code": ts_code}
         if start_date:
             params["start_date"] = start_date
@@ -211,6 +212,7 @@ class IndevsClient:
         start_date: str | None = None,
         end_date: str | None = None,
     ) -> pd.DataFrame | None:
+        """获取指数日线行情"""
         params: dict[str, Any] = {"ts_code": ts_code}
         if start_date:
             params["start_date"] = start_date
@@ -223,6 +225,7 @@ class IndevsClient:
             return None
 
     def get_realtime_quote(self, ts_codes: list[str]) -> pd.DataFrame | None:
+        """获取实时行情快照（按 ts_code 过滤）"""
         # 复用 rt_k 全市场快照接口，按 ts_code 过滤
         try:
             payload = self.request(
@@ -238,6 +241,7 @@ class IndevsClient:
         return df[df["ts_code"].isin(ts_codes)].copy() if "ts_code" in df.columns else None
 
     def get_moneyflow(self, ts_code: str, trade_date: str) -> pd.DataFrame | None:
+        """获取个股资金流向"""
         try:
             return _dataframe_from_payload(
                 self.request("moneyflow", params={"ts_code": ts_code, "trade_date": trade_date})
@@ -252,6 +256,7 @@ class IndevsClient:
         start_date: str | None = None,
         end_date: str | None = None,
     ) -> pd.DataFrame | None:
+        """获取个股每日基础指标（换手率 / 估值）"""
         params: dict[str, Any] = {"ts_code": ts_code}
         if start_date:
             params["start_date"] = start_date
@@ -269,6 +274,7 @@ class IndevsClient:
         start_date: str | None = None,
         end_date: str | None = None,
     ) -> pd.DataFrame | None:
+        """获取个股技术因子"""
         params: dict[str, Any] = {"ts_code": ts_code}
         if start_date:
             params["start_date"] = start_date
@@ -285,6 +291,7 @@ class IndevsClient:
         ts_code: str | None = None,
         name: str | None = None,
     ) -> pd.DataFrame | None:
+        """获取股票基础信息"""
         params: dict[str, Any] = {"list_status": "L"}
         if ts_code:
             params["ts_code"] = ts_code
@@ -305,6 +312,7 @@ class IndevsClient:
         start_date: str = "",
         end_date: str = "",
     ) -> pd.DataFrame | None:
+        """获取交易日历"""
         params: dict[str, Any] = {"exchange": exchange}
         if start_date:
             params["start_date"] = start_date
@@ -317,6 +325,7 @@ class IndevsClient:
             return None
 
     def get_stock_list(self, exchange: str | None = None) -> list[dict]:
+        """获取股票列表"""
         df = self.get_stock_basic()
         if df is None or df.empty:
             return []
@@ -332,6 +341,7 @@ class IndevsClient:
         end_date: str | None = None,
     ) -> list[dict]:
         # 指数代码走 index_daily
+        """获取 K 线 dict 列表（含缓存与回退）"""
         if ts_code and ts_code.upper() in _INDEX_CODES:
             df = self.get_index_daily(ts_code, start_date, end_date)
         else:
@@ -353,6 +363,7 @@ class IndevsClient:
         return records
 
     def health_check(self) -> bool:
+        """检查 Indevs API 可达性"""
         try:
             payload = self.request("stock_basic", params={"ts_code": "000001.SZ"})
         except ZettarancError:

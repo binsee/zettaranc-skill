@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from ..core.metrics import TRADING_DAYS_PER_YEAR, compute_drawdown
+from ..constants import STATISTICS_SIGNIFICANCE_ALPHA
 
 
 @dataclass
@@ -82,7 +83,7 @@ def _calculate_sharpe(returns: list[float], rf: float = 0.0) -> float:
 def sharpe_t_test(
     returns: list[float],
     rf: float = 0.0,
-    alpha: float = 0.05,
+    alpha: float = STATISTICS_SIGNIFICANCE_ALPHA,
 ) -> SharpeTestResult:
     """
     夏普比率 t 检验
@@ -158,7 +159,7 @@ def _bootstrap_ci(
     returns: list[float],
     rf: float = 0.0,
     n_iterations: int = 1000,
-    alpha: float = 0.05,
+    alpha: float = STATISTICS_SIGNIFICANCE_ALPHA,
     seed: int | None = None,
 ) -> tuple[float, float, int]:
     """
@@ -249,7 +250,7 @@ def monte_carlo_permutation_test(
     returns: list[float],
     rf: float = 0.0,
     n_permutations: int = 1000,
-    alpha: float = 0.05,
+    alpha: float = STATISTICS_SIGNIFICANCE_ALPHA,
     seed: int | None = None,
 ) -> MonteCarloTestResult:
     """
@@ -400,6 +401,7 @@ def analyze_sub_periods(
 
     # 计算各子周期指标
     def calc_sub_stats(trade_list):
+        """子周期指标聚合：返回 (sharpe, 累计收益, 胜率) 三元组。"""
         if not trade_list:
             return 0.0, 0.0, 0.0
 

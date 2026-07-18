@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 from modules.indicators import DailyData
 
 from . import Position, SimulationConfig
+from ..constants import SIMULATOR_MAX_RISK_PER_TRADE_PCT
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -69,7 +70,7 @@ def calculate_position_size(
     if entry_price <= 0 or stop_loss <= 0 or entry_price <= stop_loss:
         return 0, 0.0
 
-    risk_pct = max(config.risk_per_trade_min, min(config.risk_per_trade, 0.10))
+    risk_pct = max(config.risk_per_trade_min, min(config.risk_per_trade, SIMULATOR_MAX_RISK_PER_TRADE_PCT))
     risk_amount = equity * risk_pct
 
     # 确定每股风险

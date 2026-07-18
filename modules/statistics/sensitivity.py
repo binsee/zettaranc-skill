@@ -18,6 +18,14 @@ from dataclasses import dataclass, field
 from typing import Any
 from collections.abc import Callable
 
+from ..constants import (
+    BACKTEST_DEFAULT_STOP_LOSS_PCT,
+    BACKTEST_HIGH_VOL_STOP_LOSS_PCT,
+    BACKTEST_LARGE_STOP_LOSS_PCT,
+    BACKTEST_MID_STOP_LOSS_PCT,
+    BACKTEST_TIGHT_STOP_LOSS_PCT,
+)
+
 
 @dataclass
 class SensitivityResult:
@@ -225,7 +233,7 @@ def analyze_all_parameters(
     # 定义要分析的参数
     params_to_analyze = [
         ("j_threshold", [5, 8, 10, 12, 15, 18, 20]),
-        ("stop_loss_pct", [-0.10, -0.08, -0.07, -0.05, -0.03]),
+        ("stop_loss_pct", [BACKTEST_LARGE_STOP_LOSS_PCT, BACKTEST_MID_STOP_LOSS_PCT, BACKTEST_HIGH_VOL_STOP_LOSS_PCT, BACKTEST_DEFAULT_STOP_LOSS_PCT, BACKTEST_TIGHT_STOP_LOSS_PCT]),
         ("bbi_break_days", [1, 2, 3, 4]),
         ("vol_shrink_threshold", [0.5, 0.6, 0.7, 0.8, 0.9, 1.0]),
     ]
@@ -233,6 +241,7 @@ def analyze_all_parameters(
     for param_name, scan_range in params_to_analyze:
 
         def evaluate_fn(param_value, _param_name=param_name):
+            """对单个参数值跑回测，返回综合得分（夏普比率）。闭包参数通过默认参数传递。"""
             # 创建新配置
             config_dict = {
                 "j_threshold": base_config.j_threshold,

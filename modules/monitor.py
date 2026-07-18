@@ -88,6 +88,7 @@ def run_watchlist_monitor(sync_days: int = 30, enable_push: bool = True) -> dict
 
 
 def main():
+    """CLI 入口：运行自选股主动预警服务。"""
     import argparse
 
     p = argparse.ArgumentParser(description="自选股主动预警服务")

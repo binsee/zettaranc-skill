@@ -11,6 +11,12 @@ from dataclasses import dataclass, field
 from typing import Any
 import itertools
 
+from ..constants import (
+    BACKTEST_DEFAULT_MAX_POSITION_PCT,
+    BACKTEST_HIGH_VOLUME_POSITION_PCT,
+    PARAM_STEP_COARSE,
+)
+
 
 @dataclass
 class ParamDimension:
@@ -73,5 +79,5 @@ DEFAULT_PARAM_SPACE: list[ParamDimension] = [
     ParamDimension("min_resonance_score", "float", 0.15, 0.55, 0.10),
     ParamDimension("risk_per_trade", "float", 0.01, 0.03, 0.01),
     ParamDimension("position_score_threshold", "float", 60.0, 80.0, 10.0),
-    ParamDimension("max_position_pct", "float", 0.10, 0.30, 0.10),
+    ParamDimension("max_position_pct", "float", BACKTEST_DEFAULT_MAX_POSITION_PCT, BACKTEST_HIGH_VOLUME_POSITION_PCT, PARAM_STEP_COARSE),
 ]

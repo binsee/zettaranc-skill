@@ -30,27 +30,49 @@ class DataSource(Protocol):
     """统一数据源协议，所有数据源实现必须满足此接口。"""
 
     @property
-    def name(self) -> str: ...
+    def name(self) -> str:
+        """数据源标识名（tushare / bridge / sqlite / indevs / composite 之一）"""
+        ...
 
-    def health_check(self) -> bool: ...
+    def health_check(self) -> bool:
+        """检查数据源连通性；返回 True 表示可用"""
+        ...
 
-    def get_daily(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None: ...
+    def get_daily(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取个股日线行情（OHLCV + 涨跌幅）"""
+        ...
 
-    def get_index_daily(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None: ...
+    def get_index_daily(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取指数日线行情"""
+        ...
 
-    def get_realtime_quote(self, ts_codes: list[str]) -> pd.DataFrame | None: ...
+    def get_realtime_quote(self, ts_codes: list[str]) -> pd.DataFrame | None:
+        """获取实时行情快照（多只股票批量查询）"""
+        ...
 
-    def get_moneyflow(self, ts_code: str, trade_date: str) -> pd.DataFrame | None: ...
+    def get_moneyflow(self, ts_code: str, trade_date: str) -> pd.DataFrame | None:
+        """获取个股资金流向（特大单 / 大单 / 中单 / 小单）"""
+        ...
 
-    def get_daily_basic(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None: ...
+    def get_daily_basic(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取个股每日基础指标（换手率 / PE / PB / 总市值等）"""
+        ...
 
-    def get_stk_factor(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None: ...
+    def get_stk_factor(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取个股技术因子（动量 / 量价等）"""
+        ...
 
-    def get_stock_basic(self, ts_code: str | None = None, name: str | None = None) -> pd.DataFrame | None: ...
+    def get_stock_basic(self, ts_code: str | None = None, name: str | None = None) -> pd.DataFrame | None:
+        """获取股票基础信息（行业 / 上市日期 / 股本等）"""
+        ...
 
-    def get_trade_cal(self, exchange: str, start_date: str, end_date: str) -> pd.DataFrame | None: ...
+    def get_trade_cal(self, exchange: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取交易日历（指定交易所）"""
+        ...
 
-    def get_stock_list(self, exchange: str | None = None) -> list[dict]: ...
+    def get_stock_list(self, exchange: str | None = None) -> list[dict]:
+        """获取股票列表（按交易所）"""
+        ...
 
     def get_kline_dicts(
         self,
@@ -58,7 +80,9 @@ class DataSource(Protocol):
         days: int = 60,
         start_date: str | None = None,
         end_date: str | None = None,
-    ) -> list[dict]: ...
+    ) -> list[dict]:
+        """获取 K 线 dict 列表（含缓存与回退）"""
+        ...
 
 
 class TushareDataSource:
@@ -69,26 +93,33 @@ class TushareDataSource:
 
     @property
     def name(self) -> str:
+        """数据源标识名（tushare / bridge / sqlite / indevs / composite 之一）"""
         return "tushare"
 
     def health_check(self) -> bool:
+        """检查数据源连通性；返回 True 表示可用"""
         return self._client.check_connection()
 
     def get_daily(
         self, ts_code: str, start_date: str | None = None, end_date: str | None = None
     ) -> pd.DataFrame | None:
+        """获取个股日线行情（OHLCV + 涨跌幅）"""
         return self._client.get_daily(ts_code, start_date, end_date)
 
     def get_index_daily(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取指数日线行情"""
         return self._client.get_index_daily(ts_code, start_date, end_date)
 
     def get_realtime_quote(self, ts_codes: list[str]) -> pd.DataFrame | None:
+        """获取实时行情快照（多只股票批量查询）"""
         return self._client.get_realtime_quote(ts_codes)
 
     def get_moneyflow(self, ts_code: str, trade_date: str) -> pd.DataFrame | None:
+        """获取个股资金流向（特大单 / 大单 / 中单 / 小单）"""
         return self._client.get_moneyflow(ts_code, trade_date)
 
     def get_daily_basic(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取个股每日基础指标（换手率 / PE / PB / 总市值等）"""
         if self._client._pro is None:
             return None
         try:
@@ -97,6 +128,7 @@ class TushareDataSource:
             return None
 
     def get_stk_factor(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取个股技术因子（动量 / 量价等）"""
         if self._client._pro is None:
             return None
         try:
@@ -105,12 +137,15 @@ class TushareDataSource:
             return None
 
     def get_stock_basic(self, ts_code: str | None = None, name: str | None = None) -> pd.DataFrame | None:
+        """获取股票基础信息（行业 / 上市日期 / 股本等）"""
         return self._client.get_stock_basic(ts_code, name)
 
     def get_trade_cal(self, exchange: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取交易日历（指定交易所）"""
         return self._client.get_trade_cal(exchange, start_date, end_date)
 
     def get_stock_list(self, exchange: str | None = None) -> list[dict]:
+        """获取股票列表（按交易所）"""
         df = self.get_stock_basic()
         if df is None or df.empty:
             return []
@@ -125,6 +160,7 @@ class TushareDataSource:
         start_date: str | None = None,
         end_date: str | None = None,
     ) -> list[dict]:
+        """获取 K 线 dict 列表（含缓存与回退）"""
         df = self.get_daily(ts_code, start_date, end_date)
         if df is None or df.empty:
             return []
@@ -143,38 +179,49 @@ class IndevsDataSource:
 
     @property
     def name(self) -> str:
+        """数据源标识名（tushare / bridge / sqlite / indevs / composite 之一）"""
         return "indevs"
 
     def health_check(self) -> bool:
+        """检查数据源连通性；返回 True 表示可用"""
         return self._client.health_check()
 
     def get_daily(
         self, ts_code: str, start_date: str | None = None, end_date: str | None = None
     ) -> pd.DataFrame | None:
+        """获取个股日线行情（OHLCV + 涨跌幅）"""
         return self._client.get_daily(ts_code, start_date, end_date)
 
     def get_index_daily(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取指数日线行情"""
         return self._client.get_index_daily(ts_code, start_date, end_date)
 
     def get_realtime_quote(self, ts_codes: list[str]) -> pd.DataFrame | None:
+        """获取实时行情快照（多只股票批量查询）"""
         return self._client.get_realtime_quote(ts_codes)
 
     def get_moneyflow(self, ts_code: str, trade_date: str) -> pd.DataFrame | None:
+        """获取个股资金流向（特大单 / 大单 / 中单 / 小单）"""
         return self._client.get_moneyflow(ts_code, trade_date)
 
     def get_daily_basic(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取个股每日基础指标（换手率 / PE / PB / 总市值等）"""
         return self._client.get_daily_basic(ts_code, start_date, end_date)
 
     def get_stk_factor(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取个股技术因子（动量 / 量价等）"""
         return self._client.get_stk_factor(ts_code, start_date, end_date)
 
     def get_stock_basic(self, ts_code: str | None = None, name: str | None = None) -> pd.DataFrame | None:
+        """获取股票基础信息（行业 / 上市日期 / 股本等）"""
         return self._client.get_stock_basic(ts_code, name)
 
     def get_trade_cal(self, exchange: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取交易日历（指定交易所）"""
         return self._client.get_trade_cal(exchange, start_date, end_date)
 
     def get_stock_list(self, exchange: str | None = None) -> list[dict]:
+        """获取股票列表（按交易所）"""
         return self._client.get_stock_list(exchange)
 
     def get_kline_dicts(
@@ -184,6 +231,7 @@ class IndevsDataSource:
         start_date: str | None = None,
         end_date: str | None = None,
     ) -> list[dict]:
+        """获取 K 线 dict 列表（含缓存与回退）"""
         return self._client.get_kline_dicts(ts_code, days, start_date, end_date)
 
 
@@ -199,36 +247,47 @@ class BridgeDataSource:
 
     @property
     def name(self) -> str:
+        """数据源标识名（tushare / bridge / sqlite / indevs / composite 之一）"""
         return "bridge"
 
     def health_check(self) -> bool:
+        """检查数据源连通性；返回 True 表示可用"""
         return is_bridge_available(self._config)
 
     def get_daily(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取个股日线行情（OHLCV + 涨跌幅）"""
         return None
 
     def get_index_daily(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取指数日线行情"""
         return None
 
     def get_realtime_quote(self, ts_codes: list[str]) -> pd.DataFrame | None:
+        """获取实时行情快照（多只股票批量查询）"""
         return None
 
     def get_moneyflow(self, ts_code: str, trade_date: str) -> pd.DataFrame | None:
+        """获取个股资金流向（特大单 / 大单 / 中单 / 小单）"""
         return None
 
     def get_daily_basic(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取个股每日基础指标（换手率 / PE / PB / 总市值等）"""
         return None
 
     def get_stk_factor(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取个股技术因子（动量 / 量价等）"""
         return None
 
     def get_stock_basic(self, ts_code: str | None = None, name: str | None = None) -> pd.DataFrame | None:
+        """获取股票基础信息（行业 / 上市日期 / 股本等）"""
         return None
 
     def get_trade_cal(self, exchange: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取交易日历（指定交易所）"""
         return None
 
     def get_stock_list(self, exchange: str | None = None) -> list[dict]:
+        """获取股票列表（按交易所）"""
         return get_all_stocks_bridge_first(exchange, config=self._config)
 
     def get_kline_dicts(
@@ -238,6 +297,7 @@ class BridgeDataSource:
         start_date: str | None = None,
         end_date: str | None = None,
     ) -> list[dict]:
+        """获取 K 线 dict 列表（含缓存与回退）"""
         return get_daily_klines(ts_code, days=days, start_date=start_date, end_date=end_date, config=self._config)
 
 
@@ -246,9 +306,11 @@ class SqliteDataSource:
 
     @property
     def name(self) -> str:
+        """数据源标识名（tushare / bridge / sqlite / indevs / composite 之一）"""
         return "sqlite"
 
     def health_check(self) -> bool:
+        """检查数据源连通性；返回 True 表示可用"""
         try:
             with get_connection() as conn:
                 conn.execute("SELECT 1")
@@ -257,30 +319,39 @@ class SqliteDataSource:
             return False
 
     def get_daily(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取个股日线行情（OHLCV + 涨跌幅）"""
         return None
 
     def get_index_daily(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取指数日线行情"""
         return None
 
     def get_realtime_quote(self, ts_codes: list[str]) -> pd.DataFrame | None:
+        """获取实时行情快照（多只股票批量查询）"""
         return None
 
     def get_moneyflow(self, ts_code: str, trade_date: str) -> pd.DataFrame | None:
+        """获取个股资金流向（特大单 / 大单 / 中单 / 小单）"""
         return None
 
     def get_daily_basic(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取个股每日基础指标（换手率 / PE / PB / 总市值等）"""
         return None
 
     def get_stk_factor(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取个股技术因子（动量 / 量价等）"""
         return None
 
     def get_stock_basic(self, ts_code: str | None = None, name: str | None = None) -> pd.DataFrame | None:
+        """获取股票基础信息（行业 / 上市日期 / 股本等）"""
         return None
 
     def get_trade_cal(self, exchange: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取交易日历（指定交易所）"""
         return None
 
     def get_stock_list(self, exchange: str | None = None) -> list[dict]:
+        """获取股票列表（按交易所）"""
         with get_connection() as conn:
             cursor = conn.cursor()
             sql = "SELECT ts_code, name, industry, market FROM stock_basic"
@@ -300,6 +371,7 @@ class SqliteDataSource:
         start_date: str | None = None,
         end_date: str | None = None,
     ) -> list[dict]:
+        """获取 K 线 dict 列表（含缓存与回退）"""
         with get_connection() as conn:
             # sqlite3.Row 构造开销大，批量逐股调用场景下用裸元组 + zip 转 dict 更快
             conn.row_factory = None
@@ -401,9 +473,11 @@ class CompositeDataSource:
 
     @property
     def name(self) -> str:
+        """数据源标识名（tushare / bridge / sqlite / indevs / composite 之一）"""
         return f"composite({self._preferred})"
 
     def health_check(self) -> bool:
+        """检查数据源连通性；返回 True 表示可用"""
         if self._preferred == "bridge":
             return self._bridge.health_check()
         if self._preferred == "sqlite":
@@ -415,6 +489,7 @@ class CompositeDataSource:
         return self._indevs_source.health_check() or self._bridge.health_check() or self._sqlite.health_check()
 
     def get_daily(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取个股日线行情（OHLCV + 涨跌幅）"""
         if self._preferred == "auto" and os.environ.get("INDEVS_API_KEY"):
             return self._indevs_source.get_daily(ts_code, start_date, end_date)
         if self._preferred in ("tushare", "indevs"):
@@ -422,6 +497,7 @@ class CompositeDataSource:
         return None
 
     def get_index_daily(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取指数日线行情"""
         if self._preferred == "auto" and os.environ.get("INDEVS_API_KEY"):
             return self._indevs_source.get_index_daily(ts_code, start_date, end_date)
         if self._preferred in ("tushare", "indevs"):
@@ -429,6 +505,7 @@ class CompositeDataSource:
         return None
 
     def get_realtime_quote(self, ts_codes: list[str]) -> pd.DataFrame | None:
+        """获取实时行情快照（多只股票批量查询）"""
         if self._preferred == "auto" and os.environ.get("INDEVS_API_KEY"):
             return self._indevs_source.get_realtime_quote(ts_codes)
         if self._preferred in ("tushare", "indevs"):
@@ -436,6 +513,7 @@ class CompositeDataSource:
         return None
 
     def get_moneyflow(self, ts_code: str, trade_date: str) -> pd.DataFrame | None:
+        """获取个股资金流向（特大单 / 大单 / 中单 / 小单）"""
         if self._preferred == "auto" and os.environ.get("INDEVS_API_KEY"):
             return self._indevs_source.get_moneyflow(ts_code, trade_date)
         if self._preferred in ("tushare", "indevs"):
@@ -443,6 +521,7 @@ class CompositeDataSource:
         return None
 
     def get_daily_basic(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取个股每日基础指标（换手率 / PE / PB / 总市值等）"""
         if self._preferred == "auto" and os.environ.get("INDEVS_API_KEY"):
             return self._indevs_source.get_daily_basic(ts_code, start_date, end_date)
         if self._preferred in ("tushare", "indevs"):
@@ -450,6 +529,7 @@ class CompositeDataSource:
         return None
 
     def get_stk_factor(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取个股技术因子（动量 / 量价等）"""
         if self._preferred == "auto" and os.environ.get("INDEVS_API_KEY"):
             return self._indevs_source.get_stk_factor(ts_code, start_date, end_date)
         if self._preferred in ("tushare", "indevs"):
@@ -457,6 +537,7 @@ class CompositeDataSource:
         return None
 
     def get_stock_basic(self, ts_code: str | None = None, name: str | None = None) -> pd.DataFrame | None:
+        """获取股票基础信息（行业 / 上市日期 / 股本等）"""
         if self._preferred == "auto" and os.environ.get("INDEVS_API_KEY"):
             return self._indevs_source.get_stock_basic(ts_code, name)
         if self._preferred in ("tushare", "indevs"):
@@ -464,6 +545,7 @@ class CompositeDataSource:
         return None
 
     def get_trade_cal(self, exchange: str, start_date: str, end_date: str) -> pd.DataFrame | None:
+        """获取交易日历（指定交易所）"""
         if self._preferred == "auto" and os.environ.get("INDEVS_API_KEY"):
             return self._indevs_source.get_trade_cal(exchange, start_date, end_date)
         if self._preferred in ("tushare", "indevs"):
@@ -471,6 +553,7 @@ class CompositeDataSource:
         return None
 
     def get_stock_list(self, exchange: str | None = None) -> list[dict]:
+        """获取股票列表（按交易所）"""
         sources: list[DataSource] = []
         if self._preferred == "auto":
             sources = [self._indevs_source, self._bridge, self._sqlite]

@@ -132,6 +132,7 @@ def chat_interactive(router: IntentRouter, llm):
 
 
 def main():
+    """CLI 入口：意图识别对话 demo。"""
     router = IntentRouter()
     llm = get_llm()
 

@@ -29,6 +29,7 @@ class BridgeConfig:
 
     @property
     def base_url(self) -> str:
+        """HTTP 基础 URL（http://host:port），用于构造具体请求路径。"""
         return f"http://{self.host}:{self.port}"
 
 
