@@ -193,22 +193,22 @@
 
 | # | ID | 项目 | 量化 | 估算 |
 |---|---|---|---|---|
-| M1 | error-code | **统一错误码扩张** | 7 模块已试点（v3.10.4：`tushare/datasource/cli/data_sync/position_manager/self_optimizer/verify`），剩 ~15 模块 | 1-2 天 |
-| M2 | none-silent | **`return None` 收敛** | 193 处，集中在 `indevs_client` (84-201) / `tushare_client` / `datasource` / `strategies/sell_signals` / `loop_engine` | 1-2 天 |
-| M3 | pyo3-upgrade | **PyO3 0.22 → 0.23** | 解锁 Python 3.14 + 减少 silent import 风险 | 1 天 |
-| M4 | except-narrow | **`except Exception` 不带 raise 收敛** | 121 处 | 1 天 |
-| M5 | type-annot | **mypy 启用 + 函数返回注解补缺** | 当前 528/563 (93%) 已有 → 全量 + mypy strict | 2-3 天 |
+| M1 | error-code | ~~**统一错误码扩张**~~ ✅ | ✅ v4.0.2（11 个）+ v4.0.3（33 个）共 44 个 ErrorCode 覆盖 35 模块 | — |
+| M2 | none-silent | ~~**`return None` 收敛**~~ ✅ | ✅ v4.0.2（24 处 raise 化 + 9 处 Optional） | — |
+| M3 | pyo3-upgrade | ~~**PyO3 0.22 → 0.23**~~ ✅ | ✅ v4.0.3（workspace 0.21→0.23 + bindings 0.22→0.23，解锁 Python 3.14） | — |
+| M4 | except-narrow | ~~**`except Exception` 不带 raise 收敛**~~ ✅ | ✅ v4.0.2（5 hot file 33+ 处）+ v4.0.3（34 模块 93 处全部收窄为 0） | — |
+| M5 | type-annot | ~~**mypy 启用 + 函数返回注解补缺**~~ ✅ | ✅ v4.0.3（89.1% → 100%，603/603 public/dunder 函数；mypy strict=false 起步） | — |
 
 ### 🟢 低优先级（结构性 / 改进型）
 
 | # | ID | 项目 | 备注 |
 |---|---|---|---|
-| L1 | cdylib-test | Cargo `[[test]]` 不能链 cdylib | 需 maturin-driven 集成测试；现用 byte-equal golden test workaround |
-| L2 | py-upgrade | Python 3.10 → 3.12 | classifier 已声明 |
-| L3 | pandas-upgrade | pandas 版本升级 | DataFrame 行为兼容风险 |
-| L4 | ci-deploy | CI/CD 自动化部署 | 现仅 Lint+test |
-| L5 | doc-coverage | Docstring 覆盖率 80% → 90% | 缺 109/563 public 函数 |
-| L6 | magic-lit | 重复 magic literal（0.05/0.10/0.20 等）107 处 | 提取到 `modules/constants.py` |
+| L1 | cdylib-test | ~~Cargo `[[test]]` 不能链 cdylib~~ ✅ | ✅ v4.0.3（`crate-type=[cdylib,rlib]` + `core.rs` 拆分纯 Rust，cargo test -p zt_bindings --no-default-features 跑 11 测试） |
+| L2 | py-upgrade | ~~Python 3.10 → 3.12~~ ✅ | ✅ v4.0.3（requires-python + classifier + CI 矩阵全部升级） |
+| L3 | pandas-upgrade | ~~pandas 版本升级~~ ✅ | ✅ v4.0.3（>=2.0.0 → >=3.0,<4；0 源文件改动） |
+| L4 | ci-deploy | ~~CI/CD 自动化部署~~ ✅ | ✅ v4.0.3（`.github/workflows/release.yml` 4 job：test/pypi/github-release/clawhub） |
+| L5 | doc-coverage | ~~Docstring 覆盖率 80% → 90%~~ ✅ | ✅ v4.0.2（80.6% → 100%，109 docstring） |
+| L6 | magic-lit | ~~重复 magic literal（0.05/0.10/0.20 等）107 处~~ ✅ | ✅ v4.0.2（28 命名常量 + 55 替换） |
 
 ### 🌐 跨平台 / 兼容性
 
@@ -229,10 +229,19 @@
 | ~~H1~~ | CLI 接 Rust | ✅ v4.0.2（`modules/backtest/_rust_bridge.py` + `compute_func` helper，16 个新测试） |
 | ~~H2~~ | Rust dead-code 清理 | ✅ v4.0.2（`zt_backtest_engine` 8 warnings → 0） |
 | ~~H3~~ | 静默 except 收敛 | ✅ v4.0.2（5 hot files 33+ 处 except narrow + 25 个新测试） |
-| ~~M1~~ | 错误码扩张 | ✅ v4.0.2（5 模块：indevs / llm / screener / simulator / backtest，加 11 个 ErrorCode） |
+| ~~M1~~ | 错误码扩张 | ✅ v4.0.2（5 模块 + 11 个 ErrorCode）+ ✅ v4.0.3（34 模块 + 33 个 ErrorCode，**共 44 个**） |
 | ~~M2~~ | return None 收敛 | ✅ v4.0.2（24 处 raise 化 + 9 处 Optional 保留"已审视"） |
+| ~~M3~~ | PyO3 0.22 → 0.23 | ✅ v4.0.3（workspace 0.21→0.23 + bindings 0.22→0.23，解锁 Python 3.14） |
+| ~~M4~~ | `except Exception` 收敛 | ✅ v4.0.2（5 hot file 33+ 处）+ ✅ v4.0.3（34 模块 93 处全部收窄，**0 静默 except 保留**） |
+| ~~M5~~ | mypy + 返回注解 | ✅ v4.0.3（89.1% → 100%，603/603 public/dunder 函数；mypy strict=false 起步，21 error 不阻塞） |
+| ~~L1~~ | cdylib test | ✅ v4.0.3（`crate-type=[cdylib,rlib]` + `core.rs` 拆分纯 Rust，cargo test 11/11） |
+| ~~L2~~ | Python 3.10 → 3.12 | ✅ v4.0.3（requires-python + classifier + CI 矩阵） |
+| ~~L3~~ | pandas 2.x → 3.x | ✅ v4.0.3（0 源文件改动，纯 spec 锁齐） |
+| ~~L4~~ | CI/CD 自动部署 | ✅ v4.0.3（`.github/workflows/release.yml` 4 job：test/pypi/github-release/clawhub） |
 | ~~L5~~ | docstring 覆盖率 | ✅ v4.0.2（80.6% → **100%**，109 个新 docstring，跨 17 文件） |
 | ~~L6~~ | magic literal 提取 | ✅ v4.0.2（`modules/constants.py` 28 个命名常量，55 处替换；剩余 53 处为战法语义/形态评分/数学常数，已逐一审视） |
+| ~~Bug#51~~ | force-close partial no-op | ✅ v4.0.3（portfolio.rs `final_value` 从 `trades.pnl` 推导 + single.rs cash 写入 load-bearing + 4 个回归测试） |
+| ~~Bug#52~~ | test_cli_uses_rust fixture isolation | ✅ v4.0.3（autouse `_isolate_rust_test_state` 完整 snapshot/restore，**5 个集测 fail → 0**） |
 
 ---
 

@@ -2,7 +2,69 @@
 
 所有值得记录的变更都会写在这里。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)。
 
-## v4.0.3 (TBD) — 收尾技术债
+## v4.0.3 (2026-07-18) — 收尾技术债（PATCH）
+
+> **「v4.0.3：剩余 7 项技术债 + 2 项 bug 一次性清偿」**
+>
+> 累计清偿：H1-H3 + M1-M5 + L1-L6（共 14 项）+ Bug 修复 2 项。ROADMAP 技术债段从 ⏳ 全部翻为 ✅。
+
+### 新增
+
+- **L1**：`rust/crates/bindings/` 拆分为纯 Rust `core.rs` + PyO3 wrapper
+  - `crate-type = ["cdylib", "rlib"]` 双输出
+  - pyo3 改为 optional feature（`--no-default-features` 可纯 Rust 编译）
+  - `cargo test -p zt_bindings --no-default-features` 跑 11 个核心算法单元测试
+- **L4**：`.github/workflows/release.yml`（4 个 job：test / pypi-publish / github-release / clawhub-publish）
+- **M1 + M4**：35 个新 `ErrorCode`（v4.0.2 已加 11 个 + 本次 M4 加 33 个，详见下文）
+- **M5**：`pyproject.toml` 的 `[tool.mypy]` 配置（`strict = false` 起步）
+- **Bug #51 回归测试**：`rust/crates/backtest_engine/tests/test_force_close.rs`（4 个）
+- **Bug #52 回归测试**：`tests/test_cli_uses_rust.py`（3 个 fixture-isolation）
+- **M4 回归测试**：16 个 `tests/test_m4_*.py`（47 个测试用例）
+
+### 变更
+
+- **L2**：`requires-python = ">=3.10"` → `">=3.12"`；classifiers 去掉 3.10/3.11，加 3.12/3.13；CI 矩阵 `python-version: [3.12, 3.13]`；`rust/Cargo.toml` `abi3-py310` → `abi3-py312`
+- **L3**：`pandas>=2.0.0` → `>=3.0,<4`（已装 3.x，spec 锁齐；0 源文件改动）
+- **L5**：合并自 v4.0.2 —— 100% docstring 覆盖（109/571 public 函数）
+- **L6**：合并自 v4.0.2 —— `modules/constants.py` 28 命名常量，55 处替换
+- **M3**：`rust/Cargo.toml` workspace `pyo3` 0.21 → 0.23；`rust/crates/bindings/Cargo.toml` `pyo3` 0.22 → 0.23
+  - 解锁 Python 3.14 编译支持
+  - 8 处 PyO3 0.23 deprecation warning（`ToPyObject::to_object` → `IntoPyObject` 等）留待后续 PR
+- **M4**：34 个模块 / **93 处 `except Exception` 全部收窄为具体异常类型** + log + 必要时 raise `ZettarancError`（详见下文）
+- **M5**：补齐 66 处缺失的函数返回类型注解（基线 537/603 = 89.1% → 603/603 = 100%）
+
+### Bug 修复
+
+- **Bug #51**（Rust）：`rust/crates/backtest_engine/src/{single,portfolio}.rs` 的 force-close 分支 `final_value` 不反映 `trades.pnl`
+  - 根因：portfolio 多股聚合时 `net_values` 是逐日**平均**，`trades.pnl` 是未平均的全量列表，导致 `sum(trades.pnl) ≠ final_value - initial`
+  - 修复：`final_value` 改为 `initial + Σ(trades.pnl)`，单股场景 `cash += price * position` 改为 load-bearing
+- **Bug #52**（测试）：`tests/test_cli_uses_rust.py` 的 `no_rust_module` fixture 隔离失败（5 个测试在集测时 fail）
+  - 根因：`modules.__dict__['backtest_six_step']` 被 `auto-bind` 污染，autouse fixture 只恢复 `sys.modules` 未恢复 `modules.__dict__`
+  - 修复：autouse fixture `_isolate_rust_test_state` 完整 snapshot/restore（sys.modules + modules.__dict__ + _rust_compat cache）
+
+### M4 新增 33 个 ErrorCode
+
+`COMMENTARY_FAILED`, `TRADE_REVIEW_FAILED`, `CONFIG_PARSE_FAILED`, `CLI_COMMAND_FAILED`, `INTENT_CHAT_FAILED`, `NOTIFIER_FAILED`, `MONITOR_FAILED`, `PORTFOLIO_DIAGNOSIS_FAILED`, `SETUP_WIZARD_FAILED`, `HARNESS_UPDATE_FAILED`, `WATCHLIST_FAILED`, `CLI_TOPLEVEL_FAILED`, `INDEVS_REQUEST_FAILED`, `KNOWLEDGE_RETRIEVER_FAILED`, `BRIDGE_CLIENT_FAILED`, `IMPROVEMENT_LOGGER_FAILED`, `BACKTEST_SIX_STEP_FAILED`, `TRADE_PARSER_FAILED`, `SCREENER_CRITERIA_FAILED`, `SCREENER_SCORING_FAILED`, `SCREENER_ENGINE_FAILED`, `KIRIN_DETECTOR_FAILED`, `DATA_LAYER_FAILED`, `VERIFY_PIPELINE_FAILED`, `VERIFY_PORTFOLIO_WF_FAILED`, `VERIFY_POOL_FAILED`, `VERIFY_SCORER_FAILED`, `VERIFY_WALK_FORWARD_FAILED`, `SELL_SIGNALS_FAILED`, `BACKTEST_SCORER_FAILED`, `PARAM_REGISTRY_FAILED`, `REFLEX_BLACKLIST_FAILED`, `MARKET_CONTEXT_FAILED`, `SIGNAL_FILTER_FAILED`, `SIMULATOR_RUN_FAILED`
+
+### 已知 Follow-ups
+
+- 8 条 PyO3 0.23 deprecation warning（`ToPyObject::to_object` 等）— 后续 PR 升级到 `IntoPyObject`
+- 21 条 mypy error（`[unused-ignore]`、`[arg-type]`、`[attr-defined]` 等）— 与本次返回注解无关，分布在 verify/ + backtest/ + simulator/ + screener/ 等
+- `tests/test_bridge_client.py::test_auto_unavailable` / `test_failure_returns_empty` 2 个测试用裸 `Exception` mock，与收窄后的 except 不兼容 — 需后续调整 mock 类型
+- 5 条 `tests/test_tushare_client.py` + `tests/test_notifier.py` mock 类型已从 `Exception` 改为 `ConnectionError` / `FileNotFoundError`（M4 收窄连带修复）
+
+### 测试结果
+
+- `cargo test --workspace --exclude zt_bindings`：**62/62 passed**
+- `cargo test -p zt_bindings --no-default-features`：**11/11 passed**
+- `pytest tests/ --ignore=tests/test_rust_compat.py`：**1318 passed**, 15 skipped
+- `pytest tests/test_rust_compat.py tests/test_cli_uses_rust.py`：**24/24 passed**
+- 类型注解覆盖率：**89.1% → 100%**（603/603 public/dunder 函数）
+- `except Exception` 收窄：**93 → 0**（外加 v4.0.2 已处理的 5 hot file）
+
+---
+
+## v4.0.3-dev（归档）
 
 ### M5: mypy 启用 + 返回类型注解补齐
 
