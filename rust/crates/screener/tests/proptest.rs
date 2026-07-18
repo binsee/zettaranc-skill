@@ -9,7 +9,7 @@
 
 use polars::prelude::*;
 use proptest::prelude::*;
-use zt_core_types::{CoreError, KLine, KLineSeries};
+use zt_core_types::CoreError;
 use zt_screener::{screen_stocks, Criterion};
 
 /// 自定义 Strategy：随机 polars DataFrame（带 ts_code / close / sma20 / volume）。
