@@ -19,7 +19,7 @@ from typing import Any, Optional
 from ..indicators import DailyData, get_kline_data
 from ..loop_engine import LoopConfig, LoopTrade, ShaofuLoopEngine, _calc_stop_loss_price
 from ..backtest_six_step import ShaofuBacktestResult, _calc_metrics
-from ..strategies.b1_b2_confirm import B1B2Config, is_b2_signal, is_high_open_skip
+from ..strategies.b1_b2 import B1B2Config, is_b2_signal, is_high_open_skip
 
 logger = logging.getLogger(__name__)
 

@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 
 from modules.indicators import DailyData
-from modules.strategies.b1_b2_confirm import B1B2Config, has_b1_in_window, is_b2_signal, is_high_open_skip
+from modules.strategies.b1_b2 import B1B2Config, has_b1_in_window, is_b2_signal, is_high_open_skip
 from modules.backtest.b1_b2_backtest import _run_stock_klines, _default_loop_config
 from modules.active_market_value import GateAction
 

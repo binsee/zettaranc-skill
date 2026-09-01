@@ -36,15 +36,15 @@ def test_old_detect_b2_still_importable_with_deprecation():
     assert callable(detect_b2)
     doc = (detect_b2.__doc__ or "").lower()
     assert "deprecat" in doc, (
-        "旧 detect_b2 docstring 必须含 deprecation 警告,提示用户用新 b1_b2_confirm"
+        "旧 detect_b2 docstring 必须含 deprecation 警告,提示用户用新 b1_b2"
     )
-    assert "b1_b2_confirm" in doc, "deprecation 必须指向新模块 b1_b2_confirm"
+    assert "b1_b2" in doc, "deprecation 必须指向新模块 b1_b2"
 
 
 def test_old_and_new_b2_have_different_signatures():
     """旧 B2 返回 StrategySignal,新 B2 返回 bool;签名不应雷同。"""
     from modules.strategies.base_strategies import detect_b2
-    from modules.strategies.b1_b2_confirm import is_b2_signal
+    from modules.strategies.b1_b2 import is_b2_signal
 
     # 旧 B2:必须传 kirin_context,返回 StrategySignal | None
     old_sig = inspect.signature(detect_b2)
@@ -63,7 +63,7 @@ def test_old_and_new_b2_have_different_signatures():
 def test_old_and_new_b2_disagree_on_same_input():
     """同一组 K 线,两个函数对 B2 的判定可以不同(行为不变量:不冒充对方)。"""
     from modules.strategies.base_strategies import detect_b2
-    from modules.strategies.b1_b2_confirm import is_b2_signal, B1B2Config
+    from modules.strategies.b1_b2 import is_b2_signal, B1B2Config
 
     # 构造 40 天 K 线:第 15 天有 B1(J 拐头),第 20 天放量涨 4.5%
     klines = []
