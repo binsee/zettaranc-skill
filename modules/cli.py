@@ -586,7 +586,7 @@ def add_self_optimize_parser(subparsers) -> None:
     """注册 self-optimize 子命令."""
     p = subparsers.add_parser("self-optimize", help="darwin self-optimizer")
     p.add_argument("action", choices=["run", "status", "reset"])
-    p.add_argument("--target", choices=["trading", "skill"], default="trading")
+    p.add_argument("--target", choices=["trading"], default="trading")
     p.add_argument("--rounds", type=int, default=3)
     p.set_defaults(func=cmd_self_optimize)
 
