@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """
+模块说明：意图路由（v4.3+ 实验性模块，未在 SKILL.md 主路由表暴露）。
+当前仅供内部 intent_chat 测试使用，CLI 与 LLM 主对话尚未消费。
+保留以便后续 LLM 意图化升级可逆性；如确认废弃请移至 modules/_experimental/。
 意图识别与路由分发模块
 
 规则匹配优先（< 1ms，零 token 消耗），LLM 轻量分类兜底。

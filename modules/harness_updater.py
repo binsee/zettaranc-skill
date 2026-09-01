@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """
+模块说明：Harness Guardrails 自动更新（v4.3+ 状态：仍在主流程使用，与 improvement_logger 配套）。
+关联模块：modules/improvement_logger.py、modules/review_generator.py。
 Harness 层集成模块
 
 根据复盘结果自动更新 Guardrails

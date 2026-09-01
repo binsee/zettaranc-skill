@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """
+模块说明：自我改进系统 - 日志记录（v4.3+ 状态：核心追踪表依赖，与 review_generator / harness_updater 配套）。
+关联模块：modules/review_generator.py、modules/harness_updater.py。
 自我改进系统 - 日志记录模块
 
 记录所有自我改进的操作和结果
