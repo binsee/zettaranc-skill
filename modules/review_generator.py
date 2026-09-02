@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
-模块说明：自我改进系统 - 复盘报告生成（v4.3+ 状态：仍在主流程使用，与 improvement_logger / harness_updater 配套）。
-关联模块：modules/improvement_logger.py、modules/harness_updater.py、modules/self_optimizer/。
-自我改进系统 - 复盘报告生成模块
+模块说明：自我改进系统 - 复盘报告生成（v4.3+ 状态：当前已无 production caller）。
+仅测试（tests/test_tracking_system.py / test_silent_except.py）引用；production 主流程由 phase3_report.py 直接写 TSV，不再走 ReviewGenerator。
 
 生成月度复盘报告，分析信号准确率、收益统计、策略表现
 """

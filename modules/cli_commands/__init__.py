@@ -69,4 +69,5 @@ __all__ = [
     "_shaofu_portfolio_to_dict",
     "_b1_b2_pool_to_dict",
     "STRATEGY_ALIAS",
+    "STRATEGY_CHOICES",
 ]

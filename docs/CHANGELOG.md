@@ -289,8 +289,8 @@ DATA_PREFERRED=tushare zt analyze 600519.SH        # 切回 tushare
 - `scripts/snapshot_python_tests.sh` — 测试基线快照
 - `rust/crates/bindings/tests/atr_golden.rs` — Rust 端 byte-equal 比对测试
 - `.github/workflows/rust-ci.yml` — cargo fmt/clippy/test + maturin CI（macOS + Linux）
-- `docs/superpowers/specs/2026-07-18-rust-refactor-design.md` — 设计 spec
-- `docs/superpowers/plans/2026-07-18-rust-refactor.md` — 实施计划
+- `docs/_archive/superpowers-2026q2q3/specs/2026-07-18-rust-refactor-design.md` — 设计 spec
+- `docs/_archive/superpowers-2026q2q3/plans/2026-07-18-rust-refactor.md` — 实施计划
 
 ### 环境依赖
 
@@ -309,7 +309,7 @@ DATA_PREFERRED=tushare zt analyze 600519.SH        # 切回 tushare
 
 - macOS 15+ 链接器 Mach-O LINKEDIT 对齐错：见 **v4.0.1** 已解决（lld 22 + `-no-deduplicate-symbol-strings` + post-build `fix_linkedit_alignment.py` 修补）
 
-详见 `docs/superpowers/specs/2026-07-18-rust-refactor-design.md`
+详见 `docs/_archive/superpowers-2026q2q3/specs/2026-07-18-rust-refactor-design.md`
 
 ## v4.0.1 (2026-07-18) — PyO3 运行时打通
 
@@ -363,7 +363,7 @@ DATA_PREFERRED=tushare zt analyze 600519.SH        # 切回 tushare
 - `rust/scripts/build-linux.sh`（Linux fallback）
 - `rust/crates/{indicators,backtest_engine,grid_search,screener}/tests/proptest.rs`
 - `rust/crates/bindings/src/backtest_bindings.rs`（3 个 binding 实现）
-- `docs/superpowers/specs/2026-07-18-env-blocker-recovery.md`
+- `docs/_archive/superpowers-2026q2q3/specs/2026-07-18-env-blocker-recovery.md`
 
 ### Merge 记录
 
@@ -1295,7 +1295,7 @@ LoopConfig(
 
 ### 详细变更
 
-详见 [CHANGELOG-v3.0.md](CHANGELOG-v3.0.md)
+详见 (v3 历史已合并到顶部 v3.x 段)
 
 ---
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-模块说明：活跃市值（0AMV）闸门（Backtest/Simulator 共用）。
-CLI 入口：`zt sync 0amv --csv <path> --duckdb <path>` 导入；下游 `apply_active_mv_gate`。
+模块说明：活跃市值（0AMV）闸门（Backtest 专用；Simulator 不消费）。
+CLI 入口：`zt sync 0amv --csv <path> --duckdb <path>` 导入；下游 `apply_active_mv_gate` 由 b1_b2 / portfolio 调用。
 
 活跃市值（0AMV）数据加载与择时信号模块。
 
