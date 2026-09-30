@@ -372,6 +372,9 @@ def eastmoney_fund_flow_minute(code: str) -> list[dict]:
     }
     try:
         r = _em_get(url, params=params, headers=headers, timeout=10)
+        if r is None:
+            logger.warning("[a-stock-data] push2 资金流请求失败: 连接异常，已返回 None")
+            return []
         d = r.json()
     except Exception as e:
         logger.warning("[a-stock-data] push2 资金流请求失败: %s", e)
@@ -411,6 +414,9 @@ def stock_fund_flow_120d(code: str) -> list[dict]:
     }
     try:
         r = _em_get(url, params=params, headers=headers, timeout=10)
+        if r is None:
+            logger.warning("[a-stock-data] push2his 资金流请求失败: 连接异常，已返回 None")
+            return []
         d = r.json()
     except Exception as e:
         logger.warning("[a-stock-data] push2his 资金流请求失败: %s", e)

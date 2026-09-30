@@ -176,7 +176,7 @@ def clear_cache() -> None:
 
 
 def _load_index_and_rows(
-    path: Optional[str], duckdb_path: Optional[str]
+    path: str | None, duckdb_path: str | None
 ) -> tuple[list[ActiveMarketValuePoint], dict[str, ActiveMarketValuePoint]]:
     """返回 (rows, date→point 索引)。O(1) 查找用索引，需要 idx 算 cum 用 rows。
 
@@ -350,8 +350,8 @@ def apply_active_mv_gate(
     date: str,
     *,
     enabled: bool = True,
-    duckdb_path: Optional[str] = None,
-    path: Optional[str] = None,
+    duckdb_path: str | None = None,
+    path: str | None = None,
 ) -> GateAction:
     """活跃市值全局闸门统一入口（v4.3+ 替代各 engine 自己的 _gate 实现）。
 
