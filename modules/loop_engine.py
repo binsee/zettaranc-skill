@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from .indicators import (
     DailyData,
@@ -757,7 +757,9 @@ class ShaofuLoopEngine:
         day2 = klines[-2]
         day3 = klines[-1]
         kdj = calculate_kdj(klines[:-2])
-        j_val = kdj[2] if isinstance(kdj, tuple) else kdj.j
+        # calculate_kdj 恒返回 tuple[float, float, float]；else 分支为历史遗留的
+        # 对象兼容路径，用 cast 显式收窄以通过严格 mypy。
+        j_val = kdj[2] if isinstance(kdj, tuple) else cast(Any, kdj).j
         if j_val >= -13:
             return None
         if day2_prev.close <= 0:
@@ -789,7 +791,8 @@ class ShaofuLoopEngine:
         if len(klines) < 10:
             return None
         kdj = calculate_kdj(klines)
-        j_val = kdj[2] if isinstance(kdj, tuple) else kdj.j
+        # 同上：calculate_kdj 恒返回 tuple，else 分支为历史遗留兼容路径
+        j_val = kdj[2] if isinstance(kdj, tuple) else cast(Any, kdj).j
         if j_val >= 0:
             return None
         has_volume_up = False
@@ -816,7 +819,8 @@ class ShaofuLoopEngine:
         if len(klines) < 5:
             return None
         kdj = calculate_kdj(klines)
-        j_val = kdj[2] if isinstance(kdj, tuple) else kdj.j
+        # 同上：calculate_kdj 恒返回 tuple，else 分支为历史遗留兼容路径
+        j_val = kdj[2] if isinstance(kdj, tuple) else cast(Any, kdj).j
         if j_val >= 55:
             return None
         day1, day2, day3, day4 = klines[-5], klines[-4], klines[-3], klines[-2]
