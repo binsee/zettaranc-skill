@@ -2,6 +2,37 @@
 
 所有值得记录的变更都会写在这里。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)。
 
+## v4.3.1 (2026-09-30) — 仓库瘦身 + 文档准确性 + CI 全绿
+
+### 修复（真实 bug）
+
+- `market_timing.py` 漏导入 `MarketTimingWeights`。因 `from __future__ import annotations` 注解惰性求值，运行时 import 不报错、测试全绿，但 `typing.get_type_hints()` 会抛 `NameError`。
+- `a_stock_data_client.py` 两处空指针（`eastmoney_fund_flow_minute` / `stock_fund_flow_120d`）：`_em_get()` 返回 `Response | None` 但直接调 `.json()`，网络异常时 `AttributeError` 而非按约定降级。已补 `None` 判断。
+- `hithink_client.py` `os.environ.get()` 返回 `str | None` 赋给声明为 `str` 的 `_api_key`，补 `or ""` 兜底。
+
+### 文档
+
+- `README.md` 1476 行 → 253 行，重写为面向使用人的门面。删除 v3.x 版本流水账、架构说明、项目结构树与 4 处重复安装流程；保留少妇战法核心并补小样本风险提示。
+- 修正 9 处失效引用：`CLAUDE.md` / `GEMINI.md`（不存在且被 gitignore 排除）、`modules/data_sync.py` / `modules/screener.py`（已删 shim）、`modules/cli_commands.py`（已拆为 9 模块包）、`modules/loop_engine_enhanced.py` 等（已合并至 `zt backtest b2-confirm`）。
+- 版本号此前 6 处中 3 处停在 v4.2.0，且 `AGENTS.md` 断言「四处一致」本身是错的——本次全部对齐。
+- 补上此前完全无文档的 `zt market timing`（v4.3.0 主推功能）。
+- `CONFIG_GUIDE.md` 补数据源优先级表（hithink 为 v4.2.0 起最优先，此前完全缺失）与回测实现切换说明。
+- `docs/` 顶层 12 份 → 8 份活文档，`ROADMAP.md` / `TODO.md` / `intent-router-design.md` 移入 `_archive/`。
+- `USER_GUIDE.md` 修正乱序章节号 3.1→3.4→3.2→3.3。
+- `frontend/README.md` 删除 Vite 脚手架模板原文，改为本项目实际信息。
+
+### 仓库卫生
+
+- `.gitignore` 补 5 条规则（`.firecrawl/`、`.venv3*/` 合并、`logs/`、`/reports/`、`.vite/`），并修正行尾注释导致规则整体失效的问题。
+- 移出 19 个历史垃圾文件（`reports/` 15 个 7 月报告、`.vite/` 2 个构建缓存、`data/` 2 个残留）。根目录已跟踪文件 34 → 13 项。
+
+### CI
+
+- `Test` workflow 自 2026-08-06 起连续失败 8 次，本次全绿（7/7 job）：
+  - `ruff format` 18 个文件（纯排版，AST 验证 18/18 语义一致）
+  - `ruff check` 14 → 0；`mypy` 严格模式 36 → 0（`cast` 收窄 `itertuples` 联合类型 + `calculate_kdj` 恒返回 tuple 的历史死分支）
+- `release.yml` 门控禁用 PyPI 发布（`vars.PUBLISH_TO_PYPI`），等待 PyPI Trusted Publisher 配置；wheel 构建与 GitHub Release 不受影响。
+
 ## v4.3.0 (2026-08-29) — 量化稳定性与效率提升 + 市场择时/指数同步
 
 ### 新增
