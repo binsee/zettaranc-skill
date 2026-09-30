@@ -66,13 +66,9 @@ def test_no_import_of_market_regime_marketregime():
                 for alias in node.names:
                     if alias.name == "MarketRegime" and alias.name != "MarketRegimeClassifier":
                         offenders.append(
-                            f"{p.relative_to(PROJECT_ROOT)}:{node.lineno}: "
-                            f"from {node.module} import {alias.name}"
+                            f"{p.relative_to(PROJECT_ROOT)}:{node.lineno}: from {node.module} import {alias.name}"
                         )
-    assert not offenders, (
-        "禁止 import 已废弃的 modules.market_regime.MarketRegime;"
-        f"违规:\n  " + "\n  ".join(offenders)
-    )
+    assert not offenders, f"禁止 import 已废弃的 modules.market_regime.MarketRegime;违规:\n  " + "\n  ".join(offenders)
 
 
 def test_core_market_context_market_regime_is_canonical():

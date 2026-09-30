@@ -730,9 +730,7 @@ class AStockDataClient:
                             # 注意顺序：688 先于 6 判断，否则科创板会被误判为主板
                             "market": "科创板"
                             if code.startswith("688")
-                            else (
-                                "创业板" if code.startswith("3") else ("主板" if code.startswith("6") else "其他")
-                            ),
+                            else ("创业板" if code.startswith("3") else ("主板" if code.startswith("6") else "其他")),
                             "list_date": info.get("list_date", ""),
                             "total_share": info.get("total_shares", 0),
                             "float_share": info.get("float_shares", 0),

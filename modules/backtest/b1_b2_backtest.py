@@ -96,7 +96,9 @@ def _run_stock_klines(
             # 活跃市值 CLEAR：无条件清仓
             if _gate(klines[i].trade_date).value == "CLEAR":
                 last = klines[i]
-                pnl_pct = (last.close - current.entry_price) / current.entry_price * 100.0 if current.entry_price else 0.0
+                pnl_pct = (
+                    (last.close - current.entry_price) / current.entry_price * 100.0 if current.entry_price else 0.0
+                )
                 current.exit_date = last.trade_date
                 current.exit_price = last.close
                 current.exit_reason = "活跃市值清仓"

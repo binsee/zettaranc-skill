@@ -9,6 +9,7 @@ DEPRECATED: 此模块保留为兼容性入口，已被 modules.backtest 包替�
 基于 ShaofuLoopEngine 的回测封装，支持单股票和组合回测。
 六步 SOP：择时 -> 选股 -> 等 B1 -> 设止损 -> 止盈(卤煮) -> 离场(BBI两日破位)
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

@@ -181,9 +181,7 @@ def _load_index_klines_sqlite(index_code: str, days: int) -> list[DailyData]:
     return _to_daily_data_list(rows)
 
 
-def _load_market_snapshot_duckdb(
-    con: Any, trade_date: str, weights: Any = None
-) -> dict[str, float]:
+def _load_market_snapshot_duckdb(con: Any, trade_date: str, weights: Any = None) -> dict[str, float]:
     """从 DuckDB 统计指定日期全市场涨跌/成交。
 
     Args:
@@ -441,9 +439,7 @@ def compute_market_timing(
         con = duckdb.connect(duckdb_path, read_only=True)
         try:
             if trade_date is None:
-                trade_date = str(
-                    con.execute("SELECT MAX(CAST(date AS VARCHAR)) FROM v_daily_qfq").fetchone()[0]
-                )
+                trade_date = str(con.execute("SELECT MAX(CAST(date AS VARCHAR)) FROM v_daily_qfq").fetchone()[0])
             klines = _load_index_klines_duckdb(con, index_code, days)
             # DuckDB 通常不包含指数，指数 K 线回退到项目 SQLite
             if not klines:

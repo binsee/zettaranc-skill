@@ -20,6 +20,7 @@
     zt screen --strategy B1 --limit 20 --json
     zt backtest shaofu 600487.SH --days 250 --json
 """
+
 from __future__ import annotations
 
 import argparse

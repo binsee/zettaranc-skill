@@ -123,6 +123,7 @@ class LoopTrade:
     - 仓位管理：卤煮减仓记录、实际仓位比例
     - 市场环境：入场时的市场状态（BULL/BEAR/SIDEWAYS）
     """
+
     ts_code: str
     entry_date: str
     entry_price: float
@@ -819,7 +820,9 @@ class ShaofuLoopEngine:
         if j_val >= 55:
             return None
         day1, day2, day3, day4 = klines[-5], klines[-4], klines[-3], klines[-2]
-        if not (day1.close > day1.open and day2.close < day2.open and day3.close < day3.open and day4.close > day4.open):
+        if not (
+            day1.close > day1.open and day2.close < day2.open and day3.close < day3.open and day4.close > day4.open
+        ):
             return None
         if day3.close <= 0:
             return None

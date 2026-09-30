@@ -102,9 +102,7 @@ def _read_csv_rows(csv_path: Path) -> list[dict]:
                     }
                 )
             except KeyError as e:
-                logging.getLogger(__name__).warning(
-                    "0AMV CSV 第 %d 行缺字段 %s，已跳过", line_no, e
-                )
+                logging.getLogger(__name__).warning("0AMV CSV 第 %d 行缺字段 %s，已跳过", line_no, e)
                 continue
     return raw_rows
 
@@ -331,10 +329,7 @@ def format_active_market_value(point: ActiveMarketValuePoint) -> str:
         "NEUTRAL": "中性",
     }.get(point.signal, point.signal)
     return (
-        f"活跃市值(0AMV) · {point.date}\n"
-        f"收盘: {point.close:,.2f}\n"
-        f"日环比: {point.pct_chg:+.2f}%\n"
-        f"信号: {signal_text}"
+        f"活跃市值(0AMV) · {point.date}\n收盘: {point.close:,.2f}\n日环比: {point.pct_chg:+.2f}%\n信号: {signal_text}"
     )
 
 

@@ -35,9 +35,7 @@ def test_old_detect_b2_still_importable_with_deprecation():
 
     assert callable(detect_b2)
     doc = (detect_b2.__doc__ or "").lower()
-    assert "deprecat" in doc, (
-        "旧 detect_b2 docstring 必须含 deprecation 警告,提示用户用新 b1_b2"
-    )
+    assert "deprecat" in doc, "旧 detect_b2 docstring 必须含 deprecation 警告,提示用户用新 b1_b2"
     assert "b1_b2" in doc, "deprecation 必须指向新模块 b1_b2"
 
 
@@ -111,9 +109,7 @@ def test_knowledge_doc_documents_b1b2_split():
     """knowledge/advanced-patterns.md 必须有"两套 B2 实现并存"章节,防止未来再混淆。"""
     from pathlib import Path
 
-    md = (Path(__file__).resolve().parent.parent / "knowledge" / "advanced-patterns.md").read_text(
-        encoding="utf-8"
-    )
+    md = (Path(__file__).resolve().parent.parent / "knowledge" / "advanced-patterns.md").read_text(encoding="utf-8")
     assert "B1B2 策略公开 API" in md or "两套 B2 实现并存" in md or "两套 B2 函数并存" in md, (
         "knowledge/advanced-patterns.md 必须有 B1B2 并存说明章节"
     )
